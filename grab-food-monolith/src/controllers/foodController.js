@@ -2,8 +2,10 @@ const { Food } = require("../models");
 
 const normalizeFood = (item) => ({
   id: item.id,
+  categoryId: item.categoryId,
   name: item.name,
   price: Number(item.price),
+  isAvailable: Boolean(item.isAvailable),
 });
 
 exports.getAllFoods = async (req, res) => {
@@ -32,7 +34,7 @@ exports.getFoodById = async (req, res) => {
 
 exports.createFood = async (req, res) => {
   try {
-    const { name, price, categoryId } = req.body;
+    const { name, price, categoryId, isAvailable = true } = req.body;
 
     if (!name || !Number.isFinite(Number(price))) {
       return res.status(400).json({ message: "name and price are required" });
@@ -42,6 +44,7 @@ exports.createFood = async (req, res) => {
       categoryId: Number.isFinite(Number(categoryId)) ? Number(categoryId) : null,
       name: String(name).trim(),
       price: Number(price),
+      isAvailable: typeof isAvailable === "boolean" ? isAvailable : true,
     });
 
     return res.status(201).json({ message: "Created", data: normalizeFood(newFood) });
@@ -53,7 +56,7 @@ exports.createFood = async (req, res) => {
 exports.updateFood = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { name, price } = req.body;
+    const { name, price, categoryId, isAvailable } = req.body;
     const item = await Food.findByPk(id);
 
     if (!item) {
@@ -67,6 +70,8 @@ exports.updateFood = async (req, res) => {
     await item.update({
       name: String(name).trim(),
       price: Number(price),
+      categoryId: categoryId !== undefined && Number.isFinite(Number(categoryId)) ? Number(categoryId) : item.categoryId,
+      isAvailable: typeof isAvailable === "boolean" ? isAvailable : item.isAvailable,
     });
 
     return res.json({ message: "Updated", data: normalizeFood(item) });

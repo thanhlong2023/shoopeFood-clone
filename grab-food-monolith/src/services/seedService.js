@@ -14,42 +14,50 @@ exports.seedIfEmpty = async () => {
   }
 
   const users = await User.bulkCreate([
-    { name: "Long", email: "long@example.com", role: "admin" },
-    { name: "An", email: "an@example.com", role: "customer" },
-    { name: "Minh", email: "minh@example.com", role: "driver" },
+    { fullName: "Long", phone: "0900000010", password: "123456" },
+    { fullName: "An", phone: "0900000011", password: "123456" },
+    { fullName: "Minh", phone: "0900000012", password: "123456" },
   ]);
 
   const restaurants = await Restaurant.bulkCreate([
-    { name: "Pho 24", address: "District 1", rating: 4.6 },
-    { name: "Com Tam 99", address: "District 3", rating: 4.4 },
+    { ownerId: users[0].id, name: "Pho 24", address: "District 1", latitude: 10.77, longitude: 106.69 },
+    { ownerId: users[0].id, name: "Com Tam 99", address: "District 3", latitude: 10.78, longitude: 106.68 },
   ]);
 
   await Food.bulkCreate([
-    { name: "Com ga", price: 35000, restaurantId: restaurants[0].id },
-    { name: "Bun bo", price: 40000, restaurantId: restaurants[1].id },
-    { name: "Tra dao", price: 25000, restaurantId: restaurants[0].id },
+    { name: "Com ga", price: 35000, categoryId: null },
+    { name: "Bun bo", price: 40000, categoryId: null },
+    { name: "Tra dao", price: 25000, categoryId: null },
   ]);
 
   await Order.bulkCreate([
     {
-      customer: "An",
+      orderCode: `ORD-SEED-${Date.now()}-1`,
+      idempotencyKey: `IDEM-SEED-${Date.now()}-1`,
       distanceKm: 2,
-      baseFee: 10000,
+      subtotalAmount: 10000,
       totalAmount: 17000,
-      shippingFee: 17000,
-      status: "PENDING",
-      userId: users[1].id,
+      shippingFee: 7000,
+      statusId: 1,
+      customerId: users[1].id,
       restaurantId: restaurants[0].id,
+      receiverAddress: "District 1",
+      receiverLat: 10.77,
+      receiverLng: 106.69,
     },
     {
-      customer: "Long",
+      orderCode: `ORD-SEED-${Date.now()}-2`,
+      idempotencyKey: `IDEM-SEED-${Date.now()}-2`,
       distanceKm: 3,
-      baseFee: 10000,
+      subtotalAmount: 10000,
       totalAmount: 20500,
-      shippingFee: 20500,
-      status: "DELIVERING",
-      userId: users[0].id,
+      shippingFee: 10500,
+      statusId: 6,
+      customerId: users[0].id,
       restaurantId: restaurants[1].id,
+      receiverAddress: "District 3",
+      receiverLat: 10.78,
+      receiverLng: 106.68,
     },
   ]);
 };

@@ -167,28 +167,42 @@
     <div class="container">
       <div class="card">
         <h1>GrabFood CRUD Tester</h1>
-        <p class="hint">Mot trang duy nhat de test CRUD cho User, Restaurant, Order, Food.</p>
+        <p class="hint" data-i18n="hint">Mot trang duy nhat de test CRUD cho User, Restaurant, Order, Food theo schema DB moi.</p>
 
         <div class="grid">
-          <input id="apiBase" value="http://localhost:3000" placeholder="API base URL" />
-          <button id="reloadBtn" type="button">Reload Tab Hien Tai</button>
+          <input id="apiBase" value="http://localhost:3000" data-i18n-placeholder="apiBasePlaceholder" placeholder="API base URL" />
+          <button id="reloadBtn" type="button" data-i18n="reloadCurrentTab">Reload Tab Hien Tai</button>
+        </div>
+
+        <div class="grid">
+          <select id="languageSelect" aria-label="Language">
+            <option value="vi">Tieng Viet</option>
+            <option value="en">English</option>
+          </select>
+          <div></div>
         </div>
 
         <div class="tabs">
-          <button type="button" class="tab active" data-tab="foods">Foods</button>
-          <button type="button" class="tab" data-tab="users">Users</button>
-          <button type="button" class="tab" data-tab="restaurants">Restaurants</button>
-          <button type="button" class="tab" data-tab="orders">Orders</button>
+          <button type="button" class="tab active" data-tab="foods" data-i18n="tabFoods">Foods</button>
+          <button type="button" class="tab" data-tab="users" data-i18n="tabUsers">Users</button>
+          <button type="button" class="tab" data-tab="restaurants" data-i18n="tabRestaurants">Restaurants</button>
+          <button type="button" class="tab" data-tab="orders" data-i18n="tabOrders">Orders</button>
         </div>
 
         <div id="status" class="status"></div>
 
         <section id="panel-foods" class="panel section active">
-          <h2>Foods</h2>
+          <h2 data-i18n="tabFoods">Foods</h2>
           <form id="form-foods" class="grid-3">
-            <input name="name" required placeholder="Food name" />
-            <input name="price" required type="number" min="1" placeholder="Price" />
-            <button type="submit">Create</button>
+            <input name="name" required data-i18n-placeholder="foodName" placeholder="Food name" />
+            <input name="price" required type="number" min="1" data-i18n-placeholder="price" placeholder="Price" />
+            <button type="submit" data-i18n="create">Create</button>
+            <input name="categoryId" type="number" min="1" data-i18n-placeholder="categoryIdOptional" placeholder="Category ID (optional)" />
+            <select name="isAvailable">
+              <option value="1" data-i18n="available">Available</option>
+              <option value="0" data-i18n="unavailable">Unavailable</option>
+            </select>
+            <div></div>
           </form>
           <div class="panel-status" id="status-foods"></div>
           <div class="table-wrap">
@@ -200,21 +214,15 @@
         </section>
 
         <section id="panel-users" class="panel section">
-          <h2>Users</h2>
+          <h2 data-i18n="tabUsers">Users</h2>
           <form id="form-users" class="grid-3">
-            <input name="name" required placeholder="Name" />
-            <input name="email" required placeholder="Email" />
-            <button type="submit">Create</button>
+            <input name="fullName" required data-i18n-placeholder="fullName" placeholder="Full name" />
+            <input name="phone" required data-i18n-placeholder="phone" placeholder="Phone" />
+            <button type="submit" data-i18n="create">Create</button>
+            <input name="password" data-i18n-placeholder="passwordDefault" placeholder="Password (default 123456)" />
+            <input name="ratingAvg" type="number" min="1" max="5" step="0.01" value="5" />
+            <div></div>
           </form>
-          <div class="grid-3">
-            <select id="user-role">
-              <option value="customer">customer</option>
-              <option value="driver">driver</option>
-              <option value="admin">admin</option>
-            </select>
-            <div></div>
-            <div></div>
-          </div>
           <div class="panel-status" id="status-users"></div>
           <div class="table-wrap">
             <table>
@@ -225,17 +233,21 @@
         </section>
 
         <section id="panel-restaurants" class="panel section">
-          <h2>Restaurants</h2>
+          <h2 data-i18n="tabRestaurants">Restaurants</h2>
           <form id="form-restaurants" class="grid-3">
-            <input name="name" required placeholder="Restaurant name" />
-            <input name="address" required placeholder="Address" />
-            <button type="submit">Create</button>
+            <input name="name" required data-i18n-placeholder="restaurantName" placeholder="Restaurant name" />
+            <input name="address" required data-i18n-placeholder="address" placeholder="Address" />
+            <button type="submit" data-i18n="create">Create</button>
+            <input name="ownerId" required type="number" min="1" data-i18n-placeholder="ownerId" placeholder="Owner ID" />
+            <input name="latitude" required type="number" step="0.000001" data-i18n-placeholder="latitude" placeholder="Latitude" />
+            <input name="longitude" required type="number" step="0.000001" data-i18n-placeholder="longitude" placeholder="Longitude" />
+            <input name="ratingAvg" type="number" min="1" max="5" step="0.01" value="5" />
+            <select name="isOpen">
+              <option value="1" data-i18n="open">Open</option>
+              <option value="0" data-i18n="closed">Closed</option>
+            </select>
+            <input name="imageUrl" data-i18n-placeholder="imageUrlOptional" placeholder="Image URL (optional)" />
           </form>
-          <div class="grid-3">
-            <input id="restaurant-rating" type="number" min="1" max="5" step="0.1" value="4" />
-            <div></div>
-            <div></div>
-          </div>
           <div class="panel-status" id="status-restaurants"></div>
           <div class="table-wrap">
             <table>
@@ -246,30 +258,35 @@
         </section>
 
         <section id="panel-orders" class="panel section">
-          <h2>Orders</h2>
+          <h2 data-i18n="tabOrders">Orders</h2>
           <form id="form-orders" class="grid-3">
-            <input name="customerId" required type="number" min="1" placeholder="Customer ID" />
-            <input name="restaurantId" required type="number" min="1" placeholder="Restaurant ID" />
-            <button type="submit">Create</button>
-            <input name="distanceKm" required type="number" min="0" step="0.1" placeholder="Distance km" />
-            <input name="receiverAddress" required placeholder="Receiver address" />
+            <input name="customerId" required type="number" min="1" data-i18n-placeholder="customerId" placeholder="Customer ID" />
+            <input name="restaurantId" required type="number" min="1" data-i18n-placeholder="restaurantId" placeholder="Restaurant ID" />
+            <button type="submit" data-i18n="create">Create</button>
+            <input name="distanceKm" required type="number" min="0" step="0.1" data-i18n-placeholder="distanceKm" placeholder="Distance km" />
+            <input name="receiverAddress" required data-i18n-placeholder="receiverAddress" placeholder="Receiver address" />
             <div></div>
-            <input name="receiverLat" required type="number" step="0.000001" placeholder="Receiver lat" />
-            <input name="receiverLng" required type="number" step="0.000001" placeholder="Receiver lng" />
+            <input name="receiverLat" required type="number" step="0.000001" data-i18n-placeholder="receiverLat" placeholder="Receiver lat" />
+            <input name="receiverLng" required type="number" step="0.000001" data-i18n-placeholder="receiverLng" placeholder="Receiver lng" />
             <input id="order-baseFee" required type="number" min="0" step="1000" value="20000" />
+            <input name="taxAmount" type="number" min="0" step="100" value="0" data-i18n-placeholder="taxAmount" placeholder="Tax amount" />
+            <input name="discountAmount" type="number" min="0" step="100" value="0" data-i18n-placeholder="discountAmount" placeholder="Discount amount" />
+            <input name="driverId" type="number" min="1" data-i18n-placeholder="driverIdOptional" placeholder="Driver ID (optional)" />
+            <input name="voucherId" type="number" min="1" data-i18n-placeholder="voucherIdOptional" placeholder="Voucher ID (optional)" />
+            <input name="orderCode" data-i18n-placeholder="orderCodeOptional" placeholder="Order code (optional)" />
+            <input name="idempotencyKey" data-i18n-placeholder="idempotencyKeyOptional" placeholder="Idempotency key (optional)" />
           </form>
           <div class="grid-3">
-            <select id="order-paymentMethod">
-              <option value="CASH">CASH</option>
-              <option value="E-WALLET">E-WALLET</option>
-            </select>
             <select id="order-status">
               <option value="PENDING">PENDING</option>
+              <option value="DRIVER_ACCEPTED">DRIVER_ACCEPTED</option>
+              <option value="DRIVER_REJECTED">DRIVER_REJECTED</option>
               <option value="CONFIRMED">CONFIRMED</option>
               <option value="PICKING_UP">PICKING_UP</option>
               <option value="DELIVERING">DELIVERING</option>
               <option value="COMPLETED">COMPLETED</option>
               <option value="CANCELLED">CANCELLED</option>
+              <option value="TIMEOUT">TIMEOUT</option>
             </select>
             <div></div>
           </div>
@@ -287,15 +304,149 @@
     <script>
       const apiBaseEl = document.getElementById("apiBase");
       const reloadBtn = document.getElementById("reloadBtn");
+      const languageSelectEl = document.getElementById("languageSelect");
       const statusEl = document.getElementById("status");
       const tabs = document.querySelectorAll(".tab");
       const panels = document.querySelectorAll(".panel");
 
-      const userRoleEl = document.getElementById("user-role");
-      const restaurantRatingEl = document.getElementById("restaurant-rating");
       const orderBaseFeeEl = document.getElementById("order-baseFee");
       const orderStatusEl = document.getElementById("order-status");
-      const orderPaymentMethodEl = document.getElementById("order-paymentMethod");
+
+      const i18n = {
+        vi: {
+          hint: "Mot trang duy nhat de test CRUD cho User, Restaurant, Order, Food theo schema DB moi.",
+          apiBasePlaceholder: "Dia chi API base",
+          reloadCurrentTab: "Tai lai tab hien tai",
+          tabFoods: "Mon an",
+          tabUsers: "Nguoi dung",
+          tabRestaurants: "Nha hang",
+          tabOrders: "Don hang",
+          create: "Tao moi",
+          update: "Cap nhat",
+          edit: "Sua",
+          delete: "Xoa",
+          loading: "Dang tai...",
+          noItems: "Khong co du lieu",
+          loadedItems: "Da tai {{count}} ban ghi",
+          deleted: "Da xoa",
+          created: "Da tao",
+          updated: "Da cap nhat",
+          saveFailed: "Luu that bai",
+          deleteFailed: "Xoa that bai",
+          loadFailed: "Tai that bai",
+          loadItemFailed: "Khong tai duoc ban ghi",
+          cannotConnectApi: "Khong ket noi duoc API",
+          editingItem: "Dang sua ban ghi {{id}}",
+          currentTab: "Tab hien tai: {{tab}}",
+          fieldRequired: "Truong {{field}} la bat buoc",
+          fullName: "Ho va ten",
+          phone: "So dien thoai",
+          passwordDefault: "Mat khau (mac dinh 123456)",
+          foodName: "Ten mon",
+          price: "Gia",
+          categoryIdOptional: "Category ID (tuy chon)",
+          available: "Con ban",
+          unavailable: "Het ban",
+          restaurantName: "Ten nha hang",
+          address: "Dia chi",
+          ownerId: "Owner ID",
+          latitude: "Vi do",
+          longitude: "Kinh do",
+          open: "Dang mo",
+          closed: "Dang dong",
+          imageUrlOptional: "Image URL (tuy chon)",
+          customerId: "Customer ID",
+          restaurantId: "Restaurant ID",
+          distanceKm: "Khoang cach (km)",
+          receiverAddress: "Dia chi nhan hang",
+          receiverLat: "Vi do nguoi nhan",
+          receiverLng: "Kinh do nguoi nhan",
+          taxAmount: "Tien thue",
+          discountAmount: "Tien giam",
+          driverIdOptional: "Driver ID (tuy chon)",
+          voucherIdOptional: "Voucher ID (tuy chon)",
+          orderCodeOptional: "Ma don (tuy chon)",
+          idempotencyKeyOptional: "Idempotency key (tuy chon)",
+        },
+        en: {
+          hint: "Single page to test CRUD for User, Restaurant, Order, and Food with the new DB schema.",
+          apiBasePlaceholder: "API base URL",
+          reloadCurrentTab: "Reload Current Tab",
+          tabFoods: "Foods",
+          tabUsers: "Users",
+          tabRestaurants: "Restaurants",
+          tabOrders: "Orders",
+          create: "Create",
+          update: "Update",
+          edit: "Edit",
+          delete: "Delete",
+          loading: "Loading...",
+          noItems: "No items found",
+          loadedItems: "Loaded {{count}} item(s)",
+          deleted: "Deleted",
+          created: "Created",
+          updated: "Updated",
+          saveFailed: "Save failed",
+          deleteFailed: "Delete failed",
+          loadFailed: "Load failed",
+          loadItemFailed: "Load item failed",
+          cannotConnectApi: "Cannot connect API",
+          editingItem: "Editing item {{id}}",
+          currentTab: "Current tab: {{tab}}",
+          fieldRequired: "Field {{field}} is required",
+          fullName: "Full name",
+          phone: "Phone",
+          passwordDefault: "Password (default 123456)",
+          foodName: "Food name",
+          price: "Price",
+          categoryIdOptional: "Category ID (optional)",
+          available: "Available",
+          unavailable: "Unavailable",
+          restaurantName: "Restaurant name",
+          address: "Address",
+          ownerId: "Owner ID",
+          latitude: "Latitude",
+          longitude: "Longitude",
+          open: "Open",
+          closed: "Closed",
+          imageUrlOptional: "Image URL (optional)",
+          customerId: "Customer ID",
+          restaurantId: "Restaurant ID",
+          distanceKm: "Distance km",
+          receiverAddress: "Receiver address",
+          receiverLat: "Receiver lat",
+          receiverLng: "Receiver lng",
+          taxAmount: "Tax amount",
+          discountAmount: "Discount amount",
+          driverIdOptional: "Driver ID (optional)",
+          voucherIdOptional: "Voucher ID (optional)",
+          orderCodeOptional: "Order code (optional)",
+          idempotencyKeyOptional: "Idempotency key (optional)",
+        },
+      };
+
+      let currentLang = "vi";
+
+      function t(key, vars = {}) {
+        const dict = i18n[currentLang] || i18n.en;
+        let text = dict[key] || key;
+        Object.keys(vars).forEach((name) => {
+          text = text.replace(`{{${name}}}`, String(vars[name]));
+        });
+        return text;
+      }
+
+      function applyLanguage(lang) {
+        currentLang = i18n[lang] ? lang : "vi";
+        document.querySelectorAll("[data-i18n]").forEach((node) => {
+          const key = node.getAttribute("data-i18n");
+          node.textContent = t(key);
+        });
+        document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+          const key = node.getAttribute("data-i18n-placeholder");
+          node.placeholder = t(key);
+        });
+      }
 
       const resources = {
         foods: {
@@ -309,10 +460,14 @@
           toPayload: (form) => ({
             name: form.elements.name.value.trim(),
             price: Number(form.elements.price.value),
+            categoryId: form.elements.categoryId.value ? Number(form.elements.categoryId.value) : null,
+            isAvailable: form.elements.isAvailable.value === "1",
           }),
           fromItemToForm: (form, item) => {
             form.elements.name.value = item.name;
             form.elements.price.value = item.price;
+            form.elements.categoryId.value = item.categoryId ?? "";
+            form.elements.isAvailable.value = item.isAvailable ? "1" : "0";
           },
         },
         users: {
@@ -321,17 +476,19 @@
           head: document.getElementById("head-users"),
           rows: document.getElementById("rows-users"),
           status: document.getElementById("status-users"),
-          fields: ["name", "email"],
-          fallbackKeys: ["id", "name", "email", "role"],
+          fields: ["fullName", "phone"],
+          fallbackKeys: ["id", "fullName", "phone", "ratingAvg", "createdAt"],
           toPayload: (form) => ({
-            name: form.elements.name.value.trim(),
-            email: form.elements.email.value.trim(),
-            role: userRoleEl.value,
+            fullName: form.elements.fullName.value.trim(),
+            phone: form.elements.phone.value.trim(),
+            password: form.elements.password.value.trim() || "123456",
+            ratingAvg: Number(form.elements.ratingAvg.value),
           }),
           fromItemToForm: (form, item) => {
-            form.elements.name.value = item.name;
-            form.elements.email.value = item.email;
-            userRoleEl.value = item.role || "customer";
+            form.elements.fullName.value = item.fullName || "";
+            form.elements.phone.value = item.phone || "";
+            form.elements.password.value = "";
+            form.elements.ratingAvg.value = item.ratingAvg ?? 5;
           },
         },
         restaurants: {
@@ -340,17 +497,27 @@
           head: document.getElementById("head-restaurants"),
           rows: document.getElementById("rows-restaurants"),
           status: document.getElementById("status-restaurants"),
-          fields: ["name", "address"],
-          fallbackKeys: ["id", "name", "address", "rating", "ownerId", "latitude", "longitude", "isOpen", "imageUrl"],
+          fields: ["name", "address", "ownerId", "latitude", "longitude"],
+          fallbackKeys: ["id", "ownerId", "name", "address", "latitude", "longitude", "isOpen", "imageUrl", "ratingAvg"],
           toPayload: (form) => ({
             name: form.elements.name.value.trim(),
             address: form.elements.address.value.trim(),
-            rating: Number(restaurantRatingEl.value),
+            ownerId: Number(form.elements.ownerId.value),
+            latitude: Number(form.elements.latitude.value),
+            longitude: Number(form.elements.longitude.value),
+            ratingAvg: Number(form.elements.ratingAvg.value),
+            isOpen: form.elements.isOpen.value === "1",
+            imageUrl: form.elements.imageUrl.value.trim() || null,
           }),
           fromItemToForm: (form, item) => {
-            form.elements.name.value = item.name;
-            form.elements.address.value = item.address;
-            restaurantRatingEl.value = item.rating || 4;
+            form.elements.name.value = item.name || "";
+            form.elements.address.value = item.address || "";
+            form.elements.ownerId.value = item.ownerId || "";
+            form.elements.latitude.value = item.latitude ?? "";
+            form.elements.longitude.value = item.longitude ?? "";
+            form.elements.ratingAvg.value = item.ratingAvg ?? 5;
+            form.elements.isOpen.value = item.isOpen ? "1" : "0";
+            form.elements.imageUrl.value = item.imageUrl || "";
           },
         },
         orders: {
@@ -366,6 +533,8 @@
             "receiverAddress",
             "receiverLat",
             "receiverLng",
+            "taxAmount",
+            "discountAmount",
           ],
           toPayload: (form) => ({
             customerId: Number(form.elements.customerId.value),
@@ -375,39 +544,64 @@
             receiverLat: Number(form.elements.receiverLat.value),
             receiverLng: Number(form.elements.receiverLng.value),
             baseFee: Number(orderBaseFeeEl.value),
-            paymentMethod: orderPaymentMethodEl.value,
-            status: orderStatusEl.value,
+            taxAmount: Number(form.elements.taxAmount.value || 0),
+            discountAmount: Number(form.elements.discountAmount.value || 0),
+            driverId: form.elements.driverId.value ? Number(form.elements.driverId.value) : null,
+            voucherId: form.elements.voucherId.value ? Number(form.elements.voucherId.value) : null,
+            orderCode: form.elements.orderCode.value.trim() || undefined,
+            idempotencyKey: form.elements.idempotencyKey.value.trim() || undefined,
+            statusCode: orderStatusEl.value,
           }),
           displayOrder: [
             "id",
+            "orderCode",
+            "idempotencyKey",
             "customer",
             "customerId",
             "restaurantId",
+            "driverId",
+            "voucherId",
             "receiverAddress",
             "receiverLat",
             "receiverLng",
             "distanceKm",
+            "subtotalAmount",
             "baseFee",
+            "taxAmount",
+            "discountAmount",
             "shippingFee",
             "totalAmount",
+            "statusId",
+            "statusCode",
+            "statusLabel",
             "status",
-            "paymentMethod",
+            "version",
             "createdAt",
           ],
           fallbackKeys: [
             "id",
+            "orderCode",
+            "idempotencyKey",
             "customer",
             "customerId",
             "restaurantId",
+            "driverId",
+            "voucherId",
             "receiverAddress",
             "receiverLat",
             "receiverLng",
             "distanceKm",
+            "subtotalAmount",
             "baseFee",
+            "taxAmount",
+            "discountAmount",
             "shippingFee",
             "totalAmount",
+            "statusId",
+            "statusCode",
+            "statusLabel",
             "status",
-            "paymentMethod",
+            "version",
             "createdAt",
           ],
           fromItemToForm: (form, item) => {
@@ -418,8 +612,13 @@
             form.elements.receiverLat.value = item.receiverLat ?? "";
             form.elements.receiverLng.value = item.receiverLng ?? "";
             orderBaseFeeEl.value = item.baseFee;
-            orderStatusEl.value = item.status || "PENDING";
-            orderPaymentMethodEl.value = item.paymentMethod || "CASH";
+            form.elements.taxAmount.value = item.taxAmount ?? 0;
+            form.elements.discountAmount.value = item.discountAmount ?? 0;
+            form.elements.driverId.value = item.driverId ?? "";
+            form.elements.voucherId.value = item.voucherId ?? "";
+            form.elements.orderCode.value = item.orderCode || "";
+            form.elements.idempotencyKey.value = item.idempotencyKey || "";
+            orderStatusEl.value = item.statusCode || item.status || "PENDING";
           },
         },
       };
@@ -496,7 +695,7 @@
         resource.head.innerHTML = `
           <tr>
             ${displayKeys.map((field) => `<th>${field}</th>`).join("")}
-            <th>Action</th>
+            <th>${t("edit")}/${t("delete")}</th>
           </tr>
         `;
       }
@@ -507,7 +706,7 @@
             ${displayKeys
               .map((field) => `<td>${formatCellValue(item[field])}</td>`)
               .join("")}
-            <td><div class="actions"><button type="button" data-key="${key}" data-edit="${item.id}">Edit</button><button type="button" class="danger" data-key="${key}" data-delete="${item.id}">Delete</button></div></td>
+            <td><div class="actions"><button type="button" data-key="${key}" data-edit="${item.id}">${t("edit")}</button><button type="button" class="danger" data-key="${key}" data-delete="${item.id}">${t("delete")}</button></div></td>
           </tr>
         `;
       }
@@ -526,17 +725,18 @@
         state.editing[key] = null;
         const form = resources[key].form;
         form.reset();
-        form.querySelector("button[type='submit']").textContent = "Create";
+        form.querySelector("button[type='submit']").textContent = t("create");
         if (key === "orders") {
           orderBaseFeeEl.value = "20000";
           orderStatusEl.value = "PENDING";
-          orderPaymentMethodEl.value = "CASH";
+          form.elements.taxAmount.value = "0";
+          form.elements.discountAmount.value = "0";
         }
       }
 
       async function loadResource(key) {
         const resource = resources[key];
-        setPanelStatus(key, "Loading...");
+        setPanelStatus(key, t("loading"));
         try {
           const response = await fetch(apiUrl(resource.endpoint));
           const payload = await response.json();
@@ -551,13 +751,13 @@
 
           if (list.length === 0) {
             const colSpan = displayKeys.length + 1;
-            resource.rows.innerHTML = `<tr><td colspan="${colSpan}">No items found</td></tr>`;
+            resource.rows.innerHTML = `<tr><td colspan="${colSpan}">${t("noItems")}</td></tr>`;
           } else {
             resource.rows.innerHTML = list.map((item) => rowTemplate(item, key, displayKeys)).join("");
           }
-          setPanelStatus(key, `Loaded ${list.length} item(s)`);
+          setPanelStatus(key, t("loadedItems", { count: list.length }));
         } catch (error) {
-          setPanelStatus(key, error.message || "Cannot connect API", true);
+          setPanelStatus(key, error.message || t("cannotConnectApi"), true);
         }
       }
 
@@ -574,7 +774,7 @@
             payloadData[field] === undefined ||
             Number.isNaN(payloadData[field])
           ) {
-            setPanelStatus(key, `Field ${field} is required`, true);
+            setPanelStatus(key, t("fieldRequired", { field }), true);
             return;
           }
         }
@@ -593,14 +793,14 @@
 
           const payload = await response.json();
           if (!response.ok) {
-            throw new Error(payload.message || "Save failed");
+            throw new Error(payload.message || t("saveFailed"));
           }
 
-          setPanelStatus(key, isUpdate ? "Updated" : "Created");
+          setPanelStatus(key, isUpdate ? t("updated") : t("created"));
           resetForm(key);
           await loadResource(key);
         } catch (error) {
-          setPanelStatus(key, error.message || "Save failed", true);
+          setPanelStatus(key, error.message || t("saveFailed"), true);
         }
       }
 
@@ -611,17 +811,17 @@
           const payload = await response.json();
 
           if (!response.ok) {
-            throw new Error(payload.message || "Delete failed");
+            throw new Error(payload.message || t("deleteFailed"));
           }
 
           if (state.editing[key] === id) {
             resetForm(key);
           }
 
-          setPanelStatus(key, "Deleted");
+          setPanelStatus(key, t("deleted"));
           await loadResource(key);
         } catch (error) {
-          setPanelStatus(key, error.message || "Delete failed", true);
+          setPanelStatus(key, error.message || t("deleteFailed"), true);
         }
       }
 
@@ -632,15 +832,15 @@
           const payload = await response.json();
 
           if (!response.ok) {
-            throw new Error(payload.message || "Load item failed");
+            throw new Error(payload.message || t("loadItemFailed"));
           }
 
           state.editing[key] = id;
           resource.fromItemToForm(resource.form, payload.data);
-          resource.form.querySelector("button[type='submit']").textContent = "Update";
-          setPanelStatus(key, `Editing item ${id}`);
+          resource.form.querySelector("button[type='submit']").textContent = t("update");
+          setPanelStatus(key, t("editingItem", { id }));
         } catch (error) {
-          setPanelStatus(key, error.message || "Load item failed", true);
+          setPanelStatus(key, error.message || t("loadItemFailed"), true);
         }
       }
 
@@ -651,8 +851,16 @@
           const tab = button.getAttribute("data-tab");
           setActiveTab(tab);
           loadResource(tab);
-          setStatus(`Current tab: ${tab}`);
+          setStatus(t("currentTab", { tab }));
         });
+      });
+
+      languageSelectEl.addEventListener("change", () => {
+        applyLanguage(languageSelectEl.value);
+        const activeKey = state.active;
+        if (resources[activeKey]) {
+          loadResource(activeKey);
+        }
       });
 
       Object.keys(resources).forEach((key) => {
@@ -679,6 +887,7 @@
         });
       });
 
+      applyLanguage("vi");
       setStatus("Ready");
       setActiveTab("foods");
       Promise.all(Object.keys(resources).map((key) => loadResource(key)));

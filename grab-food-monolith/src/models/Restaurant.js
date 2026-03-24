@@ -12,6 +12,7 @@ const Restaurant = sequelize.define(
     longitude: { type: DataTypes.DOUBLE, allowNull: false, defaultValue: 0 },
     isOpen: { type: DataTypes.BOOLEAN, field: "is_open", defaultValue: true },
     imageUrl: { type: DataTypes.STRING, field: "image_url" },
+    ratingAvg: { type: DataTypes.DECIMAL(3, 2), field: "rating_avg", defaultValue: 5.0 },
   },
   {
     tableName: "restaurants",

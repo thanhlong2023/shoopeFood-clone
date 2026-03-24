@@ -1,18 +1,11 @@
 const { User } = require("../models");
 
-const mapRoleToDb = (role = "customer") => {
-  const value = String(role).trim().toUpperCase();
-  if (["CUSTOMER", "DRIVER", "MERCHANT", "ADMIN"].includes(value)) {
-    return value;
-  }
-  return "CUSTOMER";
-};
-
 const normalizeUser = (item) => ({
   id: item.id,
-  name: item.fullName || "",
-  email: item.phone || "",
-  role: String(item.role || "CUSTOMER").toLowerCase(),
+  fullName: item.fullName || "",
+  phone: item.phone || "",
+  ratingAvg: Number(item.ratingAvg || 0),
+  createdAt: item.createdAt,
 });
 
 exports.getProfile = (req, res) => {
@@ -45,17 +38,17 @@ exports.getUserById = async (req, res) => {
 
 exports.createUser = async (req, res) => {
   try {
-    const { name, email, role = "customer" } = req.body;
+    const { fullName, phone, password = "123456", ratingAvg = 5.0 } = req.body;
 
-    if (!name || !email) {
-      return res.status(400).json({ message: "name and email are required" });
+    if (!fullName || !phone) {
+      return res.status(400).json({ message: "fullName and phone are required" });
     }
 
     const newUser = await User.create({
-      fullName: String(name).trim(),
-      phone: String(email).trim(),
-      password: "123456",
-      role: mapRoleToDb(role),
+      fullName: String(fullName).trim(),
+      phone: String(phone).trim(),
+      password: String(password).trim() || "123456",
+      ratingAvg: Number.isFinite(Number(ratingAvg)) ? Number(ratingAvg) : 5.0,
     });
 
     return res.status(201).json({ message: "Created", data: normalizeUser(newUser) });
@@ -67,21 +60,22 @@ exports.createUser = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { name, email, role = "customer" } = req.body;
+    const { fullName, phone, password, ratingAvg } = req.body;
     const item = await User.findByPk(id);
 
     if (!item) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (!name || !email) {
-      return res.status(400).json({ message: "name and email are required" });
+    if (!fullName || !phone) {
+      return res.status(400).json({ message: "fullName and phone are required" });
     }
 
     await item.update({
-      fullName: String(name).trim(),
-      phone: String(email).trim(),
-      role: mapRoleToDb(role),
+      fullName: String(fullName).trim(),
+      phone: String(phone).trim(),
+      password: password !== undefined ? String(password).trim() : item.password,
+      ratingAvg: ratingAvg !== undefined && Number.isFinite(Number(ratingAvg)) ? Number(ratingAvg) : item.ratingAvg,
     });
 
     return res.json({ message: "Updated", data: normalizeUser(item) });

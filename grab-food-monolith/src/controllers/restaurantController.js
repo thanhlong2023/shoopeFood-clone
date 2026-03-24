@@ -1,10 +1,15 @@
-const { Restaurant } = require("../models");
+const { Restaurant, User } = require("../models");
 
 const normalizeRestaurant = (item) => ({
   id: item.id,
+  ownerId: item.ownerId,
   name: item.name,
   address: item.address || "",
-  rating: item.isOpen ? 5 : 4,
+  latitude: Number(item.latitude || 0),
+  longitude: Number(item.longitude || 0),
+  isOpen: Boolean(item.isOpen),
+  imageUrl: item.imageUrl || null,
+  ratingAvg: Number(item.ratingAvg || 0),
 });
 
 exports.listRestaurants = async (req, res) => {
@@ -33,19 +38,27 @@ exports.getRestaurantById = async (req, res) => {
 
 exports.createRestaurant = async (req, res) => {
   try {
-    const { name, address, ownerId, latitude = 0, longitude = 0 } = req.body;
+    const { name, address, ownerId, latitude = 0, longitude = 0, isOpen = true, imageUrl = null, ratingAvg = 5.0 } = req.body;
 
     if (!name || !address) {
       return res.status(400).json({ message: "name and address are required" });
     }
 
+    const normalizedOwnerId = Number(ownerId) || 1;
+    const owner = await User.findByPk(normalizedOwnerId);
+    if (!owner) {
+      return res.status(400).json({ message: "owner not found" });
+    }
+
     const newRestaurant = await Restaurant.create({
-      ownerId: Number(ownerId) || 1,
+      ownerId: normalizedOwnerId,
       name: String(name).trim(),
       address: String(address).trim(),
       latitude: Number.isFinite(Number(latitude)) ? Number(latitude) : 0,
       longitude: Number.isFinite(Number(longitude)) ? Number(longitude) : 0,
-      isOpen: true,
+      isOpen: Boolean(isOpen),
+      imageUrl: imageUrl ? String(imageUrl).trim() : null,
+      ratingAvg: Number.isFinite(Number(ratingAvg)) ? Number(ratingAvg) : 5.0,
     });
 
     return res.status(201).json({ message: "Created", data: normalizeRestaurant(newRestaurant) });
@@ -57,7 +70,7 @@ exports.createRestaurant = async (req, res) => {
 exports.updateRestaurant = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { name, address, latitude, longitude, isOpen } = req.body;
+    const { name, address, ownerId, latitude, longitude, isOpen, imageUrl, ratingAvg } = req.body;
     const item = await Restaurant.findByPk(id);
 
     if (!item) {
@@ -68,12 +81,23 @@ exports.updateRestaurant = async (req, res) => {
       return res.status(400).json({ message: "name and address are required" });
     }
 
+    const nextOwnerId = ownerId !== undefined && Number.isFinite(Number(ownerId)) ? Number(ownerId) : item.ownerId;
+    if (nextOwnerId !== item.ownerId) {
+      const owner = await User.findByPk(nextOwnerId);
+      if (!owner) {
+        return res.status(400).json({ message: "owner not found" });
+      }
+    }
+
     await item.update({
       name: String(name).trim(),
       address: String(address).trim(),
+      ownerId: nextOwnerId,
       latitude: Number.isFinite(Number(latitude)) ? Number(latitude) : item.latitude,
       longitude: Number.isFinite(Number(longitude)) ? Number(longitude) : item.longitude,
       isOpen: typeof isOpen === "boolean" ? isOpen : item.isOpen,
+      imageUrl: imageUrl !== undefined ? (imageUrl ? String(imageUrl).trim() : null) : item.imageUrl,
+      ratingAvg: ratingAvg !== undefined && Number.isFinite(Number(ratingAvg)) ? Number(ratingAvg) : item.ratingAvg,
     });
 
     return res.json({ message: "Updated", data: normalizeRestaurant(item) });

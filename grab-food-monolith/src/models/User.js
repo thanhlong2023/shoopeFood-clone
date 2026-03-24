@@ -8,10 +8,6 @@ const User = sequelize.define(
     fullName: { type: DataTypes.STRING(100), field: "full_name" },
     phone: { type: DataTypes.STRING(15), allowNull: false, unique: true },
     password: { type: DataTypes.STRING(255), allowNull: false },
-    role: {
-      type: DataTypes.ENUM("CUSTOMER", "DRIVER", "MERCHANT", "ADMIN"),
-      defaultValue: "CUSTOMER",
-    },
     ratingAvg: { type: DataTypes.DECIMAL(3, 2), field: "rating_avg", defaultValue: 5.0 },
   },
   {
