@@ -1,0 +1,22 @@
+{
+  "name": "grab-food-monolith",
+  "version": "1.0.0",
+  "description": "GrabFood monolith backend with Express, Sequelize, EJS and Socket.io",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "mysql2": "^3.15.2",
+    "sequelize": "^6.37.5",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

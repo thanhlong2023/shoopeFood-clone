@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GrabFood API Tester</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(120deg, #f8fafc, #eef2ff);
+        color: #0f172a;
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: 28px auto;
+        padding: 0 16px;
+      }
+
+      .card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+      }
+
+      h2 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+
+      .hint {
+        margin: 0 0 16px;
+        color: #475569;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .grid-3 {
+        display: grid;
+        grid-template-columns: 2fr 1fr auto;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+
+      .tab {
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #0f172a;
+      }
+
+      .tab.active {
+        background: #0ea5e9;
+        color: #fff;
+        border-color: #0ea5e9;
+      }
+
+      .panel {
+        display: none;
+      }
+
+      .panel.active {
+        display: block;
+      }
+
+      input,
+      select,
+      button {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        font-size: 14px;
+      }
+
+      button {
+        border: 0;
+        cursor: pointer;
+        color: #fff;
+        background: #0ea5e9;
+      }
+
+      button:hover {
+        filter: brightness(0.95);
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .danger {
+        background: #ef4444;
+      }
+
+      .status {
+        margin: 10px 0;
+        min-height: 22px;
+        font-size: 14px;
+      }
+
+      .panel-status {
+        margin: 8px 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 760px;
+      }
+
+      th,
+      td {
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 10px 6px;
+        white-space: nowrap;
+      }
+
+      .section {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px;
+        margin-top: 8px;
+      }
+
+      .table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+      }
+
+      @media (max-width: 700px) {
+        .grid,
+        .grid-3 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h1>GrabFood CRUD Tester</h1>
+        <p class="hint">Mot trang duy nhat de test CRUD cho User, Restaurant, Order, Food.</p>
+
+        <div class="grid">
+          <input id="apiBase" value="http://localhost:3000" placeholder="API base URL" />
+          <button id="reloadBtn" type="button">Reload Tab Hien Tai</button>
+        </div>
+
+        <div class="tabs">
+          <button type="button" class="tab active" data-tab="foods">Foods</button>
+          <button type="button" class="tab" data-tab="users">Users</button>
+          <button type="button" class="tab" data-tab="restaurants">Restaurants</button>
+          <button type="button" class="tab" data-tab="orders">Orders</button>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <section id="panel-foods" class="panel section active">
+          <h2>Foods</h2>
+          <form id="form-foods" class="grid-3">
+            <input name="name" required placeholder="Food name" />
+            <input name="price" required type="number" min="1" placeholder="Price" />
+            <button type="submit">Create</button>
+          </form>
+          <div class="panel-status" id="status-foods"></div>
+          <div class="table-wrap">
+            <table>
+              <thead id="head-foods"></thead>
+              <tbody id="rows-foods"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="panel-users" class="panel section">
+          <h2>Users</h2>
+          <form id="form-users" class="grid-3">
+            <input name="name" required placeholder="Name" />
+            <input name="email" required placeholder="Email" />
+            <button type="submit">Create</button>
+          </form>
+          <div class="grid-3">
+            <select id="user-role">
+              <option value="customer">customer</option>
+              <option value="driver">driver</option>
+              <option value="admin">admin</option>
+            </select>
+            <div></div>
+            <div></div>
+          </div>
+          <div class="panel-status" id="status-users"></div>
+          <div class="table-wrap">
+            <table>
+              <thead id="head-users"></thead>
+              <tbody id="rows-users"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="panel-restaurants" class="panel section">
+          <h2>Restaurants</h2>
+          <form id="form-restaurants" class="grid-3">
+            <input name="name" required placeholder="Restaurant name" />
+            <input name="address" required placeholder="Address" />
+            <button type="submit">Create</button>
+          </form>
+          <div class="grid-3">
+            <input id="restaurant-rating" type="number" min="1" max="5" step="0.1" value="4" />
+            <div></div>
+            <div></div>
+          </div>
+          <div class="panel-status" id="status-restaurants"></div>
+          <div class="table-wrap">
+            <table>
+              <thead id="head-restaurants"></thead>
+              <tbody id="rows-restaurants"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="panel-orders" class="panel section">
+          <h2>Orders</h2>
+          <form id="form-orders" class="grid-3">
+            <input name="customerId" required type="number" min="1" placeholder="Customer ID" />
+            <input name="restaurantId" required type="number" min="1" placeholder="Restaurant ID" />
+            <button type="submit">Create</button>
+            <input name="distanceKm" required type="number" min="0" step="0.1" placeholder="Distance km" />
+            <input name="receiverAddress" required placeholder="Receiver address" />
+            <div></div>
+            <input name="receiverLat" required type="number" step="0.000001" placeholder="Receiver lat" />
+            <input name="receiverLng" required type="number" step="0.000001" placeholder="Receiver lng" />
+            <input id="order-baseFee" required type="number" min="0" step="1000" value="20000" />
+          </form>
+          <div class="grid-3">
+            <select id="order-paymentMethod">
+              <option value="CASH">CASH</option>
+              <option value="E-WALLET">E-WALLET</option>
+            </select>
+            <select id="order-status">
+              <option value="PENDING">PENDING</option>
+              <option value="CONFIRMED">CONFIRMED</option>
+              <option value="PICKING_UP">PICKING_UP</option>
+              <option value="DELIVERING">DELIVERING</option>
+              <option value="COMPLETED">COMPLETED</option>
+              <option value="CANCELLED">CANCELLED</option>
+            </select>
+            <div></div>
+          </div>
+          <div class="panel-status" id="status-orders"></div>
+          <div class="table-wrap">
+            <table>
+              <thead id="head-orders"></thead>
+              <tbody id="rows-orders"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const apiBaseEl = document.getElementById("apiBase");
+      const reloadBtn = document.getElementById("reloadBtn");
+      const statusEl = document.getElementById("status");
+      const tabs = document.querySelectorAll(".tab");
+      const panels = document.querySelectorAll(".panel");
+
+      const userRoleEl = document.getElementById("user-role");
+      const restaurantRatingEl = document.getElementById("restaurant-rating");
+      const orderBaseFeeEl = document.getElementById("order-baseFee");
+      const orderStatusEl = document.getElementById("order-status");
+      const orderPaymentMethodEl = document.getElementById("order-paymentMethod");
+
+      const resources = {
+        foods: {
+          endpoint: "/api/foods",
+          form: document.getElementById("form-foods"),
+          head: document.getElementById("head-foods"),
+          rows: document.getElementById("rows-foods"),
+          status: document.getElementById("status-foods"),
+          fields: ["name", "price"],
+          fallbackKeys: ["id", "name", "price", "categoryId", "isAvailable"],
+          toPayload: (form) => ({
+            name: form.elements.name.value.trim(),
+            price: Number(form.elements.price.value),
+          }),
+          fromItemToForm: (form, item) => {
+            form.elements.name.value = item.name;
+            form.elements.price.value = item.price;
+          },
+        },
+        users: {
+          endpoint: "/api/users",
+          form: document.getElementById("form-users"),
+          head: document.getElementById("head-users"),
+          rows: document.getElementById("rows-users"),
+          status: document.getElementById("status-users"),
+          fields: ["name", "email"],
+          fallbackKeys: ["id", "name", "email", "role"],
+          toPayload: (form) => ({
+            name: form.elements.name.value.trim(),
+            email: form.elements.email.value.trim(),
+            role: userRoleEl.value,
+          }),
+          fromItemToForm: (form, item) => {
+            form.elements.name.value = item.name;
+            form.elements.email.value = item.email;
+            userRoleEl.value = item.role || "customer";
+          },
+        },
+        restaurants: {
+          endpoint: "/api/restaurants",
+          form: document.getElementById("form-restaurants"),
+          head: document.getElementById("head-restaurants"),
+          rows: document.getElementById("rows-restaurants"),
+          status: document.getElementById("status-restaurants"),
+          fields: ["name", "address"],
+          fallbackKeys: ["id", "name", "address", "rating", "ownerId", "latitude", "longitude", "isOpen", "imageUrl"],
+          toPayload: (form) => ({
+            name: form.elements.name.value.trim(),
+            address: form.elements.address.value.trim(),
+            rating: Number(restaurantRatingEl.value),
+          }),
+          fromItemToForm: (form, item) => {
+            form.elements.name.value = item.name;
+            form.elements.address.value = item.address;
+            restaurantRatingEl.value = item.rating || 4;
+          },
+        },
+        orders: {
+          endpoint: "/api/orders",
+          form: document.getElementById("form-orders"),
+          head: document.getElementById("head-orders"),
+          rows: document.getElementById("rows-orders"),
+          status: document.getElementById("status-orders"),
+          fields: [
+            "customerId",
+            "restaurantId",
+            "distanceKm",
+            "receiverAddress",
+            "receiverLat",
+            "receiverLng",
+          ],
+          toPayload: (form) => ({
+            customerId: Number(form.elements.customerId.value),
+            restaurantId: Number(form.elements.restaurantId.value),
+            distanceKm: Number(form.elements.distanceKm.value),
+            receiverAddress: form.elements.receiverAddress.value.trim(),
+            receiverLat: Number(form.elements.receiverLat.value),
+            receiverLng: Number(form.elements.receiverLng.value),
+            baseFee: Number(orderBaseFeeEl.value),
+            paymentMethod: orderPaymentMethodEl.value,
+            status: orderStatusEl.value,
+          }),
+          displayOrder: [
+            "id",
+            "customer",
+            "customerId",
+            "restaurantId",
+            "receiverAddress",
+            "receiverLat",
+            "receiverLng",
+            "distanceKm",
+            "baseFee",
+            "shippingFee",
+            "totalAmount",
+            "status",
+            "paymentMethod",
+            "createdAt",
+          ],
+          fallbackKeys: [
+            "id",
+            "customer",
+            "customerId",
+            "restaurantId",
+            "receiverAddress",
+            "receiverLat",
+            "receiverLng",
+            "distanceKm",
+            "baseFee",
+            "shippingFee",
+            "totalAmount",
+            "status",
+            "paymentMethod",
+            "createdAt",
+          ],
+          fromItemToForm: (form, item) => {
+            form.elements.customerId.value = item.customerId || "";
+            form.elements.restaurantId.value = item.restaurantId || "";
+            form.elements.distanceKm.value = item.distanceKm;
+            form.elements.receiverAddress.value = item.receiverAddress || "";
+            form.elements.receiverLat.value = item.receiverLat ?? "";
+            form.elements.receiverLng.value = item.receiverLng ?? "";
+            orderBaseFeeEl.value = item.baseFee;
+            orderStatusEl.value = item.status || "PENDING";
+            orderPaymentMethodEl.value = item.paymentMethod || "CASH";
+          },
+        },
+      };
+
+      const state = {
+        active: "foods",
+        editing: {
+          foods: null,
+          users: null,
+          restaurants: null,
+          orders: null,
+        },
+      };
+
+      function apiUrl(path) {
+        return apiBaseEl.value.replace(/\/$/, "") + path;
+      }
+
+      function setStatus(message, isError = false) {
+        statusEl.textContent = message;
+        statusEl.style.color = isError ? "#b91c1c" : "#0f766e";
+      }
+
+      function setPanelStatus(key, message, isError = false) {
+        resources[key].status.textContent = message;
+        resources[key].status.style.color = isError ? "#b91c1c" : "#0f766e";
+      }
+
+      function formatCellValue(value) {
+        if (value === null || value === undefined) {
+          return "";
+        }
+        if (typeof value === "object") {
+          return JSON.stringify(value);
+        }
+        return String(value);
+      }
+
+      function getDisplayKeys(key, list) {
+        const resource = resources[key];
+        const fallback = Array.isArray(resource.fallbackKeys) ? resource.fallbackKeys : [];
+
+        if (Array.isArray(resource.displayOrder) && resource.displayOrder.length > 0) {
+          const inList = resource.displayOrder.filter((field) => list.some((item) => Object.prototype.hasOwnProperty.call(item, field)));
+          const extra = [];
+          list.forEach((item) => {
+            Object.keys(item || {}).forEach((field) => {
+              if (!resource.displayOrder.includes(field) && !extra.includes(field)) {
+                extra.push(field);
+              }
+            });
+          });
+          const combined = [...inList, ...extra];
+          return combined.length > 0 ? combined : fallback;
+        }
+
+        const keySet = new Set();
+        list.forEach((item) => {
+          Object.keys(item || {}).forEach((k) => keySet.add(k));
+        });
+
+        const allKeys = Array.from(keySet);
+        if (allKeys.length === 0 && fallback.length > 0) {
+          return fallback;
+        }
+        if (allKeys.includes("id")) {
+          return ["id", ...allKeys.filter((k) => k !== "id")];
+        }
+        return allKeys;
+      }
+
+      function renderHeader(key, displayKeys) {
+        const resource = resources[key];
+        resource.head.innerHTML = `
+          <tr>
+            ${displayKeys.map((field) => `<th>${field}</th>`).join("")}
+            <th>Action</th>
+          </tr>
+        `;
+      }
+
+      function rowTemplate(item, key, displayKeys) {
+        return `
+          <tr>
+            ${displayKeys
+              .map((field) => `<td>${formatCellValue(item[field])}</td>`)
+              .join("")}
+            <td><div class="actions"><button type="button" data-key="${key}" data-edit="${item.id}">Edit</button><button type="button" class="danger" data-key="${key}" data-delete="${item.id}">Delete</button></div></td>
+          </tr>
+        `;
+      }
+
+      function setActiveTab(tab) {
+        state.active = tab;
+        tabs.forEach((button) => {
+          button.classList.toggle("active", button.getAttribute("data-tab") === tab);
+        });
+        panels.forEach((panel) => {
+          panel.classList.toggle("active", panel.id === `panel-${tab}`);
+        });
+      }
+
+      function resetForm(key) {
+        state.editing[key] = null;
+        const form = resources[key].form;
+        form.reset();
+        form.querySelector("button[type='submit']").textContent = "Create";
+        if (key === "orders") {
+          orderBaseFeeEl.value = "20000";
+          orderStatusEl.value = "PENDING";
+          orderPaymentMethodEl.value = "CASH";
+        }
+      }
+
+      async function loadResource(key) {
+        const resource = resources[key];
+        setPanelStatus(key, "Loading...");
+        try {
+          const response = await fetch(apiUrl(resource.endpoint));
+          const payload = await response.json();
+
+          if (!response.ok) {
+            throw new Error(payload.message || "Load failed");
+          }
+
+          const list = payload.data || [];
+          const displayKeys = getDisplayKeys(key, list);
+          renderHeader(key, displayKeys);
+
+          if (list.length === 0) {
+            const colSpan = displayKeys.length + 1;
+            resource.rows.innerHTML = `<tr><td colspan="${colSpan}">No items found</td></tr>`;
+          } else {
+            resource.rows.innerHTML = list.map((item) => rowTemplate(item, key, displayKeys)).join("");
+          }
+          setPanelStatus(key, `Loaded ${list.length} item(s)`);
+        } catch (error) {
+          setPanelStatus(key, error.message || "Cannot connect API", true);
+        }
+      }
+
+      async function createOrUpdate(event, key) {
+        event.preventDefault();
+        const resource = resources[key];
+        const form = resource.form;
+        const payloadData = resource.toPayload(form);
+
+        for (const field of resource.fields) {
+          if (
+            payloadData[field] === "" ||
+            payloadData[field] === null ||
+            payloadData[field] === undefined ||
+            Number.isNaN(payloadData[field])
+          ) {
+            setPanelStatus(key, `Field ${field} is required`, true);
+            return;
+          }
+        }
+
+        const isUpdate = state.editing[key] !== null;
+        const endpoint = isUpdate ? `${resource.endpoint}/${state.editing[key]}` : resource.endpoint;
+        const method = isUpdate ? "PUT" : "POST";
+        const bodyPayload = payloadData;
+
+        try {
+          const response = await fetch(apiUrl(endpoint), {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(bodyPayload),
+          });
+
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.message || "Save failed");
+          }
+
+          setPanelStatus(key, isUpdate ? "Updated" : "Created");
+          resetForm(key);
+          await loadResource(key);
+        } catch (error) {
+          setPanelStatus(key, error.message || "Save failed", true);
+        }
+      }
+
+      async function deleteItem(key, id) {
+        const resource = resources[key];
+        try {
+          const response = await fetch(apiUrl(`${resource.endpoint}/${id}`), { method: "DELETE" });
+          const payload = await response.json();
+
+          if (!response.ok) {
+            throw new Error(payload.message || "Delete failed");
+          }
+
+          if (state.editing[key] === id) {
+            resetForm(key);
+          }
+
+          setPanelStatus(key, "Deleted");
+          await loadResource(key);
+        } catch (error) {
+          setPanelStatus(key, error.message || "Delete failed", true);
+        }
+      }
+
+      async function editItem(key, id) {
+        const resource = resources[key];
+        try {
+          const response = await fetch(apiUrl(`${resource.endpoint}/${id}`));
+          const payload = await response.json();
+
+          if (!response.ok) {
+            throw new Error(payload.message || "Load item failed");
+          }
+
+          state.editing[key] = id;
+          resource.fromItemToForm(resource.form, payload.data);
+          resource.form.querySelector("button[type='submit']").textContent = "Update";
+          setPanelStatus(key, `Editing item ${id}`);
+        } catch (error) {
+          setPanelStatus(key, error.message || "Load item failed", true);
+        }
+      }
+
+      reloadBtn.addEventListener("click", () => loadResource(state.active));
+
+      tabs.forEach((button) => {
+        button.addEventListener("click", () => {
+          const tab = button.getAttribute("data-tab");
+          setActiveTab(tab);
+          loadResource(tab);
+          setStatus(`Current tab: ${tab}`);
+        });
+      });
+
+      Object.keys(resources).forEach((key) => {
+        resources[key].form.addEventListener("submit", (event) => createOrUpdate(event, key));
+      });
+
+      Object.keys(resources).forEach((key) => {
+        resources[key].rows.addEventListener("click", async (event) => {
+          const editId = event.target.getAttribute("data-edit");
+          const deleteId = event.target.getAttribute("data-delete");
+          const targetKey = event.target.getAttribute("data-key");
+
+          if (targetKey !== key) {
+            return;
+          }
+
+          if (editId) {
+            await editItem(key, editId);
+          }
+
+          if (deleteId) {
+            await deleteItem(key, deleteId);
+          }
+        });
+      });
+
+      setStatus("Ready");
+      setActiveTab("foods");
+      Promise.all(Object.keys(resources).map((key) => loadResource(key)));
+    </script>
+  </body>
+</html>
