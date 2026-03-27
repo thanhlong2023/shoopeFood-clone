@@ -1,8 +1,10 @@
 const shippingService = require("../services/shippingService");
-const { Order, User, Restaurant, OrderStatus } = require("../models");
+const { User, Restaurant, OrderStatus } = require("../models");
+const orderRepository = require("../repositories/orderRepository");
+const orderFactory = require("../factories/orderFactory");
 
 const DEFAULT_SHIPPING_BASE_FEE = 20000;
-const DEFAULT_ORDER_STATUS_CODE = "PENDING";
+const DEFAULT_ORDER_STATUS_CODE = orderFactory.DEFAULT_ORDER_STATUS_CODE;
 
 const getBaseFeeFromOrder = (order) => {
   if (order.subtotalAmount !== undefined && order.subtotalAmount !== null) {
@@ -38,23 +40,8 @@ const normalizeOrder = (item) => ({
   createdAt: item.createdAt,
 });
 
-const orderIncludes = [
-  { model: User, as: "customerUser", attributes: ["id", "fullName"] },
-  { model: OrderStatus, as: "statusInfo", attributes: ["id", "code", "label"] },
-];
-
-const buildOrderCode = () => {
-  const now = new Date();
-  const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
-  return `ORD-${datePart}-${Date.now()}`;
-};
-
-const buildIdempotencyKey = () => {
-  return `IDEM-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-};
-
 const resolveStatusByCode = async (statusCode = DEFAULT_ORDER_STATUS_CODE) => {
-  const normalizedCode = String(statusCode || "").trim().toUpperCase() || DEFAULT_ORDER_STATUS_CODE;
+  const normalizedCode = orderFactory.resolveStatusCode(statusCode);
   const status = await OrderStatus.findOne({ where: { code: normalizedCode } });
   if (!status) {
     return null;
@@ -77,6 +64,7 @@ exports.createOrder = async (req, res) => {
       discountAmount = 0,
       taxAmount = 0,
       statusCode = DEFAULT_ORDER_STATUS_CODE,
+      shippingType = "STANDARD",
       orderCode,
       idempotencyKey,
     } = req.body;
@@ -118,13 +106,13 @@ exports.createOrder = async (req, res) => {
     const normalizedSubtotal = Number(baseFee);
     const normalizedDiscount = Number(discountAmount);
     const normalizedTax = Number(taxAmount);
-    const shippingFee = shippingService.calculateShippingFee(normalizedDistance, normalizedSubtotal);
+    const shippingFee = shippingService.calculateShippingFee(normalizedDistance, normalizedSubtotal, shippingType);
     const totalAmount = normalizedSubtotal + shippingFee + normalizedTax - normalizedDiscount;
 
     const [statusInfo, duplicated] = await Promise.all([
       resolveStatusByCode(statusCode),
       idempotencyKey
-        ? Order.findOne({ where: { idempotencyKey: String(idempotencyKey).trim() }, include: orderIncludes })
+        ? orderRepository.findByIdempotencyKey(idempotencyKey)
         : Promise.resolve(null),
     ]);
 
@@ -136,19 +124,16 @@ exports.createOrder = async (req, res) => {
       return res.status(200).json({ message: "Duplicated idempotency key", data: normalizeOrder(duplicated) });
     }
 
-    const normalizedIdempotencyKey = String(idempotencyKey || buildIdempotencyKey()).trim();
-    const normalizedOrderCode = String(orderCode || buildOrderCode()).trim();
-
-    const newOrder = await Order.create({
-      orderCode: normalizedOrderCode,
-      idempotencyKey: normalizedIdempotencyKey,
+    const orderPayload = orderFactory.buildCreatePayload({
+      orderCode,
+      idempotencyKey,
       customerId: user.id,
       restaurantId: restaurant.id,
-      driverId: Number.isFinite(Number(driverId)) ? Number(driverId) : null,
-      voucherId: Number.isFinite(Number(voucherId)) ? Number(voucherId) : null,
-      receiverAddress: String(receiverAddress).trim(),
-      receiverLat: Number(receiverLat),
-      receiverLng: Number(receiverLng),
+      driverId,
+      voucherId,
+      receiverAddress,
+      receiverLat,
+      receiverLng,
       distanceKm: normalizedDistance,
       subtotalAmount: normalizedSubtotal,
       taxAmount: normalizedTax,
@@ -156,12 +141,10 @@ exports.createOrder = async (req, res) => {
       shippingFee,
       discountAmount: normalizedDiscount,
       statusId: statusInfo.id,
-      version: 0,
     });
 
-    const created = await Order.findByPk(newOrder.id, {
-      include: orderIncludes,
-    });
+    const newOrder = await orderRepository.create(orderPayload);
+    const created = await orderRepository.findById(newOrder.id);
 
     return res.status(201).json({
       message: "Created",
@@ -173,10 +156,8 @@ exports.createOrder = async (req, res) => {
 };
 
 exports.getOrders = (req, res) => {
-  return Order.findAll({
-    include: orderIncludes,
-    order: [["created_at", "DESC"]],
-  })
+  return orderRepository
+    .findAll()
     .then((items) => res.json({ data: items.map(normalizeOrder) }))
     .catch((error) => res.status(500).json({ message: error.message }));
 };
@@ -184,9 +165,7 @@ exports.getOrders = (req, res) => {
 exports.getOrderById = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const item = await Order.findByPk(id, {
-      include: orderIncludes,
-    });
+    const item = await orderRepository.findById(id);
 
     if (!item) {
       return res.status(404).json({ message: "Order not found" });
@@ -201,7 +180,7 @@ exports.getOrderById = async (req, res) => {
 exports.updateOrder = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const item = await Order.findByPk(id);
+    const item = await orderRepository.findEntityById(id);
 
     if (!item) {
       return res.status(404).json({ message: "Order not found" });
@@ -219,6 +198,7 @@ exports.updateOrder = async (req, res) => {
       statusCode,
       discountAmount,
       taxAmount,
+      shippingType = "STANDARD",
       driverId,
       voucherId,
       expectedVersion,
@@ -303,18 +283,14 @@ exports.updateOrder = async (req, res) => {
     const nextDiscount = discountAmount !== undefined ? Number(discountAmount) : Number(item.discountAmount || 0);
     const nextTax = taxAmount !== undefined ? Number(taxAmount) : Number(item.taxAmount || 0);
 
-    item.shippingFee = shippingService.calculateShippingFee(normalizedDistance, nextBaseFee);
+    item.shippingFee = shippingService.calculateShippingFee(normalizedDistance, nextBaseFee, shippingType);
     item.subtotalAmount = nextBaseFee;
     item.discountAmount = nextDiscount;
     item.taxAmount = nextTax;
     item.totalAmount = nextBaseFee + Number(item.shippingFee || 0) + nextTax - nextDiscount;
     item.version = Number(item.version || 0) + 1;
 
-    await item.save();
-
-    const latest = await Order.findByPk(id, {
-      include: orderIncludes,
-    });
+    const latest = await orderRepository.save(item);
 
     return res.json({ message: "Updated", data: normalizeOrder(latest || item) });
   } catch (error) {
@@ -322,64 +298,61 @@ exports.updateOrder = async (req, res) => {
   }
 };
 
-exports.updateOrderStatus = (req, res) => {
-  const id = Number(req.params.id);
-  const { status, statusCode, expectedVersion } = req.body;
-
-  return Promise.all([
-    Order.findByPk(id),
-    resolveStatusByCode(statusCode !== undefined ? statusCode : status),
-  ])
-    .then(([item, resolvedStatus]) => {
-      if (!item) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-
-      if (!resolvedStatus) {
-        return res.status(400).json({ message: "Invalid statusCode" });
-      }
-
-      if (expectedVersion !== undefined && Number(expectedVersion) !== Number(item.version)) {
-        return res.status(409).json({ message: "Version conflict" });
-      }
-
-      return item
-        .update({
-          statusId: resolvedStatus.id,
-          version: Number(item.version || 0) + 1,
-        })
-        .then(() =>
-          Order.findByPk(id, {
-            include: orderIncludes,
-          }).then((latest) =>
-            res.json({
-              message: "Updated",
-              data: normalizeOrder(latest),
-            })
-          )
-        );
-    })
-    .catch((error) => res.status(500).json({ message: error.message }));
-};
-
-exports.deleteOrder = async (req, res) => {
+exports.updateOrderStatus = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const item = await Order.findByPk(id);
+    const { status, statusCode, expectedVersion } = req.body;
+
+    const [item, resolvedStatus] = await Promise.all([
+      orderRepository.findEntityById(id),
+      resolveStatusByCode(statusCode !== undefined ? statusCode : status),
+    ]);
 
     if (!item) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    await item.destroy();
-    return res.json({ message: "Deleted", data: { id: item.id } });
+    if (!resolvedStatus) {
+      return res.status(400).json({ message: "Invalid statusCode" });
+    }
+
+    if (expectedVersion !== undefined && Number(expectedVersion) !== Number(item.version)) {
+      return res.status(409).json({ message: "Version conflict" });
+    }
+
+    const latest = await orderRepository.update(item, {
+      statusId: resolvedStatus.id,
+      version: Number(item.version || 0) + 1,
+    });
+
+    return res.json({
+      message: "Updated",
+      data: normalizeOrder(latest),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.deleteOrder = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const item = await orderRepository.findEntityById(id);
+
+    if (!item) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const deleted = await orderRepository.delete(item);
+    return res.json({ message: "Deleted", data: deleted });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 };
 
 exports.getOrdersPage = (req, res) => {
-  return Order.findAll({ include: orderIncludes, order: [["created_at", "DESC"]] })
+  return orderRepository
+    .findAll()
     .then((items) => {
       res.render("orders", {
         orders: items.map(normalizeOrder),

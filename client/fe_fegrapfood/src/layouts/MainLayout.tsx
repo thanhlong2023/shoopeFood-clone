@@ -10,7 +10,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="app-shell">
       <Navbar />
-      <main>{children}</main>
+      <main className="app-main">{children}</main>
       <Footer />
     </div>
   )

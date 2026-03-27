@@ -1,1 +1,1 @@
-export const APP_NAME = 'Shopee Food Clone'
+export const APP_NAME = 'GrabFood Clone'

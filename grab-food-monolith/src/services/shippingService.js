@@ -1,6 +1,8 @@
-exports.calculateShippingFee = (distanceKm, baseFee) => {
-  const validDistance = Number.isFinite(distanceKm) ? distanceKm : 0;
-  const perKmFee = 3500;
+const shippingStrategyFactory = require("./shipping/shippingStrategyFactory");
 
-  return validDistance * perKmFee;
+exports.calculateShippingFee = (distanceKm, baseFee, shippingType = "STANDARD") => {
+  const strategy = shippingStrategyFactory.resolve(shippingType);
+  return strategy.calculate(distanceKm, baseFee);
 };
+
+exports.getSupportedShippingTypes = () => shippingStrategyFactory.listCodes();
