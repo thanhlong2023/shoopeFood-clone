@@ -1,5 +1,6 @@
 const express = require("express");
 const userRoutes = require("./userRoutes");
+const driverRoutes = require("./driverRoutes");
 const orderRoutes = require("./orderRoutes");
 const restaurantRoutes = require("./restaurantRoutes");
 const foodRoutes = require("./foodRoutes");
@@ -19,6 +20,7 @@ router.get("/foods-crud", (req, res) => {
 });
 
 router.use("/api/users", userRoutes);
+router.use("/api/drivers", driverRoutes);
 router.use("/api/orders", orderRoutes);
 router.use("/api/restaurants", restaurantRoutes);
 router.use("/api/foods", foodRoutes);
