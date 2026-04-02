@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Foods CRUD</title>
+    <title>Categories CRUD</title>
     <link rel="stylesheet" href="/css/style.css" />
     <style>
       .row {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr auto;
+        grid-template-columns: 1fr 1fr auto;
         gap: 10px;
         margin-bottom: 12px;
       }
@@ -58,13 +58,12 @@
   <body>
     <div class="container">
       <div class="card">
-        <h1>Foods CRUD</h1>
-        <p>API endpoint: /api/foods</p>
+        <h1>Categories CRUD</h1>
+        <p>API endpoint: /api/categories</p>
 
-        <form id="foodForm" class="row">
-          <input id="name" placeholder="Food name" required />
-          <input id="price" type="number" placeholder="Price" required min="1" />
-          <input id="categoryId" type="number" placeholder="Category ID (optional)" min="1" />
+        <form id="categoryForm" class="row">
+          <input id="name" placeholder="Category name" required />
+          <input id="restaurantId" type="number" placeholder="Restaurant ID" required min="1" />
           <button type="submit">Save</button>
         </form>
 
@@ -75,16 +74,15 @@
             <tr>
               <th>ID</th>
               <th>Name</th>
-              <th>Price</th>
-              <th>Category ID</th>
+              <th>Restaurant ID</th>
               <th>Action</th>
             </tr>
           </thead>
-          <tbody id="foodBody"></tbody>
+          <tbody id="categoryBody"></tbody>
         </table>
       </div>
     </div>
 
-    <script src="/js/foods-crud.js"></script>
+    <script src="/js/categories-crud.js"></script>
   </body>
 </html>

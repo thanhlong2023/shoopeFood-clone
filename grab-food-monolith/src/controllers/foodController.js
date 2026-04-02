@@ -1,4 +1,5 @@
-const { Food } = require("../models");
+const { Op } = require("sequelize");
+const { Food, Category } = require("../models");
 
 const normalizeFood = (item) => ({
   id: item.id,
@@ -10,7 +11,46 @@ const normalizeFood = (item) => ({
 
 exports.getAllFoods = async (req, res) => {
   try {
-    const items = await Food.findAll({ order: [["id", "ASC"]] });
+    const { restaurantId, categoryId, name, isAvailable } = req.query;
+    
+    const whereClause = {};
+    if (categoryId !== undefined) {
+      const parsedCategoryId = Number(categoryId);
+      if (!Number.isFinite(parsedCategoryId)) {
+        return res.status(400).json({ message: "Invalid categoryId" });
+      }
+      whereClause.categoryId = parsedCategoryId;
+    }
+    if (name) {
+      whereClause.name = { [Op.like]: `%${name}%` };
+    }
+    if (isAvailable !== undefined) {
+      if (isAvailable !== 'true' && isAvailable !== 'false') {
+        return res.status(400).json({ message: "isAvailable must be 'true' or 'false'" });
+      }
+      whereClause.isAvailable = isAvailable === 'true';
+    }
+
+    const includeOptions = [];
+    if (restaurantId !== undefined) {
+      const parsedRestaurantId = Number(restaurantId);
+      if (!Number.isFinite(parsedRestaurantId)) {
+        return res.status(400).json({ message: "Invalid restaurantId" });
+      }
+      includeOptions.push({
+        model: Category,
+        as: 'category',
+        where: { restaurantId: parsedRestaurantId },
+        attributes: []
+      });
+    }
+
+    const items = await Food.findAll({ 
+      where: whereClause,
+      include: includeOptions,
+      order: [["id", "ASC"]] 
+    });
+    
     res.json({ data: items.map(normalizeFood) });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -36,14 +76,26 @@ exports.createFood = async (req, res) => {
   try {
     const { name, price, categoryId, isAvailable = true } = req.body;
 
-    if (!name || !Number.isFinite(Number(price))) {
-      return res.status(400).json({ message: "name and price are required" });
+    const trimmedName = typeof name === "string" ? name.trim() : "";
+    const parsedPrice = Number(price);
+
+    if (!trimmedName || !Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      return res.status(400).json({ message: "valid name and non-negative price are required" });
+    }
+
+    let parsedCategoryId = null;
+    if (categoryId !== undefined && categoryId !== null && Number.isFinite(Number(categoryId))) {
+      parsedCategoryId = Number(categoryId);
+      const category = await Category.findByPk(parsedCategoryId);
+      if (!category) {
+        return res.status(400).json({ message: "Category not found" });
+      }
     }
 
     const newFood = await Food.create({
-      categoryId: Number.isFinite(Number(categoryId)) ? Number(categoryId) : null,
-      name: String(name).trim(),
-      price: Number(price),
+      categoryId: parsedCategoryId,
+      name: trimmedName,
+      price: parsedPrice,
       isAvailable: typeof isAvailable === "boolean" ? isAvailable : true,
     });
 
@@ -63,14 +115,45 @@ exports.updateFood = async (req, res) => {
       return res.status(404).json({ message: "Food not found" });
     }
 
-    if (!name || !Number.isFinite(Number(price))) {
-      return res.status(400).json({ message: "name and price are required" });
+    let trimmedName = item.name;
+    if (name !== undefined) {
+      trimmedName = typeof name === "string" ? name.trim() : "";
+      if (!trimmedName) {
+        return res.status(400).json({ message: "name cannot be empty" });
+      }
+    }
+
+    let parsedPrice = item.price;
+    if (price !== undefined) {
+      parsedPrice = Number(price);
+      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+        return res.status(400).json({ message: "price must be non-negative" });
+      }
+    }
+
+    let nextCategoryId = item.categoryId;
+    if (categoryId !== undefined) {
+      if (categoryId === null) {
+        nextCategoryId = null;
+      } else {
+        const parsedCategoryId = Number(categoryId);
+        if (!Number.isFinite(parsedCategoryId)) {
+          return res.status(400).json({ message: "Invalid categoryId" });
+        }
+        nextCategoryId = parsedCategoryId;
+        if (nextCategoryId !== item.categoryId) {
+          const category = await Category.findByPk(nextCategoryId);
+          if (!category) {
+            return res.status(400).json({ message: "Category not found" });
+          }
+        }
+      }
     }
 
     await item.update({
-      name: String(name).trim(),
-      price: Number(price),
-      categoryId: categoryId !== undefined && Number.isFinite(Number(categoryId)) ? Number(categoryId) : item.categoryId,
+      name: trimmedName,
+      price: parsedPrice,
+      categoryId: nextCategoryId,
       isAvailable: typeof isAvailable === "boolean" ? isAvailable : item.isAvailable,
     });
 

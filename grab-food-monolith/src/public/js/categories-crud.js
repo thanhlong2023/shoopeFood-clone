@@ -1,11 +1,10 @@
-const API_URL = "/api/foods";
+const API_URL = "/api/categories";
 
-const foodForm = document.getElementById("foodForm");
-const foodBody = document.getElementById("foodBody");
+const categoryForm = document.getElementById("categoryForm");
+const categoryBody = document.getElementById("categoryBody");
 const statusEl = document.getElementById("status");
 const nameInput = document.getElementById("name");
-const priceInput = document.getElementById("price");
-const categoryIdInput = document.getElementById("categoryId");
+const restaurantIdInput = document.getElementById("restaurantId");
 
 let editingId = null;
 
@@ -14,47 +13,44 @@ const setStatus = (message, isError = false) => {
   statusEl.style.color = isError ? "#b91c1c" : "#374151";
 };
 
-const fetchFoods = async () => {
+const fetchCategories = async () => {
   try {
     const res = await fetch(API_URL);
     const payload = await res.json();
-    renderFoods(payload.data || []);
+    renderCategories(payload.data || []);
   } catch (error) {
-    setStatus("Cannot load foods", true);
+    setStatus("Cannot load categories", true);
   }
 };
 
-const renderFoods = (foods) => {
-  foodBody.innerHTML = "";
+const renderCategories = (categories) => {
+  categoryBody.innerHTML = "";
 
-  foods.forEach((food) => {
+  categories.forEach((category) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${food.id}</td>
-      <td>${food.name}</td>
-      <td>${food.price}</td>
-      <td>${food.categoryId || ''}</td>
+      <td>${category.id}</td>
+      <td>${category.name}</td>
+      <td>${category.restaurantId}</td>
       <td>
         <div class="actions">
-          <button type="button" data-edit="${food.id}">Edit</button>
-          <button type="button" class="btn-danger" data-delete="${food.id}">Delete</button>
+          <button type="button" data-edit="${category.id}">Edit</button>
+          <button type="button" class="btn-danger" data-delete="${category.id}">Delete</button>
         </div>
       </td>
     `;
-    foodBody.appendChild(tr);
+    categoryBody.appendChild(tr);
   });
 };
 
-foodForm.addEventListener("submit", async (event) => {
+categoryForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const name = nameInput.value.trim();
-  const price = Number(priceInput.value);
-  const categoryIdValue = categoryIdInput.value.trim();
-  const categoryId = categoryIdValue ? Number(categoryIdValue) : null;
+  const restaurantId = Number(restaurantIdInput.value);
 
-  if (!name || !Number.isFinite(price)) {
-    setStatus("Please enter valid name and price", true);
+  if (!name || !Number.isFinite(restaurantId)) {
+    setStatus("Please enter valid name and restaurant ID", true);
     return;
   }
 
@@ -65,7 +61,7 @@ foodForm.addEventListener("submit", async (event) => {
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, price, categoryId }),
+      body: JSON.stringify({ name, restaurantId }),
     });
 
     const payload = await res.json();
@@ -77,15 +73,15 @@ foodForm.addEventListener("submit", async (event) => {
 
     setStatus(editingId ? "Updated successfully" : "Created successfully");
     editingId = null;
-    foodForm.querySelector("button[type='submit']").textContent = "Save";
-    foodForm.reset();
-    await fetchFoods();
+    categoryForm.querySelector("button[type='submit']").textContent = "Save";
+    categoryForm.reset();
+    await fetchCategories();
   } catch (error) {
     setStatus("Save failed", true);
   }
 });
 
-foodBody.addEventListener("click", async (event) => {
+categoryBody.addEventListener("click", async (event) => {
   const editId = event.target.getAttribute("data-edit");
   const deleteId = event.target.getAttribute("data-delete");
 
@@ -100,9 +96,8 @@ foodBody.addEventListener("click", async (event) => {
 
       editingId = Number(editId);
       nameInput.value = payload.data.name;
-      priceInput.value = payload.data.price;
-      categoryIdInput.value = payload.data.categoryId || "";
-      foodForm.querySelector("button[type='submit']").textContent = "Update";
+      restaurantIdInput.value = payload.data.restaurantId;
+      categoryForm.querySelector("button[type='submit']").textContent = "Update";
       setStatus(`Editing item #${editingId}`);
     } catch (error) {
       setStatus("Cannot load item", true);
@@ -120,16 +115,16 @@ foodBody.addEventListener("click", async (event) => {
 
       if (editingId === Number(deleteId)) {
         editingId = null;
-        foodForm.querySelector("button[type='submit']").textContent = "Save";
-        foodForm.reset();
+        categoryForm.querySelector("button[type='submit']").textContent = "Save";
+        categoryForm.reset();
       }
 
       setStatus("Deleted successfully");
-      await fetchFoods();
+      await fetchCategories();
     } catch (error) {
       setStatus("Delete failed", true);
     }
   }
 });
 
-fetchFoods();
+fetchCategories();
