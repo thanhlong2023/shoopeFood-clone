@@ -1,9 +1,15 @@
-const { Order, User, OrderStatus, Payment } = require("../models");
+const { Order, User, OrderStatus, Payment, OrderItem, Food } = require("../models");
 
 const orderIncludes = [
   { model: User, as: "customerUser", attributes: ["id", "fullName"] },
   { model: OrderStatus, as: "statusInfo", attributes: ["id", "code", "label"] },
   { model: Payment, as: "payment", attributes: ["id", "paymentMethod", "status", "amount"] },
+  {
+    model: OrderItem,
+    as: "items",
+    attributes: ["id", "orderId", "foodId", "quantity", "priceAtOrder"],
+    include: [{ model: Food, as: "food", attributes: ["id", "name", "price"] }],
+  },
 ];
 
 class OrderRepository {
@@ -11,8 +17,8 @@ class OrderRepository {
     return orderIncludes;
   }
 
-  create(payload) {
-    return Order.create(payload);
+  create(payload, options = {}) {
+    return Order.create(payload, options);
   }
 
   findById(id) {
@@ -40,6 +46,12 @@ class OrderRepository {
     }
     if (filters.restaurantId) {
       where.restaurantId = filters.restaurantId;
+    }
+    if (filters.customerId) {
+      where.customerId = filters.customerId;
+    }
+    if (filters.driverId) {
+      where.driverId = filters.driverId;
     }
     if (filters.fromDate && filters.toDate) {
       where.createdAt = {

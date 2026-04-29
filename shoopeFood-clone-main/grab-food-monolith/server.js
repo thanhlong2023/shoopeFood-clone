@@ -2,7 +2,8 @@ require("dotenv").config();
 const http = require("http");
 const app = require("./src/app");
 const socketManager = require("./src/sockets");
-const { sequelize } = require("./src/models");
+const { initializeDatabase } = require("./src/services/databaseInitializer");
+const { scheduleDailyFoodQuantityReset } = require("./src/services/foodQuantityResetService");
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
@@ -11,8 +12,10 @@ socketManager.init(server);
 
 const bootstrap = async () => {
   try {
-    await sequelize.authenticate();
-    console.log("Database connected successfully");
+    await initializeDatabase();
+    console.log("Database initialized successfully");
+
+    scheduleDailyFoodQuantityReset();
 
     server.listen(PORT, () => {
       console.log(`GrabFood monolith is running at http://localhost:${PORT}`);

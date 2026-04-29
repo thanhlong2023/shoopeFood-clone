@@ -1,13 +1,16 @@
 const { Sequelize } = require("sequelize");
 
+const getEnv = (key, fallbackValue) =>
+  Object.prototype.hasOwnProperty.call(process.env, key) ? process.env[key] : fallbackValue;
+
 const sequelize = new Sequelize(
-  process.env.DB_NAME || "grabfood_db",
-  process.env.DB_USER || "root",
-  process.env.DB_PASSWORD || "Nguyenlevu123@",
+  getEnv("DB_NAME", "grabfood_db"),
+  getEnv("DB_USER", "root"),
+  getEnv("DB_PASSWORD", "123456"),
   {
-    host: process.env.DB_HOST || "localhost",
-    port: Number(process.env.DB_PORT) || 3306,
-    dialect: process.env.DB_DIALECT || "mysql",
+    host: getEnv("DB_HOST", "localhost"),
+    port: Number(getEnv("DB_PORT", 3306)) || 3306,
+    dialect: getEnv("DB_DIALECT", "mysql"),
     logging: false,
   }
 );

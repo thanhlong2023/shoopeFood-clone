@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
+import { AUTH_TOKEN_STORAGE_KEY } from '../../constants/auth'
+
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 
 type RequestOptions = RequestInit & {
   query?: Record<string, string | number | boolean>
@@ -14,6 +16,30 @@ function buildUrl(path: string, query?: RequestOptions['query']) {
   }
 
   return url.toString()
+}
+
+function normalizeHeaders(headers?: HeadersInit) {
+  const normalized: Record<string, string> = {}
+
+  if (!headers) {
+    return normalized
+  }
+
+  if (headers instanceof Headers) {
+    headers.forEach((value, key) => {
+      normalized[key] = value
+    })
+    return normalized
+  }
+
+  if (Array.isArray(headers)) {
+    headers.forEach(([key, value]) => {
+      normalized[key] = value
+    })
+    return normalized
+  }
+
+  return headers
 }
 
 export async function httpGet<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -48,10 +74,19 @@ export async function httpDelete<T>(path: string, options: RequestOptions = {}):
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { query, headers, ...restOptions } = options
+  const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
+  const requestHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  if (token) {
+    requestHeaders.Authorization = `Bearer ${token}`
+  }
+
   const response = await fetch(buildUrl(path, query), {
     headers: {
-      'Content-Type': 'application/json',
-      ...headers,
+      ...requestHeaders,
+      ...normalizeHeaders(headers),
     },
     ...restOptions,
   })

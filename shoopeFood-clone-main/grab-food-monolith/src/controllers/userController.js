@@ -1,12 +1,15 @@
-const { User } = require("../models");
+const { User, Role } = require("../models");
 
 const normalizeUser = (item) => ({
   id: item.id,
   fullName: item.fullName || "",
   phone: item.phone || "",
   ratingAvg: Number(item.ratingAvg || 0),
+  roles: item.roles ? item.roles.map((role) => role.name) : [],
   createdAt: item.createdAt,
 });
+
+const userInclude = [{ model: Role, as: "roles", attributes: ["id", "name"], through: { attributes: [] } }];
 
 exports.getProfile = (req, res) => {
   res.json({ message: "User profile endpoint", user: req.user || null });
@@ -14,7 +17,7 @@ exports.getProfile = (req, res) => {
 
 exports.getUsers = async (req, res) => {
   try {
-    const items = await User.findAll({ order: [["id", "ASC"]] });
+    const items = await User.findAll({ include: userInclude, order: [["id", "ASC"]] });
     res.json({ data: items.map(normalizeUser) });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -24,7 +27,7 @@ exports.getUsers = async (req, res) => {
 exports.getUserById = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const item = await User.findByPk(id);
+    const item = await User.findByPk(id, { include: userInclude });
 
     if (!item) {
       return res.status(404).json({ message: "User not found" });

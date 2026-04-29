@@ -1,15 +1,26 @@
+const { verifyAuthToken } = require("../utils/authToken");
+
 module.exports = (req, res, next) => {
-  const token = req.headers.authorization;
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
 
   if (!token) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  req.user = {
-    id: 1,
-    role: "admin",
-    token,
-  };
+  try {
+    const payload = verifyAuthToken(token);
 
-  next();
+    req.user = {
+      id: Number(payload.sub),
+      phone: payload.phone,
+      role: payload.role,
+      roles: payload.roles || [],
+      token,
+    };
+
+    return next();
+  } catch (error) {
+    return res.status(401).json({ message: error.message || "Unauthorized" });
+  }
 };

@@ -23,10 +23,11 @@ const Order = sequelize.define(
     statusId: { type: DataTypes.INTEGER, allowNull: false, field: "status_id" },
     version: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     deletedAt: { type: DataTypes.DATE, field: "deleted_at" },
+    createdAt: { type: DataTypes.DATE, field: "created_at" },
   },
   {
     tableName: "orders",
-    createdAt: "created_at",
+    timestamps: true,
     updatedAt: false,
   }
 );

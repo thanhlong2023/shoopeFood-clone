@@ -64,12 +64,16 @@ CREATE TABLE IF NOT EXISTS merchant_details (
 CREATE TABLE IF NOT EXISTS driver_locations (
     id         BIGINT  PRIMARY KEY AUTO_INCREMENT,
     driver_id  INT     NOT NULL,
+    order_id   BIGINT  NULL,
     latitude   DOUBLE  NOT NULL,
     longitude  DOUBLE  NOT NULL,
+    heading    DOUBLE  NOT NULL DEFAULT 0,
+    speed_kmh  DOUBLE  NOT NULL DEFAULT 24,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,    -- append-only, không UPDATE
     FOREIGN KEY (driver_id) REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE INDEX idx_driver_locations_driver_id  ON driver_locations(driver_id);
+CREATE INDEX idx_driver_locations_order_id   ON driver_locations(order_id);
 CREATE INDEX idx_driver_locations_created_at ON driver_locations(created_at);
 
 -- ---------------------------------------------------------------------------------
@@ -123,6 +127,9 @@ CREATE TABLE IF NOT EXISTS food_items (
     name         VARCHAR(255),
     price        DECIMAL(10,2),
     is_available BOOLEAN        DEFAULT TRUE,
+    default_quantity INT         NOT NULL DEFAULT 0 CHECK (default_quantity >= 0),
+    current_quantity INT         NOT NULL DEFAULT 0 CHECK (current_quantity >= 0),
+    quantity_reset_date DATE     NULL,
     deleted_at   TIMESTAMP      NULL DEFAULT NULL,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
 );
@@ -272,6 +279,9 @@ CREATE INDEX idx_orders_order_code     ON orders(order_code);
 CREATE INDEX idx_orders_idempotency_key ON orders(idempotency_key);
 CREATE INDEX idx_orders_created_at     ON orders(created_at);
 CREATE INDEX idx_food_items_category   ON food_items(category_id);
+CREATE INDEX idx_food_items_quantity_reset_date ON food_items(quantity_reset_date);
+CREATE INDEX idx_order_items_order_id  ON order_items(order_id);
+CREATE INDEX idx_order_items_food_id   ON order_items(food_id);
 CREATE INDEX idx_categories_restaurant ON categories(restaurant_id);
 
 -- =================================================================================
@@ -346,10 +356,13 @@ INSERT INTO restaurants (owner_id, name, address, latitude, longitude, is_open) 
 INSERT INTO categories (restaurant_id, name) VALUES
 (1,'Mon chinh'),(1,'Nuoc uong'),(2,'Diem tam');
 
-INSERT INTO food_items (category_id, name, price, is_available) VALUES
-(1,'Com Tam Chay', 45000,1),
-(1,'Tra Da',        5000,1),
-(3,'Hu Tieu Nam Vang',55000,1);
+INSERT INTO food_items (
+    category_id, name, price, is_available,
+    default_quantity, current_quantity, quantity_reset_date
+) VALUES
+(1,'Com Tam Chay', 45000,1, 40, 40, CURRENT_DATE),
+(1,'Tra Da',        5000,1,120,120, CURRENT_DATE),
+(3,'Hu Tieu Nam Vang',55000,1, 35, 35, CURRENT_DATE);
 
 -- FIX 3.5 – seed order_statuses (thay ENUM)
 INSERT INTO order_statuses (code, label, sort_order) VALUES
@@ -394,8 +407,8 @@ INSERT INTO order_status_logs (order_id, previous_status, new_status, changed_by
 (1, 'DELIVERING', 'COMPLETED', 2, 'Giao hàng thành công');
 
 -- FIX 3.1 – driver_locations (append-only, không overwrite)
-INSERT INTO driver_locations (driver_id, latitude, longitude) VALUES
-(2, 10.7769, 106.7009);
+INSERT INTO driver_locations (driver_id, order_id, latitude, longitude, heading, speed_kmh) VALUES
+(2, 1, 10.771, 106.649, 90, 24);
 
 INSERT INTO reviews (order_id, customer_id, target_type, target_id, rating, comment) VALUES
 (1, 1, 'RESTAURANT', 1, 5, 'Com tam rat ngon!'),

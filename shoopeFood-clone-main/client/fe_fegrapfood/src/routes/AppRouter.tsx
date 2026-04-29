@@ -1,17 +1,61 @@
 import { Route, Routes } from 'react-router-dom'
+import RequireAuth from '../components/common/RequireAuth'
 import MainLayout from '../layouts/MainLayout'
+import AdminPage from '../pages/AdminPage'
 import HomePage from '../pages/HomePage'
+import DriverPage from '../pages/DriverPage'
+import LoginPage from '../pages/LoginPage'
 import RestaurantListPage from '../pages/RestaurantListPage'
 import RestaurantFormPage from '../pages/RestaurantFormPage'
+import TrackingPage from '../pages/TrackingPage'
 
 export default function AppRouter() {
   return (
     <MainLayout>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/restaurants" element={<RestaurantListPage />} />
-        <Route path="/restaurants/create" element={<RestaurantFormPage />} />
-        <Route path="/restaurants/:id/edit" element={<RestaurantFormPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/tracking" element={<TrackingPage />} />
+        <Route
+          path="/driver"
+          element={
+            <RequireAuth allowedRoles={['DRIVER', 'ADMIN']}>
+              <DriverPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/restaurants"
+          element={
+            <RequireAuth allowedRoles={['MERCHANT', 'ADMIN']}>
+              <RestaurantListPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/restaurants/create"
+          element={
+            <RequireAuth allowedRoles={['MERCHANT', 'ADMIN']}>
+              <RestaurantFormPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/restaurants/:id/edit"
+          element={
+            <RequireAuth allowedRoles={['MERCHANT', 'ADMIN']}>
+              <RestaurantFormPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <RequireAuth allowedRoles={['ADMIN']}>
+              <AdminPage />
+            </RequireAuth>
+          }
+        />
       </Routes>
     </MainLayout>
   )

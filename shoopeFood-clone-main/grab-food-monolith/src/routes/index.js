@@ -1,4 +1,5 @@
 const express = require("express");
+const authRoutes = require("./authRoutes");
 const userRoutes = require("./userRoutes");
 const driverRoutes = require("./driverRoutes");
 const orderRoutes = require("./orderRoutes");
@@ -29,6 +30,7 @@ router.get("/orders-dashboard", (req, res) => {
   res.render("orders-dashboard", { title: "Orders Dashboard" });
 });
 
+router.use("/api/auth", authRoutes);
 router.use("/api/users", userRoutes);
 router.use("/api/drivers", driverRoutes);
 router.use("/api/orders", orderRoutes);

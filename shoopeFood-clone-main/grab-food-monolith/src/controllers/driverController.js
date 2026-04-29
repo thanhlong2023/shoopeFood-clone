@@ -1,4 +1,5 @@
-const { DriverDetail, User, sequelize } = require("../models");
+const { DriverDetail, DriverLocation, Order, User, sequelize } = require("../models");
+const socketManager = require("../sockets");
 
 const normalizeDriver = (item) => {
   const user = item.driverUser || item.User || null;
@@ -16,6 +17,17 @@ const normalizeDriver = (item) => {
 };
 
 const driverInclude = [{ model: User, as: "driverUser", attributes: ["id", "fullName", "phone", "ratingAvg", "createdAt"] }];
+
+const normalizeDriverLocation = (item) => ({
+  id: item.id,
+  driverId: item.driverId,
+  orderId: item.orderId,
+  latitude: Number(item.latitude || 0),
+  longitude: Number(item.longitude || 0),
+  heading: Number(item.heading || 0),
+  speedKmh: Number(item.speedKmh || 0),
+  createdAt: item.createdAt,
+});
 
 exports.getDrivers = async (req, res) => {
   try {
@@ -251,4 +263,102 @@ exports.setDriverOnline = async (req, res) => {
 exports.setDriverOffline = async (req, res) => {
   req.body.isOnline = false;
   return exports.updateDriverOnlineStatus(req, res);
+};
+
+exports.updateDriverLocation = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { orderId, latitude, longitude, heading = 0, speedKmh = 24 } = req.body;
+
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ message: "Invalid driver id" });
+    }
+
+    if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
+      return res.status(400).json({ message: "latitude and longitude are required" });
+    }
+
+    const driver = await DriverDetail.findOne({ where: { userId: id }, include: driverInclude });
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    let normalizedOrderId = null;
+    if (orderId !== undefined && orderId !== null && orderId !== "") {
+      normalizedOrderId = Number(orderId);
+      if (!Number.isFinite(normalizedOrderId)) {
+        return res.status(400).json({ message: "Invalid orderId" });
+      }
+
+      const order = await Order.findByPk(normalizedOrderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      if (order.driverId !== id) {
+        await order.update({ driverId: id });
+      }
+    }
+
+    if (!driver.isOnline) {
+      await driver.update({ isOnline: true });
+    }
+
+    const location = await DriverLocation.create({
+      driverId: id,
+      orderId: normalizedOrderId,
+      latitude: Number(latitude),
+      longitude: Number(longitude),
+      heading: Number.isFinite(Number(heading)) ? Number(heading) : 0,
+      speedKmh: Number.isFinite(Number(speedKmh)) ? Number(speedKmh) : 24,
+    });
+
+    const data = normalizeDriverLocation(location);
+
+    try {
+      socketManager.getIO().emit("driver:location", data);
+      if (normalizedOrderId) {
+        socketManager.getIO().emit(`order:${normalizedOrderId}:driver-location`, data);
+      }
+    } catch (error) {
+      console.log("Socket not ready or err", error.message);
+    }
+
+    return res.status(201).json({ message: "Updated", data });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getLatestDriverLocation = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { orderId } = req.query;
+    const whereClause = { driverId: id };
+
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ message: "Invalid driver id" });
+    }
+
+    if (orderId !== undefined) {
+      const normalizedOrderId = Number(orderId);
+      if (!Number.isFinite(normalizedOrderId)) {
+        return res.status(400).json({ message: "Invalid orderId" });
+      }
+      whereClause.orderId = normalizedOrderId;
+    }
+
+    const item = await DriverLocation.findOne({
+      where: whereClause,
+      order: [["created_at", "DESC"]],
+    });
+
+    if (!item) {
+      return res.status(404).json({ message: "Driver location not found" });
+    }
+
+    return res.json({ data: normalizeDriverLocation(item) });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
 };

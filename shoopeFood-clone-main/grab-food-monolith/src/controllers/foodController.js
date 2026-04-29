@@ -7,10 +7,28 @@ const normalizeFood = (item) => ({
   name: item.name,
   price: Number(item.price),
   isAvailable: Boolean(item.isAvailable),
+  defaultQuantity: Number(item.defaultQuantity || 0),
+  currentQuantity: Number(item.currentQuantity || 0),
+  quantityResetDate: item.quantityResetDate || null,
 });
+
+const parseOptionalNonNegativeInteger = (value, fieldName) => {
+  if (value === undefined) {
+    return { value: undefined };
+  }
+
+  const parsedValue = Number(value);
+  if (!Number.isInteger(parsedValue) || parsedValue < 0) {
+    return { error: `${fieldName} must be a non-negative integer` };
+  }
+
+  return { value: parsedValue };
+};
 
 exports.getAllFoods = async (req, res) => {
   try {
+    await Food.resetExpiredDailyQuantities();
+
     const { restaurantId, categoryId, name, isAvailable } = req.query;
     
     const whereClause = {};
@@ -59,6 +77,8 @@ exports.getAllFoods = async (req, res) => {
 
 exports.getFoodById = async (req, res) => {
   try {
+    await Food.resetExpiredDailyQuantities();
+
     const id = Number(req.params.id);
     const item = await Food.findByPk(id);
 
@@ -74,13 +94,23 @@ exports.getFoodById = async (req, res) => {
 
 exports.createFood = async (req, res) => {
   try {
-    const { name, price, categoryId, isAvailable = true } = req.body;
+    const { name, price, categoryId, isAvailable = true, defaultQuantity = 0, currentQuantity } = req.body;
 
     const trimmedName = typeof name === "string" ? name.trim() : "";
     const parsedPrice = Number(price);
+    const parsedDefaultQuantity = parseOptionalNonNegativeInteger(defaultQuantity, "defaultQuantity");
+    const parsedCurrentQuantity = parseOptionalNonNegativeInteger(currentQuantity, "currentQuantity");
 
     if (!trimmedName || !Number.isFinite(parsedPrice) || parsedPrice < 0) {
       return res.status(400).json({ message: "valid name and non-negative price are required" });
+    }
+
+    if (parsedDefaultQuantity.error) {
+      return res.status(400).json({ message: parsedDefaultQuantity.error });
+    }
+
+    if (parsedCurrentQuantity.error) {
+      return res.status(400).json({ message: parsedCurrentQuantity.error });
     }
 
     let parsedCategoryId = null;
@@ -97,6 +127,9 @@ exports.createFood = async (req, res) => {
       name: trimmedName,
       price: parsedPrice,
       isAvailable: typeof isAvailable === "boolean" ? isAvailable : true,
+      defaultQuantity: parsedDefaultQuantity.value,
+      currentQuantity: parsedCurrentQuantity.value ?? parsedDefaultQuantity.value,
+      quantityResetDate: Food.getStockDate(),
     });
 
     return res.status(201).json({ message: "Created", data: normalizeFood(newFood) });
@@ -107,8 +140,10 @@ exports.createFood = async (req, res) => {
 
 exports.updateFood = async (req, res) => {
   try {
+    await Food.resetExpiredDailyQuantities();
+
     const id = Number(req.params.id);
-    const { name, price, categoryId, isAvailable } = req.body;
+    const { name, price, categoryId, isAvailable, defaultQuantity, currentQuantity } = req.body;
     const item = await Food.findByPk(id);
 
     if (!item) {
@@ -150,11 +185,34 @@ exports.updateFood = async (req, res) => {
       }
     }
 
+    let nextDefaultQuantity = Number(item.defaultQuantity || 0);
+    if (defaultQuantity !== undefined) {
+      const parsedDefaultQuantity = parseOptionalNonNegativeInteger(defaultQuantity, "defaultQuantity");
+      if (parsedDefaultQuantity.error) {
+        return res.status(400).json({ message: parsedDefaultQuantity.error });
+      }
+      nextDefaultQuantity = parsedDefaultQuantity.value;
+    }
+
+    let nextCurrentQuantity = Number(item.currentQuantity || 0);
+    if (currentQuantity !== undefined) {
+      const parsedCurrentQuantity = parseOptionalNonNegativeInteger(currentQuantity, "currentQuantity");
+      if (parsedCurrentQuantity.error) {
+        return res.status(400).json({ message: parsedCurrentQuantity.error });
+      }
+      nextCurrentQuantity = parsedCurrentQuantity.value;
+    } else if (defaultQuantity !== undefined) {
+      nextCurrentQuantity = nextDefaultQuantity;
+    }
+
     await item.update({
       name: trimmedName,
       price: parsedPrice,
       categoryId: nextCategoryId,
       isAvailable: typeof isAvailable === "boolean" ? isAvailable : item.isAvailable,
+      defaultQuantity: nextDefaultQuantity,
+      currentQuantity: nextCurrentQuantity,
+      quantityResetDate: item.quantityResetDate || Food.getStockDate(),
     });
 
     return res.json({ message: "Updated", data: normalizeFood(item) });

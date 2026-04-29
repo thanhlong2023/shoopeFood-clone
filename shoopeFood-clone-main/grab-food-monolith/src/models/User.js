@@ -9,10 +9,11 @@ const User = sequelize.define(
     phone: { type: DataTypes.STRING(15), allowNull: false, unique: true },
     password: { type: DataTypes.STRING(255), allowNull: false },
     ratingAvg: { type: DataTypes.DECIMAL(3, 2), field: "rating_avg", defaultValue: 5.0 },
+    createdAt: { type: DataTypes.DATE, field: "created_at" },
   },
   {
     tableName: "users",
-    createdAt: "created_at",
+    timestamps: true,
     updatedAt: false,
   }
 );

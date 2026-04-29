@@ -7,6 +7,7 @@ const router = express.Router();
 router.post("/secure", auth, orderController.createOrder);
 router.get("/", orderController.getOrders);
 router.get("/page", orderController.getOrdersPage);
+router.get("/:id/tracking", orderController.getOrderTracking);
 router.get("/:id", orderController.getOrderById);
 router.post("/", orderController.createOrder);
 router.put("/:id/status", orderController.updateOrderStatus);

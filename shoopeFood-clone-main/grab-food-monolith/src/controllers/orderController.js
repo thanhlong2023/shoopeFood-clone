@@ -1,5 +1,5 @@
 const shippingService = require("../services/shippingService");
-const { User, Restaurant, OrderStatus } = require("../models");
+const { sequelize, User, DriverDetail, DriverLocation, Restaurant, OrderStatus, Food, Category, OrderItem } = require("../models");
 const orderRepository = require("../repositories/orderRepository");
 const orderFactory = require("../factories/orderFactory");
 const socketManager = require("../sockets");
@@ -13,6 +13,16 @@ const getBaseFeeFromOrder = (order) => {
   }
   return Math.max(0, Number(order.totalAmount || 0) - Number(order.shippingFee || 0));
 };
+
+const normalizeOrderItem = (item) => ({
+  id: item.id,
+  orderId: item.orderId,
+  foodId: item.foodId,
+  foodName: item.food ? item.food.name : null,
+  quantity: Number(item.quantity || 0),
+  priceAtOrder: Number(item.priceAtOrder || 0),
+  lineTotal: Number(item.quantity || 0) * Number(item.priceAtOrder || 0),
+});
 
 const normalizeOrder = (item) => ({
   id: item.id,
@@ -39,6 +49,7 @@ const normalizeOrder = (item) => ({
   statusLabel: item.statusInfo ? item.statusInfo.label : null,
   paymentMethod: item.payment ? item.payment.paymentMethod : null,
   paymentStatus: item.payment ? item.payment.status : null,
+  items: item.items ? item.items.map(normalizeOrderItem) : [],
   version: item.version,
   createdAt: item.createdAt,
 });
@@ -50,6 +61,128 @@ const resolveStatusByCode = async (statusCode = DEFAULT_ORDER_STATUS_CODE) => {
     return null;
   }
   return status;
+};
+
+const createHttpError = (statusCode, message) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
+
+const normalizeRequestedOrderItems = (items) => {
+  if (items === undefined) {
+    return { hasItems: false, items: [] };
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return { error: "items must be a non-empty array" };
+  }
+
+  const itemMap = new Map();
+  for (const item of items) {
+    const foodId = Number(item.foodId);
+    const quantity = Number(item.quantity);
+
+    if (!Number.isInteger(foodId) || foodId <= 0) {
+      return { error: "items.foodId must be a positive integer" };
+    }
+
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      return { error: "items.quantity must be a positive integer" };
+    }
+
+    itemMap.set(foodId, (itemMap.get(foodId) || 0) + quantity);
+  }
+
+  return {
+    hasItems: true,
+    items: Array.from(itemMap.entries()).map(([foodId, quantity]) => ({ foodId, quantity })),
+  };
+};
+
+const normalizeRestaurantForTracking = (item) => {
+  if (!item) {
+    return null;
+  }
+
+  return {
+    id: item.id,
+    name: item.name,
+    address: item.address || "",
+    latitude: Number(item.latitude || 0),
+    longitude: Number(item.longitude || 0),
+    isOpen: Boolean(item.isOpen),
+  };
+};
+
+const normalizeDriverForTracking = (item) => {
+  if (!item) {
+    return null;
+  }
+
+  return {
+    id: item.userId,
+    fullName: item.driverUser ? item.driverUser.fullName || "" : "",
+    phone: item.driverUser ? item.driverUser.phone || "" : "",
+    vehicleType: item.vehicleType || "",
+    licensePlate: item.licensePlate || "",
+    isOnline: Boolean(item.isOnline),
+  };
+};
+
+const normalizeDriverLocation = (item) => {
+  if (!item) {
+    return null;
+  }
+
+  return {
+    id: item.id,
+    driverId: item.driverId,
+    orderId: item.orderId,
+    latitude: Number(item.latitude || 0),
+    longitude: Number(item.longitude || 0),
+    heading: Number(item.heading || 0),
+    speedKmh: Number(item.speedKmh || 0),
+    createdAt: item.createdAt,
+  };
+};
+
+const buildRoutePoints = (from, to, steps = 40) => {
+  const points = [];
+  const fromLat = Number(from.latitude || 0);
+  const fromLng = Number(from.longitude || 0);
+  const toLat = Number(to.latitude || 0);
+  const toLng = Number(to.longitude || 0);
+
+  for (let index = 0; index <= steps; index += 1) {
+    const ratio = index / steps;
+    const curve = Math.sin(ratio * Math.PI) * 0.0025;
+    points.push({
+      latitude: fromLat + (toLat - fromLat) * ratio + curve,
+      longitude: fromLng + (toLng - fromLng) * ratio - curve * 0.65,
+    });
+  }
+
+  return points;
+};
+
+const calculateRouteProgress = (location, routePoints = []) => {
+  if (!location || routePoints.length === 0) {
+    return 0;
+  }
+
+  let nearestIndex = 0;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  routePoints.forEach((point, index) => {
+    const distance = Math.hypot(point.latitude - location.latitude, point.longitude - location.longitude);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestIndex = index;
+    }
+  });
+
+  return Math.round((nearestIndex / Math.max(routePoints.length - 1, 1)) * 100);
 };
 
 exports.createOrder = async (req, res) => {
@@ -70,7 +203,13 @@ exports.createOrder = async (req, res) => {
       shippingType = "STANDARD",
       orderCode,
       idempotencyKey,
+      items,
     } = req.body;
+
+    const requestedItems = normalizeRequestedOrderItems(items);
+    if (requestedItems.error) {
+      return res.status(400).json({ message: requestedItems.error });
+    }
 
     if (!Number.isFinite(Number(customerId)) || !Number.isFinite(Number(restaurantId))) {
       return res.status(400).json({ message: "customerId and restaurantId are required" });
@@ -105,12 +244,14 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ message: "customer or restaurant not found" });
     }
 
+    if (!restaurant.isOpen) {
+      return res.status(400).json({ message: "restaurant is closed" });
+    }
+
     const normalizedDistance = Number(distanceKm);
-    const normalizedSubtotal = Number(baseFee);
+    const fallbackSubtotal = Number(baseFee);
     const normalizedDiscount = Number(discountAmount);
     const normalizedTax = Number(taxAmount);
-    const shippingFee = shippingService.calculateShippingFee(normalizedDistance, normalizedSubtotal, shippingType);
-    const totalAmount = normalizedSubtotal + shippingFee + normalizedTax - normalizedDiscount;
 
     const [statusInfo, duplicated] = await Promise.all([
       resolveStatusByCode(statusCode),
@@ -127,28 +268,90 @@ exports.createOrder = async (req, res) => {
       return res.status(200).json({ message: "Duplicated idempotency key", data: normalizeOrder(duplicated) });
     }
 
-    const orderPayload = orderFactory.buildCreatePayload({
-      orderCode,
-      idempotencyKey,
-      customerId: user.id,
-      restaurantId: restaurant.id,
-      driverId,
-      voucherId,
-      receiverAddress,
-      receiverLat,
-      receiverLng,
-      distanceKm: normalizedDistance,
-      subtotalAmount: normalizedSubtotal,
-      taxAmount: normalizedTax,
-      totalAmount,
-      shippingFee,
-      discountAmount: normalizedDiscount,
-      statusId: statusInfo.id,
+    let createdOrderId = null;
+
+    await sequelize.transaction(async (transaction) => {
+      await Food.resetExpiredDailyQuantities({ transaction });
+
+      let normalizedSubtotal = fallbackSubtotal;
+      const preparedOrderItems = [];
+
+      if (requestedItems.hasItems) {
+        normalizedSubtotal = 0;
+
+        for (const requestedItem of requestedItems.items) {
+          const food = await Food.findByPk(requestedItem.foodId, {
+            include: [{ model: Category, as: "category", attributes: ["id", "restaurantId"] }],
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
+
+          if (!food || !food.category || Number(food.category.restaurantId) !== restaurant.id) {
+            throw createHttpError(400, `Food #${requestedItem.foodId} is not in this restaurant menu`);
+          }
+
+          if (!food.isAvailable) {
+            throw createHttpError(400, `${food.name} is not available`);
+          }
+
+          const availableQuantity = Number(food.currentQuantity || 0);
+          if (availableQuantity < requestedItem.quantity) {
+            throw createHttpError(409, `${food.name} only has ${availableQuantity} item(s) left today`);
+          }
+
+          const priceAtOrder = Number(food.price || 0);
+          normalizedSubtotal += priceAtOrder * requestedItem.quantity;
+          food.currentQuantity = availableQuantity - requestedItem.quantity;
+
+          await food.save({ transaction });
+
+          preparedOrderItems.push({
+            foodId: food.id,
+            quantity: requestedItem.quantity,
+            priceAtOrder,
+          });
+        }
+      }
+
+      const shippingFee = shippingService.calculateShippingFee(normalizedDistance, normalizedSubtotal, shippingType);
+      const totalAmount = Math.max(0, normalizedSubtotal + shippingFee + normalizedTax - normalizedDiscount);
+
+      const orderPayload = orderFactory.buildCreatePayload({
+        orderCode,
+        idempotencyKey,
+        customerId: user.id,
+        restaurantId: restaurant.id,
+        driverId,
+        voucherId,
+        receiverAddress,
+        receiverLat,
+        receiverLng,
+        distanceKm: normalizedDistance,
+        subtotalAmount: normalizedSubtotal,
+        taxAmount: normalizedTax,
+        totalAmount,
+        shippingFee,
+        discountAmount: normalizedDiscount,
+        statusId: statusInfo.id,
+      });
+
+      const newOrder = await orderRepository.create(orderPayload, { transaction });
+
+      if (preparedOrderItems.length > 0) {
+        await OrderItem.bulkCreate(
+          preparedOrderItems.map((item) => ({
+            ...item,
+            orderId: newOrder.id,
+          })),
+          { transaction }
+        );
+      }
+
+      createdOrderId = newOrder.id;
     });
 
-    const newOrder = await orderRepository.create(orderPayload);
-    const created = await orderRepository.findById(newOrder.id);
-    const orderData = normalizeOrder(created || newOrder);
+    const created = await orderRepository.findById(createdOrderId);
+    const orderData = normalizeOrder(created);
 
     // Emit event realtime
     try {
@@ -162,7 +365,7 @@ exports.createOrder = async (req, res) => {
       data: orderData,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(error.statusCode || 500).json({ message: error.message });
   }
 };
 
@@ -175,6 +378,8 @@ exports.getOrders = async (req, res) => {
       if (resolvedStatus) filters.statusId = resolvedStatus.id;
     }
     if (req.query.restaurantId) filters.restaurantId = Number(req.query.restaurantId);
+    if (req.query.customerId) filters.customerId = Number(req.query.customerId);
+    if (req.query.driverId) filters.driverId = Number(req.query.driverId);
     if (req.query.fromDate) filters.fromDate = new Date(req.query.fromDate);
     if (req.query.toDate) filters.toDate = new Date(req.query.toDate);
 
@@ -195,6 +400,70 @@ exports.getOrderById = async (req, res) => {
     }
 
     return res.json({ data: normalizeOrder(item) });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getOrderTracking = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const item = await orderRepository.findById(id);
+
+    if (!item) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const orderData = normalizeOrder(item);
+
+    const [restaurant, driver, latestLocation] = await Promise.all([
+      Restaurant.findByPk(orderData.restaurantId),
+      orderData.driverId
+        ? DriverDetail.findOne({
+            where: { userId: orderData.driverId },
+            include: [{ model: User, as: "driverUser", attributes: ["id", "fullName", "phone", "ratingAvg"] }],
+          })
+        : Promise.resolve(null),
+      orderData.driverId
+        ? DriverLocation.findOne({
+            where: { driverId: orderData.driverId, orderId: orderData.id },
+            order: [["created_at", "DESC"]],
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const restaurantData = normalizeRestaurantForTracking(restaurant);
+    const destination = {
+      latitude: Number(orderData.receiverLat || restaurantData?.latitude || 0),
+      longitude: Number(orderData.receiverLng || restaurantData?.longitude || 0),
+    };
+    const routePoints = restaurantData ? buildRoutePoints(restaurantData, destination) : [];
+    const locationData =
+      normalizeDriverLocation(latestLocation) ||
+      (restaurantData && orderData.driverId
+        ? {
+            id: null,
+            driverId: orderData.driverId,
+            orderId: orderData.id,
+            latitude: restaurantData.latitude,
+            longitude: restaurantData.longitude,
+            heading: 0,
+            speedKmh: 0,
+            createdAt: null,
+          }
+        : null);
+
+    return res.json({
+      data: {
+        order: orderData,
+        restaurant: restaurantData,
+        driver: normalizeDriverForTracking(driver),
+        driverLocation: locationData,
+        destination,
+        routePoints,
+        routeProgress: calculateRouteProgress(locationData, routePoints),
+      },
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -314,8 +583,16 @@ exports.updateOrder = async (req, res) => {
     item.version = Number(item.version || 0) + 1;
 
     const latest = await orderRepository.save(item);
+    const orderData = normalizeOrder(latest || item);
 
-    return res.json({ message: "Updated", data: normalizeOrder(latest || item) });
+    try {
+      socketManager.getIO().emit("order:updated", orderData);
+      socketManager.getIO().emit(`order:${orderData.id}:updated`, orderData);
+    } catch (error) {
+      console.log("Socket not ready or err", error.message);
+    }
+
+    return res.json({ message: "Updated", data: orderData });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -347,10 +624,18 @@ exports.updateOrderStatus = async (req, res) => {
       statusId: resolvedStatus.id,
       version: Number(item.version || 0) + 1,
     });
+    const orderData = normalizeOrder(latest);
+
+    try {
+      socketManager.getIO().emit("order:updated", orderData);
+      socketManager.getIO().emit(`order:${orderData.id}:updated`, orderData);
+    } catch (error) {
+      console.log("Socket not ready or err", error.message);
+    }
 
     return res.json({
       message: "Updated",
-      data: normalizeOrder(latest),
+      data: orderData,
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });
