@@ -1,9 +1,13 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useCreate, useDelete, useList, useUpdate } from '@refinedev/core'
 import type { HttpError } from '@refinedev/core'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { createCategory, deleteCategory, getCategories, updateCategory } from '../services/api/categories'
+import { createFood, deleteFood, getFoods, updateFood } from '../services/api/foods'
+import { getRestaurants } from '../services/api/restaurants'
+import type { Category, Food, Restaurant } from '../types'
 
 type AdminRecord = Record<string, unknown> & {
   id: number | string
@@ -31,7 +35,48 @@ type ResourceConfig = {
   canDelete?: boolean
 }
 
+type MenuFoodForm = {
+  id: number | null
+  name: string
+  price: string
+  categoryId: string
+  defaultQuantity: string
+  currentQuantity: string
+  isAvailable: boolean
+}
+
+type MenuCategoryForm = {
+  id: number | null
+  restaurantId: string
+  name: string
+}
+
+const emptyFoodForm: MenuFoodForm = {
+  id: null,
+  name: '',
+  price: '',
+  categoryId: '',
+  defaultQuantity: '20',
+  currentQuantity: '20',
+  isAvailable: true,
+}
+
+const emptyCategoryForm: MenuCategoryForm = {
+  id: null,
+  restaurantId: '',
+  name: '',
+}
+
 const resourceConfigs: ResourceConfig[] = [
+  {
+    name: 'menu-manager',
+    title: 'Menu',
+    description: 'Quan ly menu theo nha hang, loc danh muc va mon an.',
+    columns: [],
+    fields: [],
+    canCreate: false,
+    canDelete: false,
+  },
   {
     name: 'orders',
     title: 'Don hang',
@@ -362,6 +407,484 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
   )
 }
 
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('vi-VN').format(Math.round(value))
+}
+
+function MenuManagerPanel() {
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [foods, setFoods] = useState<Food[]>([])
+  const [restaurantFilter, setRestaurantFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [availabilityFilter, setAvailabilityFilter] = useState('all')
+  const [foodForm, setFoodForm] = useState<MenuFoodForm>(emptyFoodForm)
+  const [categoryForm, setCategoryForm] = useState<MenuCategoryForm>(emptyCategoryForm)
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSavingFood, setIsSavingFood] = useState(false)
+  const [isSavingCategory, setIsSavingCategory] = useState(false)
+
+  const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
+  const restaurantById = useMemo(() => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant])), [restaurants])
+
+  const visibleCategories = useMemo(() => {
+    if (!restaurantFilter) {
+      return categories
+    }
+
+    return categories.filter((category) => category.restaurantId === Number(restaurantFilter))
+  }, [categories, restaurantFilter])
+
+  const stats = useMemo(() => {
+    const available = foods.filter((food) => food.isAvailable && Number(food.currentQuantity || 0) > 0).length
+    const soldOut = foods.length - available
+    const totalStock = foods.reduce((total, food) => total + Number(food.currentQuantity || 0), 0)
+
+    return { available, soldOut, totalStock }
+  }, [foods])
+
+  async function loadMenuData() {
+    try {
+      setIsLoading(true)
+      setFeedback(null)
+
+      const foodFilters = {
+        ...(restaurantFilter ? { restaurantId: Number(restaurantFilter) } : {}),
+        ...(categoryFilter ? { categoryId: Number(categoryFilter) } : {}),
+        ...(searchTerm.trim() ? { name: searchTerm.trim() } : {}),
+        ...(availabilityFilter !== 'all' ? { isAvailable: availabilityFilter === 'true' } : {}),
+      }
+
+      const [restaurantData, categoryData, foodData] = await Promise.all([getRestaurants(), getCategories(), getFoods(foodFilters)])
+
+      setRestaurants(restaurantData)
+      setCategories(categoryData)
+      setFoods(foodData)
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Khong the tai du lieu menu')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadMenuData()
+  }, [])
+
+  useEffect(() => {
+    setCategoryFilter('')
+    setFoodForm((current) => ({
+      ...current,
+      categoryId: '',
+    }))
+    setCategoryForm((current) => ({
+      ...current,
+      restaurantId: restaurantFilter || current.restaurantId,
+    }))
+  }, [restaurantFilter])
+
+  async function applyFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await loadMenuData()
+  }
+
+  function resetFoodForm() {
+    setFoodForm({
+      ...emptyFoodForm,
+      categoryId: categoryFilter,
+    })
+  }
+
+  function resetCategoryForm() {
+    setCategoryForm({
+      ...emptyCategoryForm,
+      restaurantId: restaurantFilter,
+    })
+  }
+
+  async function handleFoodSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const name = foodForm.name.trim()
+    const price = Number(foodForm.price)
+    const categoryId = foodForm.categoryId ? Number(foodForm.categoryId) : null
+    const defaultQuantity = Number(foodForm.defaultQuantity || 0)
+    const currentQuantity = Number(foodForm.currentQuantity || 0)
+
+    if (!name || !Number.isFinite(price) || price < 0) {
+      setFeedback('Ten mon va gia khong am la bat buoc')
+      return
+    }
+
+    if (!Number.isInteger(defaultQuantity) || defaultQuantity < 0 || !Number.isInteger(currentQuantity) || currentQuantity < 0) {
+      setFeedback('So luong phai la so nguyen khong am')
+      return
+    }
+
+    try {
+      setIsSavingFood(true)
+      setFeedback(null)
+
+      const payload = {
+        name,
+        price,
+        categoryId,
+        defaultQuantity,
+        currentQuantity,
+        isAvailable: foodForm.isAvailable,
+      }
+
+      if (foodForm.id) {
+        await updateFood(foodForm.id, payload)
+        setFeedback(`Da cap nhat mon #${foodForm.id}`)
+      } else {
+        await createFood(payload)
+        setFeedback('Da tao mon moi')
+      }
+
+      resetFoodForm()
+      await loadMenuData()
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Luu mon that bai')
+    } finally {
+      setIsSavingFood(false)
+    }
+  }
+
+  async function handleCategorySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const name = categoryForm.name.trim()
+    const restaurantId = Number(categoryForm.restaurantId)
+
+    if (!name || !Number.isFinite(restaurantId)) {
+      setFeedback('Ten danh muc va Restaurant ID la bat buoc')
+      return
+    }
+
+    try {
+      setIsSavingCategory(true)
+      setFeedback(null)
+
+      if (categoryForm.id) {
+        await updateCategory(categoryForm.id, { name, restaurantId })
+        setFeedback(`Da cap nhat danh muc #${categoryForm.id}`)
+      } else {
+        await createCategory({ name, restaurantId })
+        setFeedback('Da tao danh muc moi')
+      }
+
+      resetCategoryForm()
+      await loadMenuData()
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Luu danh muc that bai')
+    } finally {
+      setIsSavingCategory(false)
+    }
+  }
+
+  async function handleDeleteFood(food: Food) {
+    const confirmed = window.confirm(`Xoa mon ${food.name}?`)
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      setFeedback(null)
+      await deleteFood(food.id)
+      setFeedback(`Da xoa mon #${food.id}`)
+      await loadMenuData()
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Khong the xoa mon')
+    }
+  }
+
+  async function handleDeleteCategory(category: Category) {
+    const confirmed = window.confirm(`Xoa danh muc ${category.name}?`)
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      setFeedback(null)
+      await deleteCategory(category.id)
+      setFeedback(`Da xoa danh muc #${category.id}`)
+      await loadMenuData()
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Khong the xoa danh muc')
+    }
+  }
+
+  return (
+    <div className="menu-manager">
+      <section className="menu-manager-hero">
+        <div>
+          <span className="hero-badge">Nguoi 4</span>
+          <h2>Quan ly menu theo nha hang</h2>
+          <p>CRUD danh muc, CRUD mon an va kiem tra API loc menu theo restaurant, category, ten mon, trang thai ban.</p>
+        </div>
+        <div className="menu-stat-grid">
+          <div>
+            <span>Mon hien thi</span>
+            <strong>{foods.length}</strong>
+          </div>
+          <div>
+            <span>Dang ban</span>
+            <strong>{stats.available}</strong>
+          </div>
+          <div>
+            <span>Het/tam dung</span>
+            <strong>{stats.soldOut}</strong>
+          </div>
+          <div>
+            <span>Ton kho</span>
+            <strong>{stats.totalStock}</strong>
+          </div>
+        </div>
+      </section>
+
+      {feedback ? <p className={feedback.includes('that bai') || feedback.includes('Khong') ? 'app-feedback error' : 'restaurant-feedback success'}>{feedback}</p> : null}
+
+      <form className="menu-filter-bar" onSubmit={(event) => void applyFilters(event)}>
+        <label>
+          <span>Nha hang</span>
+          <select value={restaurantFilter} onChange={(event) => setRestaurantFilter(event.target.value)}>
+            <option value="">Tat ca nha hang</option>
+            {restaurants.map((restaurant) => (
+              <option key={restaurant.id} value={restaurant.id}>
+                #{restaurant.id} - {restaurant.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Danh muc</span>
+          <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+            <option value="">Tat ca danh muc</option>
+            {visibleCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                #{category.id} - {category.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Tim mon</span>
+          <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Nhap ten mon" />
+        </label>
+        <label>
+          <span>Trang thai</span>
+          <select value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value)}>
+            <option value="all">Tat ca</option>
+            <option value="true">Dang ban</option>
+            <option value="false">Tam dung</option>
+          </select>
+        </label>
+        <button type="submit" className="button-primary" disabled={isLoading}>
+          {isLoading ? 'Dang tai...' : 'Loc menu'}
+        </button>
+      </form>
+
+      <div className="menu-manager-layout">
+        <section className="admin-panel menu-list-panel">
+          <div className="admin-panel-head">
+            <div>
+              <h2>Danh sach mon an</h2>
+              <p>Ket qua lay tu GET /api/foods voi query filter dang chon.</p>
+            </div>
+            <button type="button" className="button-secondary" onClick={() => void loadMenuData()} disabled={isLoading}>
+              Reload
+            </button>
+          </div>
+
+          <div className="menu-card-grid">
+            {foods.map((food) => {
+              const category = food.categoryId ? categoryById.get(food.categoryId) : null
+              const restaurant = category ? restaurantById.get(category.restaurantId) : null
+              const isSoldOut = !food.isAvailable || Number(food.currentQuantity || 0) <= 0
+
+              return (
+                <article key={food.id} className={`menu-admin-card ${isSoldOut ? 'sold-out' : ''}`}>
+                  <div className="menu-admin-card-head">
+                    <div>
+                      <span>#{food.id}</span>
+                      <h3>{food.name}</h3>
+                    </div>
+                    <strong>{formatMoney(Number(food.price))} VND</strong>
+                  </div>
+                  <div className="menu-admin-meta">
+                    <span>{restaurant ? restaurant.name : 'Chua gan nha hang'}</span>
+                    <span>{category ? category.name : 'Chua co danh muc'}</span>
+                    <span>{food.isAvailable ? 'Dang ban' : 'Tam dung'}</span>
+                    <span>
+                      {food.currentQuantity}/{food.defaultQuantity} mon
+                    </span>
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() =>
+                        setFoodForm({
+                          id: food.id,
+                          name: food.name,
+                          price: String(food.price),
+                          categoryId: food.categoryId ? String(food.categoryId) : '',
+                          defaultQuantity: String(food.defaultQuantity),
+                          currentQuantity: String(food.currentQuantity),
+                          isAvailable: food.isAvailable,
+                        })
+                      }
+                    >
+                      Edit
+                    </button>
+                    <button type="button" className="button-danger" onClick={() => void handleDeleteFood(food)}>
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+
+          {!isLoading && foods.length === 0 ? <p className="empty-state">Khong co mon phu hop bo loc.</p> : null}
+        </section>
+
+        <aside className="menu-editor-stack">
+          <section className="admin-form-panel">
+            <div className="driver-control-head">
+              <span>{foodForm.id ? `Edit mon #${foodForm.id}` : 'Create food'}</span>
+              <h2>Form them/sua mon</h2>
+              <p>Gui truc tiep vao POST/PUT /api/foods.</p>
+            </div>
+            <form className="admin-form" onSubmit={(event) => void handleFoodSubmit(event)}>
+              <label className="restaurant-field">
+                <span>Ten mon</span>
+                <input value={foodForm.name} onChange={(event) => setFoodForm((current) => ({ ...current, name: event.target.value }))} />
+              </label>
+              <label className="restaurant-field">
+                <span>Gia</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={foodForm.price}
+                  onChange={(event) => setFoodForm((current) => ({ ...current, price: event.target.value }))}
+                />
+              </label>
+              <label className="restaurant-field">
+                <span>Danh muc</span>
+                <select value={foodForm.categoryId} onChange={(event) => setFoodForm((current) => ({ ...current, categoryId: event.target.value }))}>
+                  <option value="">Khong gan danh muc</option>
+                  {visibleCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      #{category.id} - {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="checkout-grid">
+                <label className="restaurant-field">
+                  <span>SL mac dinh</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={foodForm.defaultQuantity}
+                    onChange={(event) => setFoodForm((current) => ({ ...current, defaultQuantity: event.target.value }))}
+                  />
+                </label>
+                <label className="restaurant-field">
+                  <span>SL hien tai</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={foodForm.currentQuantity}
+                    onChange={(event) => setFoodForm((current) => ({ ...current, currentQuantity: event.target.value }))}
+                  />
+                </label>
+              </div>
+              <label className="restaurant-checkbox">
+                <input
+                  type="checkbox"
+                  checked={foodForm.isAvailable}
+                  onChange={(event) => setFoodForm((current) => ({ ...current, isAvailable: event.target.checked }))}
+                />
+                <span>Dang ban</span>
+              </label>
+              <div className="restaurant-form-actions">
+                <button type="submit" className="button-primary" disabled={isSavingFood}>
+                  {isSavingFood ? 'Saving...' : foodForm.id ? 'Save food' : 'Create food'}
+                </button>
+                <button type="button" className="button-secondary" onClick={resetFoodForm}>
+                  Clear
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section className="admin-form-panel">
+            <div className="driver-control-head">
+              <span>{categoryForm.id ? `Edit danh muc #${categoryForm.id}` : 'Create category'}</span>
+              <h2>Danh muc</h2>
+              <p>Tao danh muc cho tung nha hang.</p>
+            </div>
+            <form className="admin-form" onSubmit={(event) => void handleCategorySubmit(event)}>
+              <label className="restaurant-field">
+                <span>Nha hang</span>
+                <select value={categoryForm.restaurantId} onChange={(event) => setCategoryForm((current) => ({ ...current, restaurantId: event.target.value }))}>
+                  <option value="">Chon nha hang</option>
+                  {restaurants.map((restaurant) => (
+                    <option key={restaurant.id} value={restaurant.id}>
+                      #{restaurant.id} - {restaurant.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="restaurant-field">
+                <span>Ten danh muc</span>
+                <input value={categoryForm.name} onChange={(event) => setCategoryForm((current) => ({ ...current, name: event.target.value }))} />
+              </label>
+              <div className="restaurant-form-actions">
+                <button type="submit" className="button-primary" disabled={isSavingCategory}>
+                  {isSavingCategory ? 'Saving...' : categoryForm.id ? 'Save category' : 'Create category'}
+                </button>
+                <button type="button" className="button-secondary" onClick={resetCategoryForm}>
+                  Clear
+                </button>
+              </div>
+            </form>
+
+            <div className="category-mini-list">
+              {visibleCategories.map((category) => (
+                <div key={category.id}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCategoryForm({
+                        id: category.id,
+                        restaurantId: String(category.restaurantId),
+                        name: category.name,
+                      })
+                    }
+                  >
+                    #{category.id} {category.name}
+                  </button>
+                  <button type="button" className="button-danger" onClick={() => void handleDeleteCategory(category)}>
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPage() {
   useDocumentTitle(`${APP_NAME} | Admin`)
 
@@ -405,7 +928,7 @@ export default function AdminPage() {
         ))}
       </div>
 
-      <AdminResourcePanel key={config.name} config={config} />
+      {config.name === 'menu-manager' ? <MenuManagerPanel /> : <AdminResourcePanel key={config.name} config={config} />}
     </section>
   )
 }
