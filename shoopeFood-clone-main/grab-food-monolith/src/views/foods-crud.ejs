@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Foods CRUD</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <style>
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      input,
+      button {
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
+      }
+
+      button {
+        cursor: pointer;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 10px 6px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .btn-danger {
+        background: #dc2626;
+      }
+
+      .status {
+        font-size: 14px;
+        color: #374151;
+        margin: 8px 0 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h1>Foods CRUD</h1>
+        <p>API endpoint: /api/foods</p>
+
+        <form id="foodForm" class="row">
+          <input id="name" placeholder="Food name" required />
+          <input id="price" type="number" placeholder="Price" required min="1" />
+          <input id="categoryId" type="number" placeholder="Category ID (optional)" min="1" />
+          <button type="submit">Save</button>
+        </form>
+
+        <div id="status" class="status"></div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Price</th>
+              <th>Category ID</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="foodBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script src="/js/foods-crud.js"></script>
+  </body>
+</html>

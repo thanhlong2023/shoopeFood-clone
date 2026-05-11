@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    :root {
+      --bg-color: #f3f4f6;
+      --card-bg: #ffffff;
+      --text-color: #1f2937;
+      --text-muted: #6b7280;
+      --border-color: #e5e7eb;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      
+      --status-pending: #ca8a04;
+      --status-pending-bg: #fef08a;
+      --status-success: #15803d;
+      --status-success-bg: #bbf7d0;
+      --status-failed: #b91c1c;
+      --status-failed-bg: #fecaca;
+    }
+
+    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    
+    body {
+      margin: 0; padding: 20px;
+      background-color: var(--bg-color); color: var(--text-color);
+      min-height: 100vh;
+    }
+
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px;
+    }
+    
+    .header h1 { margin: 0; font-size: 24px; color: #111827; }
+
+    .filters-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      display: flex; gap: 16px; align-items: flex-end;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 14px; font-weight: 500; color: var(--text-muted); }
+    .form-group select, .form-group input {
+      padding: 10px 14px; border: 1px solid var(--border-color);
+      border-radius: 8px; font-size: 14px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-group select:focus, .form-group input:focus { border-color: var(--primary); }
+
+    .btn {
+      padding: 10px 20px;
+      background: var(--primary); color: white;
+      border: none; border-radius: 8px; font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: background 0.2s, transform 0.1s;
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:active { transform: scale(0.98); }
+
+    .table-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 16px; text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    th {
+      background: #f9fafb; font-size: 13px; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    td { font-size: 14px; }
+    tr:last-child td { border-bottom: none; }
+    tr { transition: background 0.2s; }
+    tr:hover { background: #f9fafb; }
+
+    .tag {
+      padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600;
+      display: inline-block;
+    }
+    .tag.pending { background: var(--status-pending-bg); color: var(--status-pending); }
+    .tag.success { background: var(--status-success-bg); color: var(--status-success); }
+    .tag.failed { background: var(--status-failed-bg); color: var(--status-failed); }
+
+    /* Modal */
+    .modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      align-items: center; justify-content: center; backdrop-filter: blur(4px);
+    }
+    .modal.active { display: flex; animation: fadeIn 0.2s ease-out; }
+    .modal-content {
+      background: var(--card-bg); width: 400px; padding: 24px;
+      border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      transform: scale(0.95); animation: scaleUp 0.2s forwards;
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-header h2 { margin: 0; font-size: 18px; }
+    .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); }
+
+    /* Animations */
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes scaleUp { to { transform: scale(1); } }
+    
+    .new-row { animation: highlightRow 2s forwards; }
+    @keyframes highlightRow { 0% { background: #e0f2fe; } 100% { background: transparent; } }
+
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-container">
+    <div class="header">
+      <h1>Order Ops Dashboard</h1>
+      <div id="connection-status" style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+        Socket Connected
+      </div>
+    </div>
+
+    <!-- Filtes -->
+    <div class="filters-card">
+      <div class="form-group">
+        <label>Status</label>
+        <select id="filter-status">
+          <option value="">All Statuses</option>
+          <option value="1">Pending</option>
+          <option value="4">Confirmed</option>
+          <option value="6">Delivering</option>
+          <option value="7">Completed</option>
+          <option value="8">Cancelled</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>From Date</label>
+        <input type="date" id="filter-from">
+      </div>
+      <div class="form-group">
+        <label>To Date</label>
+        <input type="date" id="filter-to">
+      </div>
+      <button class="btn" onclick="fetchOrders()">Filter Orders</button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-card">
+      <table id="orders-table">
+        <thead>
+          <tr>
+            <th>Order ID / Code</th>
+            <th>Customer</th>
+            <th>Status</th>
+            <th>Payment</th>
+            <th>Total Amount</th>
+            <th>Created At</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rendered via JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="update-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Update Order Status</h2>
+        <button class="close-btn" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label>New Status</label>
+        <select id="update-status-select">
+          <option value="CONFIRMED">Confirmed</option>
+          <option value="DELIVERING">Delivering</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
+      </div>
+      <input type="hidden" id="update-order-id">
+      <input type="hidden" id="update-order-version">
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="btn" style="background: var(--border-color); color: var(--text-color);" onclick="closeModal()">Cancel</button>
+        <button class="btn" onclick="submitUpdate()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio for REALTIME notify -->
+  <audio id="ting-audio" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    let ordersData = [];
+
+    // init socket
+    const socket = io();
+    socket.on("connect", () => {
+      document.getElementById("connection-status").innerHTML = `<span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span> Socket Connected`;
+    });
+    socket.on("disconnect", () => {
+      document.getElementById("connection-status").innerHTML = `<span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span> Disconnected`;
+    });
+
+    socket.on("new_order", (order) => {
+      // Tiếng ting ting
+      document.getElementById("ting-audio").play().catch(e=>console.log("Audio play blocked",e));
+      
+      ordersData.unshift(order);
+      renderTable(order.id);
+    });
+
+    async function fetchOrders() {
+      const st = document.getElementById("filter-status").value;
+      const fr = document.getElementById("filter-from").value;
+      const to = document.getElementById("filter-to").value;
+
+      let url = "/api/orders?";
+      if(st) url += `statusId=${st}&`;
+      if(fr) url += `fromDate=${fr}&`;
+      if(to) url += `toDate=${to}&`;
+
+      try {
+        const res = await fetch(url);
+        const json = await res.json();
+        ordersData = json.data || [];
+        renderTable();
+      } catch(e) {
+        console.error(e);
+      }
+    }
+
+    function getTagClass(val) {
+      if(!val) return 'pending';
+      const v = val.toLowerCase();
+      if(v.includes('succ') || v.includes('complet')) return 'success';
+      if(v.includes('fail') || v.includes('cancel') || v.includes('timeout')) return 'failed';
+      return 'pending';
+    }
+
+    function renderTable(highlightId = null) {
+      const tbody = document.querySelector("#orders-table tbody");
+      tbody.innerHTML = "";
+      
+      if(ordersData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:40px;">No orders found</td></tr>`;
+        return;
+      }
+
+      ordersData.forEach(o => {
+        const tr = document.createElement("tr");
+        if(o.id === highlightId) tr.className = "new-row";
+
+        tr.innerHTML = `
+          <td><strong>#${o.id}</strong><br><small style="color:var(--text-muted)">${o.orderCode}</small></td>
+          <td>${o.customer}</td>
+          <td><span class="tag ${getTagClass(o.status)}">${o.statusLabel || o.status}</span></td>
+          <td>
+            <div style="font-size:13px; font-weight:500;">${o.paymentMethod || 'CASH'}</div>
+            <span class="tag ${getTagClass(o.paymentStatus)}" style="font-size:10px; padding:2px 6px;">${o.paymentStatus || 'PENDING'}</span>
+          </td>
+          <td style="font-weight:600;">đ${Number(o.totalAmount).toLocaleString()}</td>
+          <td><small style="color:var(--text-muted)">${new Date(o.createdAt).toLocaleString()}</small></td>
+          <td>
+            <button class="btn" style="padding:6px 12px; font-size:12px;" onclick="openModal('${o.id}', '${o.version}')">Update Status</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openModal(id, version) {
+      document.getElementById("update-order-id").value = id;
+      document.getElementById("update-order-version").value = version;
+      document.getElementById("update-modal").classList.add("active");
+    }
+
+    function closeModal() {
+      document.getElementById("update-modal").classList.remove("active");
+    }
+
+    async function submitUpdate() {
+      const id = document.getElementById("update-order-id").value;
+      const version = document.getElementById("update-order-version").value;
+      const status = document.getElementById("update-status-select").value;
+
+      try {
+        const res = await fetch(`/api/orders/${id}/status`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ statusCode: status, expectedVersion: parseInt(version) })
+        });
+        
+        if(res.status === 409) {
+          alert("Giao dịch bị từ chối: Đơn hàng đã được Admin khác cập nhật (409 Conflict)!");
+          closeModal();
+          fetchOrders();
+          return;
+        }
+
+        if(!res.ok) {
+          const e = await res.json();
+          alert("Lỗi: " + e.message);
+          return;
+        }
+
+        closeModal();
+        fetchOrders();
+
+      } catch(e) {
+        console.error(e);
+        alert("Lỗi mạng!");
+      }
+    }
+
+    // load init
+    fetchOrders();
+
+  </script>
+</body>
+</html>
