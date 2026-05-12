@@ -5,10 +5,24 @@ import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getRestaurantById } from '../services/api/restaurants'
-import type { Restaurant } from '../types'
+import { getFoods } from '../services/api/foods'
+import { getCategories } from '../services/api/categories'
+import type { Category, Food, Restaurant } from '../types'
 
 const fallbackRestaurantImage =
   'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=85'
+
+const foodImages = [
+  'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=560&q=80',
+  'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=560&q=80',
+  'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=560&q=80',
+  'https://images.unsplash.com/photo-1563379926898-05f4575a45d8?auto=format&fit=crop&w=560&q=80',
+  'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=560&q=80',
+]
+
+function getFoodImage(foodId: number, index: number) {
+  return foodImages[(foodId + index) % foodImages.length]
+}
 
 function formatTime(value: string) {
   return value?.slice(0, 5) || '--:--'
@@ -30,8 +44,14 @@ export default function RestaurantDetailPage() {
   useDocumentTitle(`${APP_NAME} | Restaurant detail`)
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
+  const [foods, setFoods] = useState<Food[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isFoodsLoading, setIsFoodsLoading] = useState(true)
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [foodError, setFoodError] = useState<string | null>(null)
+  const [categoryError, setCategoryError] = useState<string | null>(null)
 
   useEffect(() => {
     let ignore = false
@@ -77,6 +97,80 @@ export default function RestaurantDetailPage() {
     }
   }, [isAdmin, isMerchant, restaurantId, user])
 
+  useEffect(() => {
+    let ignore = false
+
+    async function loadFoods() {
+      if (!Number.isFinite(restaurantId)) {
+        setFoodError('Restaurant ID khong hop le')
+        setFoods([])
+        setIsFoodsLoading(false)
+        return
+      }
+
+      try {
+        setIsFoodsLoading(true)
+        setFoodError(null)
+        const items = await getFoods({ restaurantId })
+        if (!ignore) {
+          setFoods(items)
+        }
+      } catch (error) {
+        if (!ignore) {
+          setFoodError(error instanceof Error ? error.message : 'Khong the tai danh sach mon')
+          setFoods([])
+        }
+      } finally {
+        if (!ignore) {
+          setIsFoodsLoading(false)
+        }
+      }
+    }
+
+    void loadFoods()
+
+    return () => {
+      ignore = true
+    }
+  }, [restaurantId])
+
+  useEffect(() => {
+    let ignore = false
+
+    async function loadCategories() {
+      if (!Number.isFinite(restaurantId)) {
+        setCategoryError('Restaurant ID khong hop le')
+        setCategories([])
+        setIsCategoriesLoading(false)
+        return
+      }
+
+      try {
+        setIsCategoriesLoading(true)
+        setCategoryError(null)
+        const items = await getCategories({ restaurantId })
+        if (!ignore) {
+          setCategories(items)
+        }
+      } catch (error) {
+        if (!ignore) {
+          setCategoryError(error instanceof Error ? error.message : 'Khong the tai danh sach danh muc')
+          setCategories([])
+        }
+      } finally {
+        if (!ignore) {
+          setIsCategoriesLoading(false)
+        }
+      }
+    }
+
+    void loadCategories()
+
+    return () => {
+      ignore = true
+    }
+  }, [restaurantId])
+
   const position = useMemo<[number, number]>(() => {
     if (!restaurant) {
       return [10.77689, 106.70081]
@@ -110,43 +204,44 @@ export default function RestaurantDetailPage() {
       {errorMessage ? <p className="restaurant-feedback error">{errorMessage}</p> : null}
 
       {restaurant ? (
-        <div className="restaurant-detail-grid">
-          <article className="restaurant-detail-card">
-            <img src={restaurant.imageUrl || fallbackRestaurantImage} alt={restaurant.name} className="restaurant-detail-image" />
+        <>
+          <div className="restaurant-detail-grid">
+            <article className="restaurant-detail-card">
+              <img src={restaurant.imageUrl || fallbackRestaurantImage} alt={restaurant.name} className="restaurant-detail-image" />
 
-            <div className="restaurant-detail-info">
-              <div className="restaurant-card-meta">
-                <strong>{restaurant.ratingAvg.toFixed(1)} sao</strong>
-                <span className={`status-tag ${restaurant.isOpen && restaurant.isOpenToday ? 'open' : 'closed'}`}>
-                  {restaurant.isOpen && restaurant.isOpenToday ? 'Dang mo cua' : 'Da dong cua'}
-                </span>
-                {canManageRestaurant ? (
-                  <span className={`approval-tag ${restaurant.approvalStatus.toLowerCase()}`}>{approvalLabel(restaurant.approvalStatus)}</span>
-                ) : null}
-              </div>
+              <div className="restaurant-detail-info">
+                <div className="restaurant-card-meta">
+                  <strong>{restaurant.ratingAvg.toFixed(1)} sao</strong>
+                  <span className={`status-tag ${restaurant.isOpen && restaurant.isOpenToday ? 'open' : 'closed'}`}>
+                    {restaurant.isOpen && restaurant.isOpenToday ? 'Dang mo cua' : 'Da dong cua'}
+                  </span>
+                  {canManageRestaurant ? (
+                    <span className={`approval-tag ${restaurant.approvalStatus.toLowerCase()}`}>{approvalLabel(restaurant.approvalStatus)}</span>
+                  ) : null}
+                </div>
 
-              <dl className="restaurant-detail-list">
-                {canManageRestaurant ? (
+                <dl className="restaurant-detail-list">
+                  {canManageRestaurant ? (
+                    <div>
+                      <dt>Owner ID</dt>
+                      <dd>{restaurant.ownerId}</dd>
+                    </div>
+                  ) : null}
                   <div>
-                    <dt>Owner ID</dt>
-                    <dd>{restaurant.ownerId}</dd>
+                    <dt>Dia chi</dt>
+                    <dd>{restaurant.address || 'Chua co dia chi'}</dd>
                   </div>
-                ) : null}
-                <div>
-                  <dt>Dia chi</dt>
-                  <dd>{restaurant.address || 'Chua co dia chi'}</dd>
-                </div>
-                <div>
-                  <dt>Gio mo cua</dt>
-                  <dd>
-                    {formatTime(restaurant.openingTime)} - {formatTime(restaurant.closingTime)}
-                  </dd>
-                </div>
-                {canManageRestaurant ? (
                   <div>
-                    <dt>Trang thai hom nay</dt>
-                    <dd>{restaurant.isOpenToday ? 'Mo trong hom nay' : restaurant.temporaryClosedReason || 'Dong trong hom nay'}</dd>
+                    <dt>Gio mo cua</dt>
+                    <dd>
+                      {formatTime(restaurant.openingTime)} - {formatTime(restaurant.closingTime)}
+                    </dd>
                   </div>
+                  {canManageRestaurant ? (
+                    <div>
+                      <dt>Trang thai hom nay</dt>
+                      <dd>{restaurant.isOpenToday ? 'Mo trong hom nay' : restaurant.temporaryClosedReason || 'Dong trong hom nay'}</dd>
+                    </div>
                 ) : null}
                 {canManageRestaurant && restaurant.temporaryClosedUntil ? (
                   <div>
@@ -197,6 +292,52 @@ export default function RestaurantDetailPage() {
             </div>
           </aside>
         </div>
+
+        <section className="restaurant-food-list">
+          <div className="restaurant-food-list-header">
+            <h2>Menu mon an</h2>
+            <p>{`Mon an cua ${restaurant.name}`}</p>
+          </div>
+          {isFoodsLoading ? (
+            <p className="empty-state">Dang tai menu mon...</p>
+          ) : foodError ? (
+            <p className="restaurant-feedback error">{foodError}</p>
+          ) : foods.length === 0 ? (
+            <p className="empty-state">Chua co mon nao cho nha hang nay.</p>
+          ) : (
+            <div className="restaurant-food-grid">
+              {foods.map((food, index) => {
+                const categoryName = categories.find((category) => category.id === food.categoryId)?.name
+                return (
+                  <article key={food.id} className="restaurant-food-card">
+                    <img src={getFoodImage(food.id, index)} alt={food.name} className="restaurant-food-card-photo" />
+                    <div className="restaurant-food-card-head">
+                      <h3>{food.name}</h3>
+                      <strong>{Number(food.price).toLocaleString('vi-VN')} VND</strong>
+                    </div>
+                    <div className="restaurant-food-card-details">
+                      <p className="restaurant-food-category">
+                        <strong>Danh mục:</strong> {categoryName || (isCategoriesLoading ? 'Dang tai...' : 'Chua co danh muc')}
+                      </p>
+                      <p>
+                        <strong>Tình trạng:</strong> {food.isAvailable ? 'Đang bán' : 'Tạm dừng'}
+                      </p>
+                      <p>
+                        <strong>Tồn kho:</strong> {food.currentQuantity} / {food.defaultQuantity}
+                      </p>
+                      {food.quantityResetDate ? (
+                        <p>
+                          <strong>Làm mới kho:</strong> {new Date(food.quantityResetDate).toLocaleDateString('vi-VN')}
+                        </p>
+                      ) : null}
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </section>
+        </>
       ) : null}
     </section>
   )

@@ -1,5 +1,5 @@
 const { Op } = require("sequelize");
-const { Food, Category } = require("../models");
+const { Food, Category, Restaurant } = require("../models");
 
 const normalizeFood = (item) => ({
   id: item.id,
@@ -11,6 +11,55 @@ const normalizeFood = (item) => ({
   currentQuantity: Number(item.currentQuantity || 0),
   quantityResetDate: item.quantityResetDate || null,
 });
+
+const isMerchant = (req) => req.user && String(req.user.role).toUpperCase() === "MERCHANT";
+const isAdmin = (req) => req.user && String(req.user.role).toUpperCase() === "ADMIN";
+
+const findFoodWithCategory = async (id) => {
+  return Food.findOne({
+    where: { id },
+    include: [
+      {
+        model: Category,
+        as: "category",
+        include: [
+          {
+            model: Restaurant,
+            as: "restaurant",
+            attributes: ["id", "ownerId"],
+          },
+        ],
+      },
+    ],
+  });
+};
+
+const findCategoryWithRestaurant = async (categoryId) => {
+  return Category.findOne({
+    where: { id: categoryId },
+    include: [
+      {
+        model: Restaurant,
+        as: "restaurant",
+        attributes: ["id", "ownerId"],
+      },
+    ],
+  });
+};
+
+const verifyFoodOwnership = (req, item) => {
+  if (!isMerchant(req)) {
+    return true;
+  }
+  return item?.category?.restaurant?.ownerId === req.user.id;
+};
+
+const verifyCategoryOwnership = (req, category) => {
+  if (!isMerchant(req)) {
+    return true;
+  }
+  return category?.restaurant?.ownerId === req.user.id;
+};
 
 const parseOptionalNonNegativeInteger = (value, fieldName) => {
   if (value === undefined) {
@@ -80,9 +129,13 @@ exports.getFoodById = async (req, res) => {
     await Food.resetExpiredDailyQuantities();
 
     const id = Number(req.params.id);
-    const item = await Food.findByPk(id);
+    const item = await findFoodWithCategory(id);
 
     if (!item) {
+      return res.status(404).json({ message: "Food not found" });
+    }
+
+    if (isMerchant(req) && !verifyFoodOwnership(req, item)) {
       return res.status(404).json({ message: "Food not found" });
     }
 
@@ -116,9 +169,15 @@ exports.createFood = async (req, res) => {
     let parsedCategoryId = null;
     if (categoryId !== undefined && categoryId !== null && Number.isFinite(Number(categoryId))) {
       parsedCategoryId = Number(categoryId);
-      const category = await Category.findByPk(parsedCategoryId);
+      const category = await findCategoryWithRestaurant(parsedCategoryId);
       if (!category) {
         return res.status(400).json({ message: "Category not found" });
+      }
+      if (!category.restaurant) {
+        return res.status(400).json({ message: "Category must belong to a restaurant" });
+      }
+      if (!verifyCategoryOwnership(req, category)) {
+        return res.status(403).json({ message: "Cannot create food for another restaurant" });
       }
     }
 
@@ -144,10 +203,14 @@ exports.updateFood = async (req, res) => {
 
     const id = Number(req.params.id);
     const { name, price, categoryId, isAvailable, defaultQuantity, currentQuantity } = req.body;
-    const item = await Food.findByPk(id);
+    const item = await findFoodWithCategory(id);
 
     if (!item) {
       return res.status(404).json({ message: "Food not found" });
+    }
+
+    if (isMerchant(req) && !verifyFoodOwnership(req, item)) {
+      return res.status(403).json({ message: "Cannot update food outside your restaurant" });
     }
 
     let trimmedName = item.name;
@@ -177,9 +240,15 @@ exports.updateFood = async (req, res) => {
         }
         nextCategoryId = parsedCategoryId;
         if (nextCategoryId !== item.categoryId) {
-          const category = await Category.findByPk(nextCategoryId);
+          const category = await findCategoryWithRestaurant(nextCategoryId);
           if (!category) {
             return res.status(400).json({ message: "Category not found" });
+          }
+          if (!category.restaurant) {
+            return res.status(400).json({ message: "Category must belong to a restaurant" });
+          }
+          if (!verifyCategoryOwnership(req, category)) {
+            return res.status(403).json({ message: "Cannot assign food to another restaurant" });
           }
         }
       }
@@ -224,10 +293,14 @@ exports.updateFood = async (req, res) => {
 exports.deleteFood = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const item = await Food.findByPk(id);
+    const item = await findFoodWithCategory(id);
 
     if (!item) {
       return res.status(404).json({ message: "Food not found" });
+    }
+
+    if (isMerchant(req) && !verifyFoodOwnership(req, item)) {
+      return res.status(403).json({ message: "Cannot delete food outside your restaurant" });
     }
 
     await item.destroy();

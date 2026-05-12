@@ -22,6 +22,9 @@ function formatTime(value: string) {
   return value?.slice(0, 5) || '--:--'
 }
 
+const fallbackRestaurantImage =
+  'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=85'
+
 function approvalLabel(status: Restaurant['approvalStatus']) {
   if (status === 'APPROVED') return 'Da duyet'
   if (status === 'REJECTED') return 'Bi tu choi'
@@ -108,6 +111,11 @@ export default function RestaurantListPage() {
   }
 
   async function handleToggleToday(restaurant: Restaurant) {
+    if (restaurant.approvalStatus !== 'APPROVED') {
+      setErrorMessage('Chi co the thay doi trang thai khi nha hang da duoc duyet')
+      return
+    }
+
     const nextStatus = !restaurant.isOpenToday
     const reason = nextStatus ? undefined : window.prompt('Ly do dong cua trong hom nay?', restaurant.temporaryClosedReason || '') || undefined
     await runRestaurantAction(
@@ -190,6 +198,12 @@ export default function RestaurantListPage() {
               <h3>{restaurant.name}</h3>
               <p className="restaurant-manage-address">{restaurant.address || 'Chua co dia chi'}</p>
 
+              <img
+                src={restaurant.imageUrl || fallbackRestaurantImage}
+                alt={restaurant.name}
+                className="restaurant-manage-image"
+              />
+
               <div className="restaurant-manage-meta">
                 {isAdmin ? <span>Owner: {restaurant.ownerId}</span> : null}
                 <span>Rating: {restaurant.ratingAvg.toFixed(2)}</span>
@@ -232,28 +246,24 @@ export default function RestaurantListPage() {
                     <Link to={`/restaurants/edit/${restaurant.id}`} className="button-secondary">
                       Sua
                     </Link>
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() =>
-                        void runRestaurantAction(
-                          `status-${restaurant.id}`,
-                          () => patchRestaurantStatus(restaurant.id, !restaurant.isOpen),
-                          `Da cap nhat mo/dong cua #${restaurant.id}`,
-                        )
-                      }
-                      disabled={actionKey === `status-${restaurant.id}`}
-                    >
-                      {restaurant.isOpen ? 'Dong cua' : 'Mo cua'}
-                    </button>
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() => void handleToggleToday(restaurant)}
-                      disabled={actionKey === `today-${restaurant.id}`}
-                    >
-                      {restaurant.isOpenToday ? 'Dong hom nay' : 'Mo hom nay'}
-                    </button>
+                    {restaurant.approvalStatus === 'APPROVED' ? (
+                      <button
+                        type="button"
+                        className="button-secondary"
+                        onClick={() =>
+                          void runRestaurantAction(
+                            `status-${restaurant.id}`,
+                            () => patchRestaurantStatus(restaurant.id, !restaurant.isOpen),
+                            `Da cap nhat mo/dong cua #${restaurant.id}`,
+                          )
+                        }
+                        disabled={actionKey === `status-${restaurant.id}`}
+                      >
+                        {restaurant.isOpen ? 'Dong cua' : 'Mo cua'}
+                      </button>
+                    ) : (
+                      <span className="restaurant-note">Chỉ thay đổi trạng thái khi đã duyệt</span>
+                    )}
                     {isAdmin && restaurant.approvalStatus === 'PENDING' ? (
                       <>
                         <button
