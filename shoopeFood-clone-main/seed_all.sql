@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS restaurants (
     opening_time TIME           DEFAULT '07:00:00',
     closing_time TIME           DEFAULT '22:00:00',
     is_open      TINYINT(1)     DEFAULT 1,
+<<<<<<< HEAD
     is_open_today TINYINT(1)    DEFAULT 1,
     temporary_closed_reason TEXT,
     temporary_closed_until DATETIME NULL,
@@ -135,6 +136,12 @@ CREATE TABLE IF NOT EXISTS restaurant_change_requests (
     FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,
     FOREIGN KEY (requested_by) REFERENCES users(id),
     FOREIGN KEY (reviewed_by) REFERENCES users(id)
+=======
+    image_url    VARCHAR(255),
+    rating_avg   DECIMAL(3,2)   DEFAULT 5.0,
+    deleted_at   TIMESTAMP      NULL DEFAULT NULL,
+    FOREIGN KEY (owner_id) REFERENCES users(id)
+>>>>>>> origin/main
 );
 
 CREATE TABLE IF NOT EXISTS categories (
@@ -306,7 +313,10 @@ CREATE INDEX idx_food_items_quantity_reset_date ON food_items(quantity_reset_dat
 CREATE INDEX idx_order_items_order_id  ON order_items(order_id);
 CREATE INDEX idx_order_items_food_id   ON order_items(food_id);
 CREATE INDEX idx_categories_restaurant ON categories(restaurant_id);
+<<<<<<< HEAD
 CREATE INDEX idx_restaurant_change_requests_restaurant ON restaurant_change_requests(restaurant_id);
+=======
+>>>>>>> origin/main
 
 -- =================================================================================
 -- 8. CLEANUP & SEED DATA
@@ -320,7 +330,10 @@ DELETE FROM orders;
 DELETE FROM order_statuses;
 DELETE FROM food_items;
 DELETE FROM categories;
+<<<<<<< HEAD
 DELETE FROM restaurant_change_requests;
+=======
+>>>>>>> origin/main
 DELETE FROM restaurants;
 DELETE FROM vouchers;
 DELETE FROM system_settings;
@@ -333,7 +346,10 @@ DELETE FROM users;
 
 ALTER TABLE roles                 AUTO_INCREMENT = 1;
 ALTER TABLE users                 AUTO_INCREMENT = 1;
+<<<<<<< HEAD
 ALTER TABLE restaurant_change_requests AUTO_INCREMENT = 1;
+=======
+>>>>>>> origin/main
 ALTER TABLE restaurants           AUTO_INCREMENT = 1;
 ALTER TABLE categories            AUTO_INCREMENT = 1;
 ALTER TABLE food_items            AUTO_INCREMENT = 1;
@@ -375,9 +391,15 @@ INSERT INTO system_settings (config_key, config_value, description) VALUES
 INSERT INTO vouchers (code, discount_amount, min_order_value, expiry_date) VALUES
 ('FREESHIP',15000.00,50000.00,'2026-12-31 23:59:59');
 
+<<<<<<< HEAD
 INSERT INTO restaurants (owner_id, name, address, latitude, longitude, is_open, is_open_today, approval_status, approved_by, approved_at) VALUES
 (3,'Hanh Dung - Am Thuc Chay Man','111-113 Au Co, P.14, Q.11',10.771,106.649,1,1,'APPROVED',1,NOW()),
 (3,'Quan Chay Thanh Ai',          '264 Ba Hat, P.9, Q.10',    10.765,106.671,1,1,'APPROVED',1,NOW());
+=======
+INSERT INTO restaurants (owner_id, name, address, latitude, longitude, is_open) VALUES
+(3,'Hanh Dung - Am Thuc Chay Man','111-113 Au Co, P.14, Q.11',10.771,106.649,1),
+(3,'Quan Chay Thanh Ai',          '264 Ba Hat, P.9, Q.10',    10.765,106.671,1);
+>>>>>>> origin/main
 
 INSERT INTO categories (restaurant_id, name) VALUES
 (1,'Mon chinh'),(1,'Nuoc uong'),(2,'Diem tam');

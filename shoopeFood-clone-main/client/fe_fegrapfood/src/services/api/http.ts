@@ -65,6 +65,7 @@ export async function httpPut<T>(path: string, body: unknown, options: RequestOp
   })
 }
 
+<<<<<<< HEAD
 export async function httpPatch<T>(path: string, body: unknown, options: RequestOptions = {}): Promise<T> {
   return request<T>(path, {
     method: 'PATCH',
@@ -73,6 +74,8 @@ export async function httpPatch<T>(path: string, body: unknown, options: Request
   })
 }
 
+=======
+>>>>>>> origin/main
 export async function httpDelete<T>(path: string, options: RequestOptions = {}): Promise<T> {
   return request<T>(path, {
     method: 'DELETE',
@@ -103,9 +106,15 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     let errorMessage = `Request failed: ${response.status}`
 
     try {
+<<<<<<< HEAD
       const errorData = (await response.json()) as { message?: string; error?: { message?: string } }
       if (errorData.error?.message || errorData.message) {
         errorMessage = errorData.error?.message || errorData.message || errorMessage
+=======
+      const errorData = (await response.json()) as { message?: string }
+      if (errorData.message) {
+        errorMessage = errorData.message
+>>>>>>> origin/main
       }
     } catch {
       // Keep the default message when the server does not return JSON.

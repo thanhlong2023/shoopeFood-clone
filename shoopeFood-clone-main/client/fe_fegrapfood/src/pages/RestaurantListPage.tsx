@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
+<<<<<<< HEAD
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
@@ -29,10 +30,19 @@ function approvalLabel(status: Restaurant['approvalStatus']) {
   if (status === 'APPROVED') return 'Da duyet'
   if (status === 'REJECTED') return 'Bi tu choi'
   return 'Cho duyet'
+=======
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { deleteRestaurant, getRestaurants } from '../services/api/restaurants'
+import type { Restaurant } from '../types'
+
+function formatCoordinate(value: number) {
+  return Number.isFinite(value) ? value.toFixed(6) : '0.000000'
+>>>>>>> origin/main
 }
 
 export default function RestaurantListPage() {
   useDocumentTitle(`${APP_NAME} | Restaurants`)
+<<<<<<< HEAD
   const { hasRole, user } = useAuth()
   const isAdmin = hasRole(['ADMIN'])
   const isMerchant = hasRole(['MERCHANT'])
@@ -48,11 +58,24 @@ export default function RestaurantListPage() {
   useEffect(() => {
     void loadRestaurants()
   }, [isAdmin, isMerchant, user?.id])
+=======
+
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+
+  useEffect(() => {
+    void loadRestaurants()
+  }, [])
+>>>>>>> origin/main
 
   async function loadRestaurants() {
     try {
       setIsLoading(true)
       setErrorMessage(null)
+<<<<<<< HEAD
       const [restaurantData, requestData] = isAdmin
         ? await Promise.all([getAllRestaurantsForAdmin(), getRestaurantChangeRequests()])
         : isMerchant && user
@@ -60,6 +83,10 @@ export default function RestaurantListPage() {
           : await Promise.all([getRestaurants(), Promise.resolve([])])
       setRestaurants(restaurantData)
       setChangeRequests(requestData)
+=======
+      const items = await getRestaurants()
+      setRestaurants(items)
+>>>>>>> origin/main
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Khong the tai danh sach nha hang')
     } finally {
@@ -67,6 +94,7 @@ export default function RestaurantListPage() {
     }
   }
 
+<<<<<<< HEAD
   async function runRestaurantAction(key: string, action: () => Promise<Restaurant>, message: string) {
     try {
       setActionKey(key)
@@ -84,10 +112,16 @@ export default function RestaurantListPage() {
 
   async function handleDelete(restaurant: Restaurant) {
     if (!window.confirm(`Xoa nha hang "${restaurant.name}"?`)) {
+=======
+  async function handleDelete(restaurant: Restaurant) {
+    const confirmed = window.confirm(`Xoa nha hang "${restaurant.name}"?`)
+    if (!confirmed) {
+>>>>>>> origin/main
       return
     }
 
     try {
+<<<<<<< HEAD
       setActionKey(`delete-${restaurant.id}`)
       setErrorMessage(null)
       setSuccessMessage(null)
@@ -146,6 +180,18 @@ export default function RestaurantListPage() {
       setErrorMessage(error instanceof Error ? error.message : 'Khong the xu ly yeu cau sua')
     } finally {
       setActionKey(null)
+=======
+      setDeletingId(restaurant.id)
+      setErrorMessage(null)
+      setSuccessMessage(null)
+      await deleteRestaurant(restaurant.id)
+      setSuccessMessage(`Da xoa nha hang #${restaurant.id}`)
+      await loadRestaurants()
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Khong the xoa nha hang')
+    } finally {
+      setDeletingId(null)
+>>>>>>> origin/main
     }
   }
 
@@ -153,6 +199,7 @@ export default function RestaurantListPage() {
     <section className="restaurant-page">
       <div className="restaurant-page-header">
         <div>
+<<<<<<< HEAD
           <h1>{canOperateRestaurants ? 'Quan ly nha hang' : 'Nha hang'}</h1>
           <p>
             {isAdmin
@@ -168,13 +215,29 @@ export default function RestaurantListPage() {
             Them nha hang
           </Link>
         ) : null}
+=======
+          <h1>Quan ly restaurant</h1>
+          <p>Xem danh sach, tao moi, cap nhat va xoa restaurant bang API backend that.</p>
+        </div>
+
+        <Link to="/restaurants/create" className="button-primary">
+          Add restaurant
+        </Link>
+>>>>>>> origin/main
       </div>
 
       <div className="restaurant-panel">
         <div className="restaurant-toolbar">
           <div>
+<<<<<<< HEAD
             <h2>Danh sach nha hang</h2>
             <div className="restaurant-count">{isLoading ? 'Dang tai...' : `${restaurants.length} nha hang`}</div>
+=======
+            <h2>Restaurant list</h2>
+            <div className="restaurant-count">
+              {isLoading ? 'Dang tai...' : `${restaurants.length} restaurant`}
+            </div>
+>>>>>>> origin/main
           </div>
 
           <button type="button" className="button-secondary" onClick={() => void loadRestaurants()} disabled={isLoading}>
@@ -190,6 +253,7 @@ export default function RestaurantListPage() {
             <article key={restaurant.id} className="restaurant-manage-card">
               <div className="restaurant-manage-top">
                 <span className="restaurant-manage-id">ID #{restaurant.id}</span>
+<<<<<<< HEAD
                 {canOperateRestaurants ? (
                   <span className={`approval-tag ${restaurant.approvalStatus.toLowerCase()}`}>{approvalLabel(restaurant.approvalStatus)}</span>
                 ) : null}
@@ -340,15 +404,54 @@ export default function RestaurantListPage() {
                   disabled={actionKey === `request-${request.id}`}
                 >
                   Tu choi
+=======
+                <span className={`status-tag ${restaurant.isOpen ? 'open' : 'closed'}`}>
+                  {restaurant.isOpen ? 'Open' : 'Closed'}
+                </span>
+              </div>
+
+              <h3>{restaurant.name}</h3>
+              <p className="restaurant-manage-address">{restaurant.address}</p>
+
+              <div className="restaurant-manage-meta">
+                <span>Owner: {restaurant.ownerId}</span>
+                <span>Rating: {restaurant.ratingAvg.toFixed(2)}</span>
+              </div>
+
+              <p className="restaurant-location">
+                Lat: {formatCoordinate(restaurant.latitude)} | Lng: {formatCoordinate(restaurant.longitude)}
+              </p>
+
+              <div className="restaurant-actions">
+                <Link to={`/restaurants/${restaurant.id}/edit`} className="button-secondary">
+                  Edit
+                </Link>
+
+                <button
+                  type="button"
+                  className="button-danger"
+                  onClick={() => void handleDelete(restaurant)}
+                  disabled={deletingId === restaurant.id}
+                >
+                  {deletingId === restaurant.id ? 'Deleting...' : 'Delete'}
+>>>>>>> origin/main
                 </button>
               </div>
             </article>
           ))}
 
+<<<<<<< HEAD
           {!isLoading && changeRequests.length === 0 ? <p className="empty-state">Khong co yeu cau sua dang cho duyet.</p> : null}
         </div>
       </section>
       ) : null}
+=======
+          {!isLoading && restaurants.length === 0 ? (
+            <p className="empty-state">Chua co restaurant nao tu backend.</p>
+          ) : null}
+        </div>
+      </div>
+>>>>>>> origin/main
     </section>
   )
 }

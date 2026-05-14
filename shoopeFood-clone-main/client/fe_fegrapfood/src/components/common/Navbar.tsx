@@ -22,6 +22,7 @@ export default function Navbar() {
           <li>
             <NavLink to="/tracking">Theo doi</NavLink>
           </li>
+<<<<<<< HEAD
           {hasRole(['DRIVER', 'ADMIN']) ? (
             <li>
               <NavLink to="/driver">Tai xe</NavLink>
@@ -32,6 +33,14 @@ export default function Navbar() {
               <NavLink to="/restaurants">Nha hang</NavLink>
             </li>
           ) : null}
+=======
+          <li>
+            <NavLink to="/driver">Tai xe</NavLink>
+          </li>
+          <li>
+            <NavLink to="/restaurants">Nha hang</NavLink>
+          </li>
+>>>>>>> origin/main
           {hasRole(['ADMIN']) ? (
             <li>
               <NavLink to="/admin">Admin</NavLink>

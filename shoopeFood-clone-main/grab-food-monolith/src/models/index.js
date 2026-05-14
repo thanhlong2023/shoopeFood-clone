@@ -5,7 +5,10 @@ const UserRole = require("./UserRole");
 const DriverDetail = require("./DriverDetail");
 const DriverLocation = require("./DriverLocation");
 const Restaurant = require("./Restaurant");
+<<<<<<< HEAD
 const RestaurantChangeRequest = require("./RestaurantChangeRequest");
+=======
+>>>>>>> origin/main
 const Order = require("./Order");
 const OrderItem = require("./OrderItem");
 const OrderStatus = require("./OrderStatus");
@@ -29,9 +32,12 @@ Order.belongsTo(User, { foreignKey: "customerId", targetKey: "id", as: "customer
 Restaurant.hasMany(Order, { foreignKey: "restaurantId", sourceKey: "id" });
 Order.belongsTo(Restaurant, { foreignKey: "restaurantId", targetKey: "id" });
 
+<<<<<<< HEAD
 Restaurant.hasMany(RestaurantChangeRequest, { foreignKey: "restaurantId", sourceKey: "id", as: "changeRequests" });
 RestaurantChangeRequest.belongsTo(Restaurant, { foreignKey: "restaurantId", targetKey: "id", as: "restaurant" });
 
+=======
+>>>>>>> origin/main
 Order.hasMany(DriverLocation, { foreignKey: "orderId", sourceKey: "id", as: "driverLocations" });
 DriverLocation.belongsTo(Order, { foreignKey: "orderId", targetKey: "id", as: "order" });
 
@@ -64,7 +70,10 @@ module.exports = {
   DriverDetail,
   DriverLocation,
   Restaurant,
+<<<<<<< HEAD
   RestaurantChangeRequest,
+=======
+>>>>>>> origin/main
   Order,
   OrderItem,
   OrderStatus,

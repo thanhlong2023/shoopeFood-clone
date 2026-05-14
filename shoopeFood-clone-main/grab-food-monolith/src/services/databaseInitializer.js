@@ -24,6 +24,7 @@ const quoteIdentifier = (identifier) => {
 
 const hasColumn = (columns, columnName) => Object.prototype.hasOwnProperty.call(columns, columnName);
 
+<<<<<<< HEAD
 const tableExists = async (tableName) => {
   const queryInterface = sequelize.getQueryInterface();
 
@@ -35,6 +36,8 @@ const tableExists = async (tableName) => {
   }
 };
 
+=======
+>>>>>>> origin/main
 const ensureDatabaseExists = async () => {
   const config = getDatabaseConfig();
   const connection = await mysql.createConnection({
@@ -55,9 +58,12 @@ const ensureDatabaseExists = async () => {
 
 const ensureFoodQuantityColumns = async () => {
   const queryInterface = sequelize.getQueryInterface();
+<<<<<<< HEAD
   if (!(await tableExists("food_items"))) {
     return;
   }
+=======
+>>>>>>> origin/main
   const columns = await queryInterface.describeTable("food_items");
 
   if (!hasColumn(columns, "default_quantity")) {
@@ -86,9 +92,12 @@ const ensureFoodQuantityColumns = async () => {
 
 const ensureUsersCreatedAtColumn = async () => {
   const queryInterface = sequelize.getQueryInterface();
+<<<<<<< HEAD
   if (!(await tableExists("users"))) {
     return;
   }
+=======
+>>>>>>> origin/main
   const columns = await queryInterface.describeTable("users");
 
   if (!hasColumn(columns, "created_at")) {
@@ -102,9 +111,12 @@ const ensureUsersCreatedAtColumn = async () => {
 
 const ensureDriverLocationTrackingColumns = async () => {
   const queryInterface = sequelize.getQueryInterface();
+<<<<<<< HEAD
   if (!(await tableExists("driver_locations"))) {
     return;
   }
+=======
+>>>>>>> origin/main
   const columns = await queryInterface.describeTable("driver_locations");
 
   if (!hasColumn(columns, "order_id")) {
@@ -131,6 +143,7 @@ const ensureDriverLocationTrackingColumns = async () => {
   }
 };
 
+<<<<<<< HEAD
 const ensureRestaurantApprovalSchema = async () => {
   const queryInterface = sequelize.getQueryInterface();
   if (!(await tableExists("restaurants"))) {
@@ -224,6 +237,12 @@ const initializeDatabase = async () => {
   await ensureFoodQuantityColumns();
   await sequelize.sync();
   await ensureRestaurantApprovalSchema();
+=======
+const initializeDatabase = async () => {
+  await ensureDatabaseExists();
+  await sequelize.authenticate();
+  await sequelize.sync();
+>>>>>>> origin/main
   await ensureFoodQuantityColumns();
   await ensureUsersCreatedAtColumn();
   await ensureDriverLocationTrackingColumns();
@@ -237,6 +256,9 @@ module.exports = {
   ensureFoodQuantityColumns,
   ensureUsersCreatedAtColumn,
   ensureDriverLocationTrackingColumns,
+<<<<<<< HEAD
   ensureRestaurantApprovalSchema,
   tableExists,
+=======
+>>>>>>> origin/main
 };

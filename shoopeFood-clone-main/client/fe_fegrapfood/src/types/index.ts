@@ -3,6 +3,7 @@ export type ApiResponse<T> = {
   message?: string
 }
 
+<<<<<<< HEAD
 export type ApiSuccessResponse<T> = ApiResponse<T> & {
   success?: {
     data: T
@@ -10,6 +11,8 @@ export type ApiSuccessResponse<T> = ApiResponse<T> & {
   }
 }
 
+=======
+>>>>>>> origin/main
 export type UserRole = 'CUSTOMER' | 'DRIVER' | 'MERCHANT' | 'ADMIN'
 
 export type LoginPayload = {
@@ -40,6 +43,7 @@ export type Restaurant = {
   address: string
   latitude: number
   longitude: number
+<<<<<<< HEAD
   openingTime: string
   closingTime: string
   isOpen: boolean
@@ -56,11 +60,20 @@ export type Restaurant = {
 }
 
 export type RestaurantCreateInput = {
+=======
+  isOpen: boolean
+  imageUrl: string | null
+  ratingAvg: number
+}
+
+export type RestaurantPayload = {
+>>>>>>> origin/main
   ownerId: number
   name: string
   address: string
   latitude: number
   longitude: number
+<<<<<<< HEAD
   openingTime: string
   closingTime: string
   isOpen: boolean
@@ -87,6 +100,11 @@ export type RestaurantChangeRequest = {
   reviewedAt: string | null
   rejectReason: string | null
   createdAt: string | null
+=======
+  isOpen: boolean
+  imageUrl: string | null
+  ratingAvg: number
+>>>>>>> origin/main
 }
 
 export type Food = {

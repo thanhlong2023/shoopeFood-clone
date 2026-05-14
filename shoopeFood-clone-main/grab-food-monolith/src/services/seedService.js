@@ -113,6 +113,7 @@ exports.seedIfEmpty = async () => {
   ]);
 
   const restaurants = await Restaurant.bulkCreate([
+<<<<<<< HEAD
     {
       ownerId: users[0].id,
       name: "Pho 24",
@@ -137,6 +138,10 @@ exports.seedIfEmpty = async () => {
       isOpen: true,
       isOpenToday: true,
     },
+=======
+    { ownerId: users[0].id, name: "Pho 24", address: "District 1", latitude: 10.77, longitude: 106.69 },
+    { ownerId: users[0].id, name: "Com Tam 99", address: "District 3", latitude: 10.78, longitude: 106.68 },
+>>>>>>> origin/main
   ]);
 
   await DriverDetail.bulkCreate([

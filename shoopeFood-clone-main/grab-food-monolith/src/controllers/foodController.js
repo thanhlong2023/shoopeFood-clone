@@ -1,5 +1,9 @@
 const { Op } = require("sequelize");
+<<<<<<< HEAD
 const { Food, Category, Restaurant } = require("../models");
+=======
+const { Food, Category } = require("../models");
+>>>>>>> origin/main
 
 const normalizeFood = (item) => ({
   id: item.id,
@@ -12,6 +16,7 @@ const normalizeFood = (item) => ({
   quantityResetDate: item.quantityResetDate || null,
 });
 
+<<<<<<< HEAD
 const isMerchant = (req) => req.user && String(req.user.role).toUpperCase() === "MERCHANT";
 const isAdmin = (req) => req.user && String(req.user.role).toUpperCase() === "ADMIN";
 
@@ -61,6 +66,8 @@ const verifyCategoryOwnership = (req, category) => {
   return category?.restaurant?.ownerId === req.user.id;
 };
 
+=======
+>>>>>>> origin/main
 const parseOptionalNonNegativeInteger = (value, fieldName) => {
   if (value === undefined) {
     return { value: undefined };
@@ -129,16 +136,23 @@ exports.getFoodById = async (req, res) => {
     await Food.resetExpiredDailyQuantities();
 
     const id = Number(req.params.id);
+<<<<<<< HEAD
     const item = await findFoodWithCategory(id);
+=======
+    const item = await Food.findByPk(id);
+>>>>>>> origin/main
 
     if (!item) {
       return res.status(404).json({ message: "Food not found" });
     }
 
+<<<<<<< HEAD
     if (isMerchant(req) && !verifyFoodOwnership(req, item)) {
       return res.status(404).json({ message: "Food not found" });
     }
 
+=======
+>>>>>>> origin/main
     return res.json({ data: normalizeFood(item) });
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -169,6 +183,7 @@ exports.createFood = async (req, res) => {
     let parsedCategoryId = null;
     if (categoryId !== undefined && categoryId !== null && Number.isFinite(Number(categoryId))) {
       parsedCategoryId = Number(categoryId);
+<<<<<<< HEAD
       const category = await findCategoryWithRestaurant(parsedCategoryId);
       if (!category) {
         return res.status(400).json({ message: "Category not found" });
@@ -179,6 +194,12 @@ exports.createFood = async (req, res) => {
       if (!verifyCategoryOwnership(req, category)) {
         return res.status(403).json({ message: "Cannot create food for another restaurant" });
       }
+=======
+      const category = await Category.findByPk(parsedCategoryId);
+      if (!category) {
+        return res.status(400).json({ message: "Category not found" });
+      }
+>>>>>>> origin/main
     }
 
     const newFood = await Food.create({
@@ -203,16 +224,23 @@ exports.updateFood = async (req, res) => {
 
     const id = Number(req.params.id);
     const { name, price, categoryId, isAvailable, defaultQuantity, currentQuantity } = req.body;
+<<<<<<< HEAD
     const item = await findFoodWithCategory(id);
+=======
+    const item = await Food.findByPk(id);
+>>>>>>> origin/main
 
     if (!item) {
       return res.status(404).json({ message: "Food not found" });
     }
 
+<<<<<<< HEAD
     if (isMerchant(req) && !verifyFoodOwnership(req, item)) {
       return res.status(403).json({ message: "Cannot update food outside your restaurant" });
     }
 
+=======
+>>>>>>> origin/main
     let trimmedName = item.name;
     if (name !== undefined) {
       trimmedName = typeof name === "string" ? name.trim() : "";
@@ -240,6 +268,7 @@ exports.updateFood = async (req, res) => {
         }
         nextCategoryId = parsedCategoryId;
         if (nextCategoryId !== item.categoryId) {
+<<<<<<< HEAD
           const category = await findCategoryWithRestaurant(nextCategoryId);
           if (!category) {
             return res.status(400).json({ message: "Category not found" });
@@ -250,6 +279,12 @@ exports.updateFood = async (req, res) => {
           if (!verifyCategoryOwnership(req, category)) {
             return res.status(403).json({ message: "Cannot assign food to another restaurant" });
           }
+=======
+          const category = await Category.findByPk(nextCategoryId);
+          if (!category) {
+            return res.status(400).json({ message: "Category not found" });
+          }
+>>>>>>> origin/main
         }
       }
     }
@@ -293,16 +328,23 @@ exports.updateFood = async (req, res) => {
 exports.deleteFood = async (req, res) => {
   try {
     const id = Number(req.params.id);
+<<<<<<< HEAD
     const item = await findFoodWithCategory(id);
+=======
+    const item = await Food.findByPk(id);
+>>>>>>> origin/main
 
     if (!item) {
       return res.status(404).json({ message: "Food not found" });
     }
 
+<<<<<<< HEAD
     if (isMerchant(req) && !verifyFoodOwnership(req, item)) {
       return res.status(403).json({ message: "Cannot delete food outside your restaurant" });
     }
 
+=======
+>>>>>>> origin/main
     await item.destroy();
     return res.json({ message: "Deleted", data: normalizeFood(item) });
   } catch (error) {
