@@ -18,7 +18,7 @@ const normalizeOrderItem = (item) => ({
   id: item.id,
   orderId: item.orderId,
   foodId: item.foodId,
-  foodName: item.food ? item.food.name : null,
+  foodName: item.foodName || (item.food ? item.food.name : null),
   quantity: Number(item.quantity || 0),
   priceAtOrder: Number(item.priceAtOrder || 0),
   lineTotal: Number(item.quantity || 0) * Number(item.priceAtOrder || 0),
@@ -307,6 +307,7 @@ exports.createOrder = async (req, res) => {
 
           preparedOrderItems.push({
             foodId: food.id,
+            foodName: food.name,
             quantity: requestedItem.quantity,
             priceAtOrder,
           });

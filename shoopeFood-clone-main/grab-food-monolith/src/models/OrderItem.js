@@ -7,6 +7,11 @@ const OrderItem = sequelize.define(
     id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
     orderId: { type: DataTypes.BIGINT, allowNull: false, field: "order_id" },
     foodId: { type: DataTypes.INTEGER, allowNull: false, field: "food_id" },
+    foodName: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      field: "food_name",
+    },
     quantity: {
       type: DataTypes.INTEGER,
       allowNull: false,

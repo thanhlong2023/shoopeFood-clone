@@ -39,6 +39,7 @@ type MenuFoodForm = {
   id: number | null
   name: string
   price: string
+  restaurantId: string
   categoryId: string
   defaultQuantity: string
   currentQuantity: string
@@ -55,6 +56,7 @@ const emptyFoodForm: MenuFoodForm = {
   id: null,
   name: '',
   price: '',
+  restaurantId: '',
   categoryId: '',
   defaultQuantity: '20',
   currentQuantity: '20',
@@ -437,6 +439,16 @@ function MenuManagerPanel() {
     return categories.filter((category) => category.restaurantId === Number(restaurantFilter))
   }, [categories, restaurantFilter])
 
+  const categoryOptions = useMemo(() => {
+    if (!foodForm.restaurantId) {
+      return []
+    }
+
+    return categories.filter((category) => category.restaurantId === Number(foodForm.restaurantId))
+  }, [categories, foodForm.restaurantId])
+
+  const canSubmitFood = foodForm.restaurantId !== '' && foodForm.categoryId !== ''
+
   const stats = useMemo(() => {
     const available = foods.filter((food) => food.isAvailable && Number(food.currentQuantity || 0) > 0).length
     const soldOut = foods.length - available
@@ -477,6 +489,7 @@ function MenuManagerPanel() {
     setCategoryFilter('')
     setFoodForm((current) => ({
       ...current,
+      restaurantId: restaurantFilter,
       categoryId: '',
     }))
     setCategoryForm((current) => ({
@@ -493,6 +506,7 @@ function MenuManagerPanel() {
   function resetFoodForm() {
     setFoodForm({
       ...emptyFoodForm,
+      restaurantId: restaurantFilter,
       categoryId: categoryFilter,
     })
   }
@@ -509,6 +523,7 @@ function MenuManagerPanel() {
 
     const name = foodForm.name.trim()
     const price = Number(foodForm.price)
+    const restaurantId = foodForm.restaurantId ? Number(foodForm.restaurantId) : null
     const categoryId = foodForm.categoryId ? Number(foodForm.categoryId) : null
     const defaultQuantity = Number(foodForm.defaultQuantity || 0)
     const currentQuantity = Number(foodForm.currentQuantity || 0)
@@ -520,6 +535,17 @@ function MenuManagerPanel() {
 
     if (!Number.isInteger(defaultQuantity) || defaultQuantity < 0 || !Number.isInteger(currentQuantity) || currentQuantity < 0) {
       setFeedback('So luong phai la so nguyen khong am')
+      return
+    }
+
+    if (restaurantId === null || categoryId === null) {
+      setFeedback('Phai chon nha hang va danh muc')
+      return
+    }
+
+    const selectedCategory = categories.find((category) => category.id === categoryId)
+    if (selectedCategory && selectedCategory.restaurantId !== restaurantId) {
+      setFeedback('Danh muc khong thuoc nha hang da chon')
       return
     }
 
@@ -728,17 +754,19 @@ function MenuManagerPanel() {
                     <button
                       type="button"
                       className="button-secondary"
-                      onClick={() =>
+                      onClick={() => {
+                        const category = food.categoryId ? categoryById.get(food.categoryId) : null
                         setFoodForm({
                           id: food.id,
                           name: food.name,
                           price: String(food.price),
+                          restaurantId: category ? String(category.restaurantId) : '',
                           categoryId: food.categoryId ? String(food.categoryId) : '',
                           defaultQuantity: String(food.defaultQuantity),
                           currentQuantity: String(food.currentQuantity),
                           isAvailable: food.isAvailable,
                         })
-                      }
+                      }}
                     >
                       Edit
                     </button>
@@ -776,16 +804,34 @@ function MenuManagerPanel() {
                 />
               </label>
               <label className="restaurant-field">
+                <span>Nha hang</span>
+                <select value={foodForm.restaurantId} onChange={(event) => setFoodForm((current) => ({ ...current, restaurantId: event.target.value, categoryId: '' }))}>
+                  <option value="">Chon nha hang</option>
+                  {restaurants.map((restaurant) => (
+                    <option key={restaurant.id} value={restaurant.id}>
+                      #{restaurant.id} - {restaurant.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="restaurant-field">
                 <span>Danh muc</span>
                 <select value={foodForm.categoryId} onChange={(event) => setFoodForm((current) => ({ ...current, categoryId: event.target.value }))}>
-                  <option value="">Khong gan danh muc</option>
-                  {visibleCategories.map((category) => (
+                  <option value="">{foodForm.restaurantId ? 'Chon danh muc' : 'Chon nha hang de hien danh muc'}</option>
+                  {categoryOptions.map((category) => (
                     <option key={category.id} value={category.id}>
                       #{category.id} - {category.name}
                     </option>
                   ))}
                 </select>
               </label>
+              <div className="menu-form-note">
+                {foodForm.restaurantId === '' ? (
+                  <p>Chon nha hang truoc khi tao mon an.</p>
+                ) : categoryOptions.length === 0 ? (
+                  <p>Danh muc chua co cho nha hang da chon.</p>
+                ) : null}
+              </div>
               <div className="checkout-grid">
                 <label className="restaurant-field">
                   <span>SL mac dinh</span>
@@ -815,7 +861,7 @@ function MenuManagerPanel() {
                 <span>Dang ban</span>
               </label>
               <div className="restaurant-form-actions">
-                <button type="submit" className="button-primary" disabled={isSavingFood}>
+                <button type="submit" className="button-primary" disabled={isSavingFood || !canSubmitFood}>
                   {isSavingFood ? 'Saving...' : foodForm.id ? 'Save food' : 'Create food'}
                 </button>
                 <button type="button" className="button-secondary" onClick={resetFoodForm}>

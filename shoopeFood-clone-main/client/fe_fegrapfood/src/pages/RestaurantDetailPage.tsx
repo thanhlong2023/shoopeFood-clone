@@ -1,11 +1,33 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
 import { APP_NAME } from '../constants/app'
+import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getRestaurantById } from '../services/api/restaurants'
-import { getFoods } from '../services/api/foods'
+import { createFood, getFoods, updateFood, type FoodPayload } from '../services/api/foods'
 import { getCategories } from '../services/api/categories'
 import type { Restaurant, Food, Category } from '../types'
+
+type FoodFormState = {
+  id: number | null
+  name: string
+  categoryId: string
+  price: string
+  defaultQuantity: string
+  currentQuantity: string
+  isAvailable: boolean
+}
+
+const emptyFoodForm: FoodFormState = {
+  id: null,
+  name: '',
+  categoryId: '',
+  price: '',
+  defaultQuantity: '0',
+  currentQuantity: '0',
+  isAvailable: true,
+}
 
 function formatTime(timeString: string | null | undefined): string {
   if (!timeString) return '-'
@@ -17,25 +39,92 @@ function formatDateTime(dateString: string | null | undefined): string {
   return new Date(dateString).toLocaleString('vi-VN')
 }
 
+function getRestaurantImage(restaurant: Restaurant) {
+  if (restaurant.imageUrl) {
+    return restaurant.imageUrl
+  }
+
+  const images = [
+    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1400&q=85',
+    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1400&q=85',
+    'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1400&q=85',
+    'https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?auto=format&fit=crop&w=1400&q=85',
+  ]
+
+  return images[(restaurant.id - 1) % images.length]
+}
+
+function RestaurantMap({ restaurant }: { restaurant: Restaurant }) {
+  const position: [number, number] = [restaurant.latitude, restaurant.longitude]
+
+  return (
+    <MapContainer center={position} zoom={16} scrollWheelZoom={false} className="restaurant-map">
+      <MapViewUpdater position={position} />
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <CircleMarker
+        center={position}
+        radius={12}
+        pathOptions={{ color: '#007a3d', fillColor: '#00b14f', fillOpacity: 0.85, weight: 3 }}
+      >
+        <Popup>
+          <strong>{restaurant.name}</strong>
+          <br />
+          {restaurant.address}
+        </Popup>
+      </CircleMarker>
+    </MapContainer>
+  )
+}
+
+function MapViewUpdater({ position }: { position: [number, number] }) {
+  const map = useMap()
+
+  useEffect(() => {
+    map.setView(position, map.getZoom())
+  }, [map, position])
+
+  return null
+}
+
 export default function RestaurantDetailPage() {
   const { id } = useParams<{ id: string }>()
-const restaurantId = Number(id)
+  const { user } = useAuth()
+  const restaurantId = Number(id)
 
   useDocumentTitle(`${APP_NAME} | Chi tiết nhà hàng`)
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [foods, setFoods] = useState<Food[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [foodForm, setFoodForm] = useState<FoodFormState>(emptyFoodForm)
   const [isRestaurantLoading, setIsRestaurantLoading] = useState(true)
   const [isFoodsLoading, setIsFoodsLoading] = useState(false)
-  const [isCategoriesLoading, setIsCategoriesLoading] = useState(false)
+  const [isSavingFood, setIsSavingFood] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [foodError, setFoodError] = useState<string | null>(null)
-  const [categoryError, setCategoryError] = useState<string | null>(null)
+  const [menuError, setMenuError] = useState<string | null>(null)
+  const [foodFeedback, setFoodFeedback] = useState<string | null>(null)
+
+  const canManageFoods = Boolean(
+    restaurant && user && (user.role === 'ADMIN' || (user.role === 'MERCHANT' && restaurant.ownerId === user.id)),
+  )
+
+  const loadMenu = useCallback(async () => {
+    const [foodsData, categoriesData] = await Promise.all([
+      getFoods({ restaurantId }),
+      getCategories({ restaurantId }),
+    ])
+
+    setFoods(foodsData)
+    setCategories(categoriesData)
+  }, [restaurantId])
 
   useEffect(() => {
-   if (!Number.isFinite(restaurantId)){
+    if (!Number.isFinite(restaurantId)) {
       setErrorMessage('ID nhà hàng không hợp lệ')
+      setIsRestaurantLoading(false)
       return
     }
 
@@ -44,38 +133,19 @@ const restaurantId = Number(id)
     async function loadData() {
       try {
         setIsRestaurantLoading(true)
+        setIsFoodsLoading(true)
         setErrorMessage(null)
+        setMenuError(null)
 
         const restaurantData = await getRestaurantById(restaurantId)
 
         if (!ignore) {
           setRestaurant(restaurantData)
-
-          setIsFoodsLoading(true)
-          setIsCategoriesLoading(true)
-          setCategoryError(null)
-          setFoodError(null)
-
           try {
-            const [foodsData, categoriesData] = await Promise.all([
-             getFoods({ restaurantId: Number(restaurantId) }),
-              getCategories({ restaurantId: Number(restaurantId) }),
-            ])
-
-            if (!ignore) {
-              setFoods(foodsData)
-              setCategories(categoriesData)
-            }
+            await loadMenu()
           } catch (error) {
             if (!ignore) {
-              const msg = error instanceof Error ? error.message : 'Không thể tải dữ liệu'
-              setFoodError(msg)
-              setCategoryError(msg)
-            }
-          } finally {
-            if (!ignore) {
-              setIsFoodsLoading(false)
-              setIsCategoriesLoading(false)
+              setMenuError(error instanceof Error ? error.message : 'Không thể tải danh sách món ăn')
             }
           }
         }
@@ -86,6 +156,7 @@ const restaurantId = Number(id)
       } finally {
         if (!ignore) {
           setIsRestaurantLoading(false)
+          setIsFoodsLoading(false)
         }
       }
     }
@@ -95,7 +166,97 @@ const restaurantId = Number(id)
     return () => {
       ignore = true
     }
-  }, [restaurantId])
+  }, [loadMenu, restaurantId])
+
+  useEffect(() => {
+    if (!foodForm.categoryId && categories.length > 0) {
+      setFoodForm((current) => ({ ...current, categoryId: String(categories[0].id) }))
+    }
+  }, [categories, foodForm.categoryId])
+
+  const categoryMap = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
+
+  const foodsByCategory = useMemo(() => {
+    return foods.reduce<Record<number, Food[]>>((groups, food) => {
+      const categoryId = food.categoryId || 0
+      groups[categoryId] = [...(groups[categoryId] || []), food]
+      return groups
+    }, {})
+  }, [foods])
+
+  function editFood(food: Food) {
+    setFoodFeedback(null)
+    setFoodForm({
+      id: food.id,
+      name: food.name,
+      categoryId: food.categoryId ? String(food.categoryId) : '',
+      price: String(food.price),
+      defaultQuantity: String(food.defaultQuantity),
+      currentQuantity: String(food.currentQuantity),
+      isAvailable: food.isAvailable,
+    })
+  }
+
+  function resetFoodForm() {
+    setFoodForm({
+      ...emptyFoodForm,
+      categoryId: categories[0] ? String(categories[0].id) : '',
+    })
+  }
+
+  function buildFoodPayload(): FoodPayload | null {
+    const name = foodForm.name.trim()
+    const categoryId = foodForm.categoryId ? Number(foodForm.categoryId) : null
+    const price = Number(foodForm.price)
+    const defaultQuantity = Number(foodForm.defaultQuantity)
+    const currentQuantity = Number(foodForm.currentQuantity)
+
+    if (!name || !Number.isFinite(price) || price < 0) {
+      setMenuError('Vui lòng nhập tên món và giá hợp lệ')
+      return null
+    }
+
+    if (!Number.isInteger(defaultQuantity) || defaultQuantity < 0 || !Number.isInteger(currentQuantity) || currentQuantity < 0) {
+      setMenuError('Số lượng món phải là số nguyên không âm')
+      return null
+    }
+
+    return {
+      name,
+      categoryId,
+      price,
+      defaultQuantity,
+      currentQuantity,
+      isAvailable: foodForm.isAvailable,
+    }
+  }
+
+  async function handleFoodSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const payload = buildFoodPayload()
+    if (!payload) return
+
+    try {
+      setIsSavingFood(true)
+      setMenuError(null)
+      setFoodFeedback(null)
+
+      if (foodForm.id) {
+        await updateFood(foodForm.id, payload)
+        setFoodFeedback(`Đã cập nhật món #${foodForm.id}`)
+      } else {
+        await createFood(payload)
+        setFoodFeedback('Đã thêm món ăn mới')
+      }
+
+      await loadMenu()
+      resetFoodForm()
+    } catch (error) {
+      setMenuError(error instanceof Error ? error.message : 'Không thể lưu món ăn')
+    } finally {
+      setIsSavingFood(false)
+    }
+  }
 
   if (isRestaurantLoading) {
     return (
@@ -114,52 +275,30 @@ const restaurantId = Number(id)
           <p>{errorMessage || 'Không tìm thấy nhà hàng'}</p>
 
           <Link to="/restaurants" className="button-secondary">
-            ← Quay lại danh sách
+            Quay lại danh sách
           </Link>
         </div>
       </section>
     )
   }
 
-  const foodsByCategory: Record<number, Food[]> = {}
-
-  foods.forEach((food) => {
-    const catId = food.categoryId || 0
-
-    if (!foodsByCategory[catId]) {
-      foodsByCategory[catId] = []
-    }
-
-    foodsByCategory[catId].push(food)
-  })
-
-  const categoryMap: Record<number, Category | undefined> = {}
-
-  categories.forEach((cat) => {
-    categoryMap[cat.id] = cat
-  })
-
   return (
     <section className="restaurant-page">
       <div className="restaurant-page-header">
         <Link to="/restaurants" className="button-secondary">
-          ← Quay lại danh sách
+          Quay lại danh sách
         </Link>
       </div>
 
       <div className="restaurant-detail-card">
-        <div className="restaurant-detail-header">
-          {restaurant.imageUrl && (
-            <img
-              src={restaurant.imageUrl}
-              alt={restaurant.name}
-              className="restaurant-detail-image"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-              }}
-            />
-          )}
-
+        <div
+          className="restaurant-detail-hero"
+          style={{
+            backgroundImage: `linear-gradient(90deg, rgba(16, 24, 32, 0.82), rgba(16, 24, 32, 0.18)), url("${getRestaurantImage(
+              restaurant,
+            )}")`,
+          }}
+        >
           <div className="restaurant-detail-info">
             <h1>{restaurant.name}</h1>
 
@@ -171,37 +310,28 @@ const restaurantId = Number(id)
                     ? 'Đã duyệt'
                     : 'Bị từ chối'}
               </span>
-
               <span className={`status-badge ${restaurant.isOpen ? 'open' : 'closed'}`}>
                 {restaurant.isOpen ? 'Mở cửa' : 'Đóng cửa'}
               </span>
-
               <span className={`status-badge ${restaurant.isOpenToday ? 'open' : 'closed'}`}>
                 {restaurant.isOpenToday ? 'Mở hôm nay' : 'Đóng hôm nay'}
               </span>
             </div>
 
-            <p className="restaurant-detail-address">
-              📍 {restaurant.address}
-            </p>
+            <p className="restaurant-detail-address">Vị trí: {restaurant.address}</p>
 
             <div className="restaurant-detail-metrics">
-              <span>⭐ {restaurant.ratingAvg.toFixed(2)}</span>
-
+              <span>Đánh giá {restaurant.ratingAvg.toFixed(2)}</span>
               <span>
-                🕒 {formatTime(restaurant.openingTime)} - {formatTime(restaurant.closingTime)}
+                {formatTime(restaurant.openingTime)} - {formatTime(restaurant.closingTime)}
               </span>
-
               <span>ID: #{restaurant.id}</span>
             </div>
 
             {restaurant.isOpenToday === false && restaurant.temporaryClosedReason && (
               <div className="alert alert-warning">
                 <strong>Đóng tạm thời:</strong> {restaurant.temporaryClosedReason}
-
-                {restaurant.temporaryClosedUntil && (
-                  <p>Hết lý do lúc: {formatDateTime(restaurant.temporaryClosedUntil)}</p>
-                )}
+                {restaurant.temporaryClosedUntil && <p>Hết lý do lúc: {formatDateTime(restaurant.temporaryClosedUntil)}</p>}
               </div>
             )}
 
@@ -213,8 +343,7 @@ const restaurantId = Number(id)
 
             {restaurant.approvalStatus === 'APPROVED' && (
               <p className="detail-meta">
-                Phê duyệt bởi: Admin #{restaurant.approvedBy} vào{' '}
-                {formatDateTime(restaurant.approvedAt)}
+                Phê duyệt bởi Admin #{restaurant.approvedBy} vào {formatDateTime(restaurant.approvedAt)}
               </p>
             )}
           </div>
@@ -225,47 +354,124 @@ const restaurantId = Number(id)
 
           <div className="restaurant-coordinates">
             <span>
-              📌 Vĩ độ: <strong>{restaurant.latitude.toFixed(6)}</strong>
+              Vĩ độ: <strong>{restaurant.latitude.toFixed(6)}</strong>
             </span>
-
             <span>
-              📌 Kinh độ: <strong>{restaurant.longitude.toFixed(6)}</strong>
+              Kinh độ: <strong>{restaurant.longitude.toFixed(6)}</strong>
             </span>
           </div>
 
-          <div className="restaurant-map-placeholder">
-            Bản đồ sẽ được hiển thị tại vị trí ({restaurant.latitude}, {restaurant.longitude})
-          </div>
+          <RestaurantMap restaurant={restaurant} />
         </div>
 
         <div className="restaurant-foods-section">
-          <h2>Danh sách đồ ăn</h2>
+          <div className="section-heading-row">
+            <h2>Danh sách món ăn</h2>
+            {canManageFoods ? <span className="owner-note">Chế độ chủ nhà hàng</span> : null}
+          </div>
 
-          {foodError && (
-            <p className="restaurant-feedback error">
-              {foodError}
-            </p>
-          )}
+          {menuError ? <p className="restaurant-feedback error">{menuError}</p> : null}
+          {foodFeedback ? <p className="restaurant-feedback success">{foodFeedback}</p> : null}
 
-          {categoryError && (
-            <p className="restaurant-feedback error">
-              {categoryError}
-            </p>
-          )}
+          {canManageFoods ? (
+            <form className="food-owner-form" onSubmit={handleFoodSubmit}>
+              <div className="restaurant-form-grid">
+                <div className="restaurant-field">
+                  <label htmlFor="foodName">Tên món</label>
+                  <input
+                    id="foodName"
+                    value={foodForm.name}
+                    onChange={(event) => setFoodForm((current) => ({ ...current, name: event.target.value }))}
+                    placeholder="Ví dụ: Bún bò"
+                  />
+                </div>
 
-          {isFoodsLoading || isCategoriesLoading ? (
-            <p className="loading-state">
-              Đang tải danh sách đồ ăn...
-            </p>
+                <div className="restaurant-field">
+                  <label htmlFor="foodCategory">Danh mục</label>
+                  <select
+                    id="foodCategory"
+                    value={foodForm.categoryId}
+                    onChange={(event) => setFoodForm((current) => ({ ...current, categoryId: event.target.value }))}
+                  >
+                    {categories.length === 0 ? <option value="">Chưa có danh mục</option> : null}
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="restaurant-field">
+                  <label htmlFor="foodPrice">Giá</label>
+                  <input
+                    id="foodPrice"
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={foodForm.price}
+                    onChange={(event) => setFoodForm((current) => ({ ...current, price: event.target.value }))}
+                  />
+                </div>
+
+                <div className="restaurant-field">
+                  <label htmlFor="foodDefaultQuantity">Số lượng mặc định</label>
+                  <input
+                    id="foodDefaultQuantity"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={foodForm.defaultQuantity}
+                    onChange={(event) => setFoodForm((current) => ({ ...current, defaultQuantity: event.target.value }))}
+                  />
+                </div>
+
+                <div className="restaurant-field">
+                  <label htmlFor="foodCurrentQuantity">Số lượng hiện có</label>
+                  <input
+                    id="foodCurrentQuantity"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={foodForm.currentQuantity}
+                    onChange={(event) => setFoodForm((current) => ({ ...current, currentQuantity: event.target.value }))}
+                  />
+                </div>
+
+                <div className="restaurant-field">
+                  <label className="restaurant-checkbox compact">
+                    <input
+                      type="checkbox"
+                      checked={foodForm.isAvailable}
+                      onChange={(event) => setFoodForm((current) => ({ ...current, isAvailable: event.target.checked }))}
+                    />
+                    <span>{foodForm.isAvailable ? 'Đang bán' : 'Ngưng bán'}</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="restaurant-form-actions">
+                {foodForm.id ? (
+                  <button type="button" className="button-secondary" onClick={resetFoodForm}>
+                    Hủy sửa
+                  </button>
+                ) : null}
+                <button type="submit" className="button-primary" disabled={isSavingFood || categories.length === 0}>
+                  {isSavingFood ? 'Đang lưu...' : foodForm.id ? 'Cập nhật món' : 'Thêm món ăn'}
+                </button>
+              </div>
+            </form>
+          ) : null}
+
+          {isFoodsLoading ? (
+            <p className="loading-state">Đang tải danh sách món ăn...</p>
           ) : foods.length === 0 ? (
-            <p className="empty-state">
-              Chưa có đồ ăn nào
-            </p>
+            <p className="empty-state">Chưa có món ăn nào</p>
           ) : (
             <div className="foods-by-category">
               {Object.entries(foodsByCategory).map(([catIdStr, categoryFoods]) => {
                 const catId = Number(catIdStr)
-                const category = categoryMap[catId]
+                const category = categoryMap.get(catId)
                 const categoryName = category ? category.name : 'Không có danh mục'
 
                 return (
@@ -274,35 +480,31 @@ const restaurantId = Number(id)
 
                     <div className="food-grid">
                       {categoryFoods.map((food) => (
-                        <div key={food.id} className="food-card">
+                        <div key={food.id} className="restaurant-food-card">
                           <div className="food-card-header">
                             <h4>{food.name}</h4>
-
-                            <span
-                              className={`availability-badge ${
-                                food.isAvailable ? 'available' : 'unavailable'
-                              }`}
-                            >
+                            <span className={`availability-badge ${food.isAvailable ? 'available' : 'unavailable'}`}>
                               {food.isAvailable ? 'Còn' : 'Hết'}
                             </span>
                           </div>
 
                           <div className="food-card-details">
                             <p>
-                              💰 <strong>{food.price.toLocaleString('vi-VN')} ₫</strong>
+                              <strong>{food.price.toLocaleString('vi-VN')} đ</strong>
                             </p>
-
                             <p>
-                              📦 Hiện có: {food.currentQuantity}/{food.defaultQuantity}
+                              Hiện có: {food.currentQuantity}/{food.defaultQuantity}
                             </p>
-
-                            {food.quantityResetDate && (
-                              <p>
-                                🔄 Reset lúc:{' '}
-                                {formatDateTime(food.quantityResetDate)}
-                              </p>
-                            )}
+                            {food.quantityResetDate ? <p>Reset lúc: {formatDateTime(food.quantityResetDate)}</p> : null}
                           </div>
+
+                          {canManageFoods ? (
+                            <div className="food-card-actions">
+                              <button type="button" className="button-secondary" onClick={() => editFood(food)}>
+                                Sửa món
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                     </div>

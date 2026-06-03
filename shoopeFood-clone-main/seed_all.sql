@@ -200,6 +200,7 @@ CREATE TABLE IF NOT EXISTS order_items (
     id             BIGINT         PRIMARY KEY AUTO_INCREMENT,
     order_id       BIGINT         NOT NULL,
     food_id        INT            NOT NULL,
+    food_name      VARCHAR(255)   NOT NULL,
     quantity       INT            NOT NULL CHECK (quantity > 0),
     price_at_order DECIMAL(10,2)  NOT NULL,
     FOREIGN KEY (food_id) REFERENCES food_items(id)
@@ -391,9 +392,9 @@ INSERT INTO orders (
     7, 1, '2026-03-24 10:00:00'
 );
 
-INSERT INTO order_items (order_id, food_id, quantity, price_at_order) VALUES
-(1, 1, 2, 45000),
-(1, 2, 1,  5000);
+INSERT INTO order_items (order_id, food_id, food_name, quantity, price_at_order) VALUES
+(1, 1, 'Com Tam Chay', 2, 45000),
+(1, 2, 'Tra Da', 1,  5000);
 
 -- FIX 3.2 – payments + payment_transactions
 INSERT INTO payments (order_id, idempotency_key, payment_method, status, amount) VALUES

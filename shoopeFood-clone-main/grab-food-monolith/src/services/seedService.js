@@ -200,9 +200,9 @@ exports.seedIfEmpty = async () => {
   ]);
 
   await OrderItem.bulkCreate([
-    { orderId: orders[0].id, foodId: foods[0].id, quantity: 1, priceAtOrder: 35000 },
-    { orderId: orders[0].id, foodId: foods[2].id, quantity: 1, priceAtOrder: 25000 },
-    { orderId: orders[1].id, foodId: foods[1].id, quantity: 2, priceAtOrder: 40000 },
+    { orderId: orders[0].id, foodId: foods[0].id, foodName: foods[0].name, quantity: 1, priceAtOrder: 35000 },
+    { orderId: orders[0].id, foodId: foods[2].id, foodName: foods[2].name, quantity: 1, priceAtOrder: 25000 },
+    { orderId: orders[1].id, foodId: foods[1].id, foodName: foods[1].name, quantity: 2, priceAtOrder: 40000 },
   ]);
 
   await DriverLocation.bulkCreate([

@@ -111,6 +111,59 @@ const ensureDriverLocationTrackingColumns = async () => {
   }
 };
 
+const ensureRestaurantApprovalColumns = async () => {
+  const queryInterface = sequelize.getQueryInterface();
+  const columns = await queryInterface.describeTable("restaurants");
+
+  if (!hasColumn(columns, "approval_status")) {
+    await queryInterface.addColumn("restaurants", "approval_status", {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: "PENDING",
+    });
+  }
+
+  if (!hasColumn(columns, "approved_by")) {
+    await queryInterface.addColumn("restaurants", "approved_by", {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    });
+  }
+
+  if (!hasColumn(columns, "approved_at")) {
+    await queryInterface.addColumn("restaurants", "approved_at", {
+      type: DataTypes.DATE,
+      allowNull: true,
+    });
+  }
+
+  if (!hasColumn(columns, "reject_reason")) {
+    await queryInterface.addColumn("restaurants", "reject_reason", {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    });
+  }
+};
+
+const ensureOrderItemSnapshotColumns = async () => {
+  const queryInterface = sequelize.getQueryInterface();
+  const columns = await queryInterface.describeTable("order_items");
+
+  if (!hasColumn(columns, "food_name")) {
+    await queryInterface.addColumn("order_items", "food_name", {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    });
+
+    await sequelize.query(`
+      UPDATE order_items oi
+      JOIN food_items fi ON fi.id = oi.food_id
+      SET oi.food_name = fi.name
+      WHERE oi.food_name IS NULL OR oi.food_name = ''
+    `);
+  }
+};
+
 const initializeDatabase = async () => {
   await ensureDatabaseExists();
   await sequelize.authenticate();
@@ -118,6 +171,8 @@ const initializeDatabase = async () => {
   await ensureFoodQuantityColumns();
   await ensureUsersCreatedAtColumn();
   await ensureDriverLocationTrackingColumns();
+  await ensureRestaurantApprovalColumns();
+  await ensureOrderItemSnapshotColumns();
   await Food.resetExpiredDailyQuantities();
   await seedService.seedIfEmpty();
 };
@@ -128,4 +183,5 @@ module.exports = {
   ensureFoodQuantityColumns,
   ensureUsersCreatedAtColumn,
   ensureDriverLocationTrackingColumns,
+  ensureOrderItemSnapshotColumns,
 };

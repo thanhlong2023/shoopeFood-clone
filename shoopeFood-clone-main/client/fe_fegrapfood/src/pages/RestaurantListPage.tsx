@@ -28,12 +28,28 @@ function formatDateTime(dateString: string | null | undefined) {
   return new Date(dateString).toLocaleString('vi-VN')
 }
 
+function getRestaurantImage(restaurant: Restaurant) {
+  if (restaurant.imageUrl) {
+    return restaurant.imageUrl
+  }
+
+  const images = [
+    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=900&q=80',
+    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=80',
+    'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=80',
+    'https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?auto=format&fit=crop&w=900&q=80',
+  ]
+
+  return images[(restaurant.id - 1) % images.length]
+}
+
 export default function RestaurantListPage() {
   useDocumentTitle(`${APP_NAME} | Restaurants`)
   const { user } = useAuth()
 
   const [activeTab, setActiveTab] = useState<'list' | 'pending' | 'changeRequests'>('list')
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
+  const [pendingRestaurants, setPendingRestaurants] = useState<Restaurant[]>([])
   const [changeRequests, setChangeRequests] = useState<RestaurantChangeRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -44,8 +60,8 @@ export default function RestaurantListPage() {
   const [showTodayStatusModal, setShowTodayStatusModal] = useState<number | null>(null)
   const [todayStatusData, setTodayStatusData] = useState({ reason: '', until: '' })
 
-  const isAdmin = user?.roles?.includes('ADMIN')
-  const isMerchant = user?.roles?.includes('MERCHANT')
+  const isAdmin = user?.role === 'ADMIN'
+  const isMerchant = user?.role === 'MERCHANT'
 
   useEffect(() => {
     void loadData()
@@ -61,7 +77,7 @@ export default function RestaurantListPage() {
         setRestaurants(items)
       } else if (activeTab === 'pending' && isAdmin) {
         const items = await getPendingRestaurants()
-        setRestaurants(items)
+        setPendingRestaurants(items)
       } else if (activeTab === 'changeRequests' && isAdmin) {
         const items = await getRestaurantChangeRequests('PENDING')
         setChangeRequests(items)
@@ -135,7 +151,12 @@ export default function RestaurantListPage() {
       setActioningId(restaurantId)
       const restaurant = restaurants.find((r) => r.id === restaurantId)
       if (restaurant) {
-        await patchRestaurantTodayStatus(!restaurant.isOpenToday, todayStatusData.reason || undefined, todayStatusData.until || undefined)
+        await patchRestaurantTodayStatus(
+          restaurantId,
+          !restaurant.isOpenToday,
+          todayStatusData.reason || undefined,
+          todayStatusData.until || undefined,
+        )
         setSuccessMessage('Đã cập nhật trạng thái hôm nay')
         setTodayStatusData({ reason: '', until: '' })
         setShowTodayStatusModal(null)
@@ -204,7 +225,7 @@ export default function RestaurantListPage() {
                 className={`tab-button ${activeTab === 'pending' ? 'active' : ''}`}
                 onClick={() => setActiveTab('pending')}
               >
-                Chờ phê duyệt ({restaurants.length})
+                Chờ phê duyệt ({pendingRestaurants.length})
               </button>
               <button
                 className={`tab-button ${activeTab === 'changeRequests' ? 'active' : ''}`}
@@ -234,6 +255,13 @@ export default function RestaurantListPage() {
           <div className="restaurant-grid">
             {restaurants.map((restaurant) => (
               <article key={restaurant.id} className="restaurant-manage-card">
+                <Link
+                  to={`/restaurants/${restaurant.id}`}
+                  className="restaurant-manage-photo"
+                  style={{ backgroundImage: `url("${getRestaurantImage(restaurant)}")` }}
+                  aria-label={`Xem chi tiết ${restaurant.name}`}
+                />
+
                 <div className="restaurant-manage-top">
                   <span className="restaurant-manage-id">ID #{restaurant.id}</span>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -331,7 +359,7 @@ export default function RestaurantListPage() {
         {/* Pending Restaurants Tab */}
         {activeTab === 'pending' && isAdmin && (
           <div className="restaurant-grid">
-            {restaurants.map((restaurant) => (
+            {pendingRestaurants.map((restaurant) => (
               <article key={restaurant.id} className="restaurant-manage-card pending">
                 <div className="restaurant-manage-top">
                   <span className="restaurant-manage-id">ID #{restaurant.id}</span>
@@ -367,7 +395,7 @@ export default function RestaurantListPage() {
               </article>
             ))}
 
-            {!isLoading && restaurants.length === 0 && (
+            {!isLoading && pendingRestaurants.length === 0 && (
               <p className="empty-state">Không có nhà hàng nào chờ phê duyệt</p>
             )}
           </div>

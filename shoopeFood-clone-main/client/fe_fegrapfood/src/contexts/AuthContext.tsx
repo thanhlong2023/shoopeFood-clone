@@ -76,7 +76,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return false
     }
 
-    return roles.includes(user.role) || roles.some((role) => user.roles.includes(role))
+    return roles.includes(user.role)
   }
 
   const value = useMemo(
