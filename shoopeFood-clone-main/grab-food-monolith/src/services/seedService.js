@@ -12,6 +12,8 @@ const {
   OrderStatus,
 } = require("../models");
 
+const { setUserRole } = require("../utils/roleAssignment");
+
 const DEFAULT_ROLE_NAMES = ["CUSTOMER", "DRIVER", "MERCHANT", "ADMIN"];
 
 const ensureDefaultRolesAndAssignments = async () => {
@@ -19,7 +21,6 @@ const ensureDefaultRolesAndAssignments = async () => {
     DEFAULT_ROLE_NAMES.map((name) => Role.findOrCreate({ where: { name }, defaults: { name } }))
   );
 
-  const roleByName = new Map(roles.map(([role]) => [role.name, role]));
   const [users, drivers, restaurants, existingUserRoles] = await Promise.all([
     User.findAll({ attributes: ["id"], order: [["id", "ASC"]] }),
     DriverDetail.findAll({ attributes: ["userId"] }),
@@ -27,7 +28,6 @@ const ensureDefaultRolesAndAssignments = async () => {
     UserRole.findAll(),
   ]);
 
-  const assignedRoleKeys = new Set(existingUserRoles.map((item) => `${item.userId}:${item.roleId}`));
   const roleIdsByUserId = new Map();
 
   existingUserRoles.forEach((item) => {
@@ -36,32 +36,17 @@ const ensureDefaultRolesAndAssignments = async () => {
     roleIdsByUserId.set(item.userId, values);
   });
 
-  const ensureAssignment = async (userId, roleName) => {
-    const role = roleByName.get(roleName);
-    if (!role) {
-      return;
-    }
+  const usersWithoutRole = users.filter((user) => !roleIdsByUserId.has(user.id));
+  const driverUserIds = [...new Set(drivers.map((driver) => driver.userId).filter(Boolean))];
+  const merchantOwnerIds = [...new Set(restaurants.map((restaurant) => restaurant.ownerId).filter(Boolean))];
 
-    const key = `${userId}:${role.id}`;
-    if (assignedRoleKeys.has(key)) {
-      return;
-    }
+  await Promise.all(usersWithoutRole.map((user) => setUserRole(user.id, "CUSTOMER")));
+  await Promise.all(driverUserIds.map((userId) => setUserRole(userId, "DRIVER")));
+  await Promise.all(merchantOwnerIds.map((ownerId) => setUserRole(ownerId, "MERCHANT")));
 
-    await UserRole.create({ userId, roleId: role.id });
-    assignedRoleKeys.add(key);
-  };
-
-  await Promise.all(
-    users
-      .filter((user) => !roleIdsByUserId.has(user.id))
-      .map((user) => ensureAssignment(user.id, "CUSTOMER"))
-  );
-
-  await Promise.all(drivers.map((driver) => ensureAssignment(driver.userId, "DRIVER")));
-  await Promise.all(restaurants.map((restaurant) => ensureAssignment(restaurant.ownerId, "MERCHANT")));
-
-  if (users[0]) {
-    await ensureAssignment(users[0].id, "ADMIN");
+  const adminUser = users.find((item) => Number(item.id) === 5) || users[users.length - 1];
+  if (adminUser) {
+    await setUserRole(adminUser.id, "ADMIN");
   }
 };
 

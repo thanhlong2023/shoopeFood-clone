@@ -1,4 +1,5 @@
 const { Restaurant, RestaurantChangeRequest, User, Role } = require("../models");
+const { assignMerchantRole } = require("../utils/roleAssignment");
 const { Op } = require("sequelize");
 const { resolveUserRoles } = require("../utils/roleResolver");
 
@@ -531,6 +532,8 @@ exports.approveRestaurant = async (req, res) => {
       isOpen: true,
       isOpenToday: true,
     });
+
+    await assignMerchantRole(item.ownerId);
 
     return withSuccess(res, 200, "Restaurant approved", normalizeRestaurant(item));
   } catch (error) {

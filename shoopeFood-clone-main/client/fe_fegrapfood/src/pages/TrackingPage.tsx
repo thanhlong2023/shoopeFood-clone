@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import L from 'leaflet'
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
 import { Link, useSearchParams } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useTrackableOrder } from '../hooks/useTrackableOrder'
 import { getOrderTracking } from '../services/api/orders'
+import { getLastOrderId } from '../utils/orderStorage'
 import { createSocket } from '../services/socket'
 import type { DriverLocation, Order, OrderTracking, RoutePoint } from '../types'
 
@@ -100,11 +102,13 @@ function StatusSteps({ order }: { order: Order | null }) {
 
 export default function TrackingPage() {
   useDocumentTitle(`${APP_NAME} | Theo doi don`)
-  const [searchParams, setSearchParams] = useSearchParams()
-  const initialOrderId = searchParams.get('orderId') || localStorage.getItem('lastOrderId') || '1'
+  const [searchParams] = useSearchParams()
+  const { hasTrackableOrder, lastOrderId } = useTrackableOrder()
+  const queryOrderId = searchParams.get('orderId')
+  const resolvedOrderId = queryOrderId ? Number(queryOrderId) : lastOrderId ?? getLastOrderId()
+  const hasActiveOrder = Number.isFinite(resolvedOrderId) && (resolvedOrderId ?? 0) > 0
 
-  const [orderIdInput, setOrderIdInput] = useState(initialOrderId)
-  const [activeOrderId, setActiveOrderId] = useState(Number(initialOrderId) || 1)
+  const [activeOrderId, setActiveOrderId] = useState<number | null>(hasActiveOrder ? Number(resolvedOrderId) : null)
   const [tracking, setTracking] = useState<OrderTracking | null>(null)
   const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -129,8 +133,9 @@ export default function TrackingPage() {
   }, [])
 
   useEffect(() => {
-    if (!Number.isFinite(activeOrderId)) {
-      return
+    if (activeOrderId === null || !Number.isFinite(activeOrderId)) {
+      setIsLoading(false)
+      return undefined
     }
 
     void loadTracking(activeOrderId)
@@ -139,6 +144,10 @@ export default function TrackingPage() {
   }, [activeOrderId, loadTracking])
 
   useEffect(() => {
+    if (activeOrderId === null) {
+      return undefined
+    }
+
     let isMounted = true
     let socket: Awaited<ReturnType<typeof createSocket>> | null = null
 
@@ -199,17 +208,19 @@ export default function TrackingPage() {
       ? [tracking.restaurant.latitude, tracking.restaurant.longitude]
       : defaultCenter
 
-  function handleTrackSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const nextOrderId = Number(orderIdInput)
-    if (!Number.isFinite(nextOrderId) || nextOrderId <= 0) {
-      setErrorMessage('Ma don khong hop le')
-      return
-    }
-
-    localStorage.setItem('lastOrderId', String(nextOrderId))
-    setSearchParams({ orderId: String(nextOrderId) })
-    setActiveOrderId(nextOrderId)
+  if (!hasTrackableOrder && !queryOrderId) {
+    return (
+      <section className="tracking-page">
+        <div className="tracking-empty">
+          <span className="hero-badge">Theo doi don hang</span>
+          <h1>Chua co don hang de theo doi</h1>
+          <p>Dat mon xong ban se thay tien trinh giao hang va lo trinh tai xe tai day.</p>
+          <Link className="button-primary" to="/">
+            Dat mon ngay
+          </Link>
+        </div>
+      </section>
+    )
   }
 
   return (
@@ -218,13 +229,8 @@ export default function TrackingPage() {
         <div>
           <span className="hero-badge">Theo doi truc tiep</span>
           <h1>Don hang cua ban dang o dau?</h1>
-          <p>{tracking?.order.orderCode || 'Nhap ma don de xem tai xe va lo trinh giao hang.'}</p>
+          <p>{tracking?.order.orderCode || 'Dang tai thong tin don hang...'}</p>
         </div>
-
-        <form className="tracking-search" onSubmit={handleTrackSubmit}>
-          <input value={orderIdInput} onChange={(event) => setOrderIdInput(event.target.value)} aria-label="Order ID" />
-          <button type="submit">Theo doi</button>
-        </form>
       </div>
 
       {errorMessage ? <p className="app-feedback error">{errorMessage}</p> : null}

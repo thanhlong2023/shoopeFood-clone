@@ -6,6 +6,7 @@ import AdminPage from '../pages/AdminPage'
 import HomePage from '../pages/HomePage'
 import DriverPage from '../pages/DriverPage'
 import LoginPage from '../pages/LoginPage'
+import RegisterPage from '../pages/RegisterPage'
 import MerchantMenuPage from '../pages/MerchantMenuPage'
 import MerchantOrdersPage from '../pages/MerchantOrdersPage'
 import AdminTabRedirect from '../components/common/AdminTabRedirect'
@@ -25,7 +26,11 @@ export default function AppRouter() {
             </RoleHomeRedirect>
           }
         />
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={<LoginPage role="CUSTOMER" />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/merchant/login" element={<LoginPage role="MERCHANT" />} />
+        <Route path="/driver/login" element={<LoginPage role="DRIVER" />} />
+        <Route path="/admin/login" element={<LoginPage role="ADMIN" />} />
         <Route
           path="/profile"
           element={

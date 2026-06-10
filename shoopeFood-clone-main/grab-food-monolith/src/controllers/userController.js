@@ -30,23 +30,18 @@ const normalizeRoleNames = (rolesInput, fallbackRole) => {
   return normalized;
 };
 
+const { setUserRole } = require("../utils/roleAssignment");
+
 const assignUserRoles = async (userId, rolesInput, fallbackRole) => {
   const roleNames = normalizeRoleNames(rolesInput, fallbackRole);
   if (roleNames.length === 0) {
     throw new Error("At least one valid role is required");
   }
 
-  await UserRole.destroy({ where: { userId } });
+  const roleName = roleNames[0];
+  await setUserRole(userId, roleName);
 
-  for (const roleName of roleNames) {
-    const role = await Role.findOne({ where: { name: roleName } });
-    if (!role) {
-      throw new Error(`Role ${roleName} is not configured`);
-    }
-    await UserRole.create({ userId, roleId: role.id });
-  }
-
-  return roleNames;
+  return [roleName];
 };
 
 const findUserWithRoles = (id) => User.findByPk(id, { include: userInclude });
@@ -113,11 +108,6 @@ exports.createMerchant = async (req, res) => {
       return res.status(400).json({ message: "fullName and phone are required" });
     }
 
-    const merchantRole = await Role.findOne({ where: { name: "MERCHANT" } });
-    if (!merchantRole) {
-      return res.status(500).json({ message: "MERCHANT role is not configured" });
-    }
-
     const existing = await User.findOne({ where: { phone: String(phone).trim() } });
     if (existing) {
       return res.status(400).json({ message: "Phone number already exists" });
@@ -130,7 +120,7 @@ exports.createMerchant = async (req, res) => {
       ratingAvg: Number.isFinite(Number(ratingAvg)) ? Number(ratingAvg) : 5.0,
     });
 
-    await UserRole.create({ userId: newUser.id, roleId: merchantRole.id });
+    await setUserRole(newUser.id, "MERCHANT");
 
     const created = await User.findByPk(newUser.id, { include: userInclude });
     return res.status(201).json({ message: "Merchant created", data: normalizeUser(created) });

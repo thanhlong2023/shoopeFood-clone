@@ -1,9 +1,11 @@
 import { NavLink } from 'react-router-dom'
 import { APP_NAME } from '../../constants/app'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTrackableOrder } from '../../hooks/useTrackableOrder'
 
 export default function Navbar() {
   const { isAuthenticated, user, logout, hasRole } = useAuth()
+  const { hasTrackableOrder } = useTrackableOrder()
 
   const isMerchant = hasRole(['MERCHANT'])
   const isAdmin = hasRole(['ADMIN'])
@@ -37,9 +39,11 @@ export default function Navbar() {
               <li>
                 <NavLink to="/">Dat mon</NavLink>
               </li>
-              <li>
-                <NavLink to="/tracking">Theo doi</NavLink>
-              </li>
+              {hasTrackableOrder ? (
+                <li>
+                  <NavLink to="/tracking">Theo doi</NavLink>
+                </li>
+              ) : null}
             </>
           ) : null}
 
@@ -68,9 +72,14 @@ export default function Navbar() {
               </button>
             </>
           ) : (
-            <NavLink className="topbar-cta" to="/login">
-              Dang nhap
-            </NavLink>
+            <>
+              <NavLink className="topbar-cta" to="/login">
+                Dang nhap
+              </NavLink>
+              <NavLink className="topbar-cta secondary" to="/register">
+                Dang ky
+              </NavLink>
+            </>
           )}
         </div>
       </nav>

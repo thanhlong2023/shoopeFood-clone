@@ -22,6 +22,9 @@ const bootstrap = async () => {
     });
   } catch (error) {
     console.error("Cannot connect database:", error.message);
+    if (error.parent?.sqlMessage) {
+      console.error("SQL:", error.parent.sqlMessage);
+    }
     process.exit(1);
   }
 };

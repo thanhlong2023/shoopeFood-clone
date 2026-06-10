@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { resolveLoginPath } from '../../utils/loginPaths'
 import type { UserRole } from '../../types'
 
 type RequireAuthProps = {
@@ -13,7 +14,7 @@ export default function RequireAuth({ allowedRoles, children }: RequireAuthProps
   const { isAuthenticated, hasRole, user } = useAuth()
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+    return <Navigate to={resolveLoginPath(location.pathname)} replace state={{ from: location.pathname }} />
   }
 
   if (allowedRoles && !hasRole(allowedRoles)) {

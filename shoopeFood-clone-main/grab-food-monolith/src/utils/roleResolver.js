@@ -12,28 +12,41 @@ const roleInclude = [
 const normalizeRoleName = (role) => String(role || "").trim().toUpperCase();
 
 const resolveUserRoles = async (req) => {
-  const sessionRole = normalizeRoleName(req.user?.role);
-  const tokenRoles = (req.user?.roles || []).map(normalizeRoleName).filter(Boolean);
+  const activeRole = normalizeRoleName(req.user?.role);
 
   if (!req.user?.id) {
     return {
       user: null,
+      activeRole: "",
+      assignedRoles: [],
       roles: [],
+      hasActiveRole: () => false,
+      hasAssignedRole: () => false,
       hasRole: () => false,
     };
   }
 
   const user = await User.findByPk(req.user.id, { include: roleInclude });
-  const dbRoles = (user?.roles || []).map((role) => normalizeRoleName(role.name)).filter(Boolean);
-  const roles = [...new Set([sessionRole, ...tokenRoles, ...dbRoles].filter(Boolean))];
+  const assignedRoles = (user?.roles || []).map((role) => normalizeRoleName(role.name)).filter(Boolean);
+
+  const hasActiveRole = (allowedRoles = []) => {
+    const normalized = allowedRoles.map(normalizeRoleName);
+    return normalized.includes(activeRole);
+  };
+
+  const hasAssignedRole = (allowedRoles = []) => {
+    const normalized = allowedRoles.map(normalizeRoleName);
+    return normalized.some((role) => assignedRoles.includes(role));
+  };
 
   return {
     user,
-    roles,
-    hasRole: (allowedRoles = []) => {
-      const normalized = allowedRoles.map(normalizeRoleName);
-      return normalized.some((role) => roles.includes(role));
-    },
+    activeRole,
+    assignedRoles,
+    roles: assignedRoles,
+    hasActiveRole,
+    hasAssignedRole,
+    hasRole: hasActiveRole,
   };
 };
 

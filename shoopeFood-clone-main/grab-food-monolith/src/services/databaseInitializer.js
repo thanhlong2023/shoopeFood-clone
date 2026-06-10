@@ -1,6 +1,7 @@
 const mysql = require("mysql2/promise");
 const { DataTypes } = require("sequelize");
-const { sequelize, Food } = require("../models");
+const { sequelize, Food, User, Role, UserRole } = require("../models");
+const { setUserRole } = require("../utils/roleAssignment");
 const seedService = require("./seedService");
 
 const getEnv = (key, fallbackValue) =>
@@ -176,6 +177,90 @@ const ensureOrderItemSnapshotColumns = async () => {
   }
 };
 
+const ensureDriverApprovalColumns = async () => {
+  const queryInterface = sequelize.getQueryInterface();
+  const columns = await queryInterface.describeTable("driver_details");
+
+  if (!hasColumn(columns, "id_card_number")) {
+    await queryInterface.addColumn("driver_details", "id_card_number", {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    });
+  }
+
+  if (!hasColumn(columns, "approval_status")) {
+    await queryInterface.addColumn("driver_details", "approval_status", {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: "APPROVED",
+    });
+  }
+
+  if (!hasColumn(columns, "reject_reason")) {
+    await queryInterface.addColumn("driver_details", "reject_reason", {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    });
+  }
+};
+
+const ROLE_PRIORITY = {
+  ADMIN: 4,
+  MERCHANT: 3,
+  DRIVER: 2,
+  CUSTOMER: 1,
+};
+
+const ensureSingleRolePerUser = async () => {
+  const users = await User.findAll({
+    include: [{ model: Role, as: "roles", attributes: ["id", "name"], through: { attributes: [] } }],
+  });
+
+  await Promise.all(
+    users.map(async (user) => {
+      const roleNames = (user.roles || []).map((role) => role.name);
+      if (roleNames.length <= 1) {
+        return;
+      }
+
+      const keeper = roleNames.sort((left, right) => (ROLE_PRIORITY[right] || 0) - (ROLE_PRIORITY[left] || 0))[0];
+      const role = await Role.findOne({ where: { name: keeper } });
+      if (!role) {
+        return;
+      }
+
+      await UserRole.destroy({ where: { userId: user.id } });
+      await UserRole.create({ userId: user.id, roleId: role.id });
+    }),
+  );
+};
+
+const ensureDemoRoleAssignments = async () => {
+  const adminRole = await Role.findOne({ where: { name: "ADMIN" } });
+  if (!adminRole) {
+    return;
+  }
+
+  const [customerDemo, adminUser] = await Promise.all([
+    User.findOne({ where: { phone: "0900000001" } }),
+    User.findOne({ where: { phone: "0900000005" } }),
+  ]);
+
+  if (customerDemo) {
+    const customerRoles = await UserRole.findAll({ where: { userId: customerDemo.id } });
+    const hasWrongAdmin =
+      customerRoles.some((item) => Number(item.roleId) === Number(adminRole.id)) && customerRoles.length > 1;
+
+    if (hasWrongAdmin || (customerRoles.length === 1 && Number(customerRoles[0].roleId) === Number(adminRole.id))) {
+      await setUserRole(customerDemo.id, "CUSTOMER");
+    }
+  }
+
+  if (adminUser) {
+    await setUserRole(adminUser.id, "ADMIN");
+  }
+};
+
 const initializeDatabase = async () => {
   await ensureDatabaseExists();
   await sequelize.authenticate();
@@ -184,8 +269,11 @@ const initializeDatabase = async () => {
   await ensureFoodImageUrlColumn();
   await ensureUsersCreatedAtColumn();
   await ensureDriverLocationTrackingColumns();
+  await ensureDriverApprovalColumns();
   await ensureRestaurantApprovalColumns();
   await ensureOrderItemSnapshotColumns();
+  await ensureSingleRolePerUser();
+  await ensureDemoRoleAssignments();
   await Food.resetExpiredDailyQuantities();
   await seedService.seedIfEmpty();
 };

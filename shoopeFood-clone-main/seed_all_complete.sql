@@ -321,12 +321,10 @@ INSERT INTO users (id, phone, password, full_name, rating_avg, created_at, delet
 
 INSERT INTO user_roles (user_id, role_id) VALUES
 (1, 1),
-(4, 1),
 (2, 2),
 (4, 2),
 (3, 3),
 (6, 3),
-(1, 4),
 (5, 4);
 
 INSERT INTO driver_details (user_id, license_plate, vehicle_type, is_online) VALUES

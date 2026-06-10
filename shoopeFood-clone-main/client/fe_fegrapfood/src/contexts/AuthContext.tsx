@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import { AUTH_TOKEN_STORAGE_KEY, AUTH_USER_STORAGE_KEY } from '../constants/auth'
-import { getCurrentUser, login as loginRequest } from '../services/api/auth'
+import { activateRole as activateRoleRequest, getCurrentUser, login as loginRequest } from '../services/api/auth'
 import type { AuthUser, LoginPayload, UserRole } from '../types'
 
 type AuthContextValue = {
@@ -10,7 +10,9 @@ type AuthContextValue = {
   login: (payload: LoginPayload) => Promise<AuthUser>
   logout: () => void
   refreshUser: () => Promise<AuthUser | null>
+  activateRole: (role: UserRole) => Promise<AuthUser>
   hasRole: (roles: UserRole[]) => boolean
+  hasAssignedRole: (roles: UserRole[]) => boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -71,12 +73,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
+  async function activateRole(role: UserRole) {
+    const session = await activateRoleRequest(role)
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, session.token)
+    localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(session.user))
+    setToken(session.token)
+    setUser(session.user)
+    return session.user
+  }
+
   function hasRole(roles: UserRole[]) {
     if (!user) {
       return false
     }
 
     return roles.includes(user.role)
+  }
+
+  function hasAssignedRole(roles: UserRole[]) {
+    if (!user) {
+      return false
+    }
+
+    return (user.roles || []).some((item) => roles.includes(item))
   }
 
   const value = useMemo(
@@ -87,7 +106,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       login,
       logout,
       refreshUser,
+      activateRole,
       hasRole,
+      hasAssignedRole,
     }),
     [token, user],
   )

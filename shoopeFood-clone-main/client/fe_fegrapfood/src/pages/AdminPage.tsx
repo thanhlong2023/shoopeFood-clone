@@ -9,6 +9,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { createCategory, deleteCategory, getCategories, updateCategory } from '../services/api/categories'
 import { createFood, deleteFood, getFoods, updateFood } from '../services/api/foods'
 import AdminCategoryPanel from '../components/admin/AdminCategoryPanel'
+import AdminDriverApplicationsPanel from '../components/admin/AdminDriverApplicationsPanel'
 import ImageUrlField from '../components/common/ImageUrlField'
 import { getAllRestaurantsForAdmin } from '../services/api/restaurants'
 import { foodPhotoStyle } from '../utils/foodImage'
@@ -57,6 +58,11 @@ type MenuCategoryForm = {
   restaurantId: string
   name: string
 }
+
+type MenuFoodFormErrors = Partial<
+  Record<'name' | 'price' | 'restaurantId' | 'categoryId' | 'defaultQuantity' | 'currentQuantity', string>
+>
+type MenuCategoryFormErrors = Partial<Record<'restaurantId' | 'name', string>>
 
 const emptyFoodForm: MenuFoodForm = {
   id: null,
@@ -135,6 +141,15 @@ const resourceConfigs: ResourceConfig[] = [
     name: 'category-manager',
     title: 'Danh muc',
     description: 'Tao danh muc theo dung nha hang.',
+    columns: [],
+    fields: [],
+    canCreate: false,
+    canDelete: false,
+  },
+  {
+    name: 'driver-applications',
+    title: 'Don tai xe',
+    description: 'Duyet don dang ky tai xe tu khach hang.',
     columns: [],
     fields: [],
     canCreate: false,
@@ -439,6 +454,8 @@ function MenuManagerPanel() {
   const [availabilityFilter, setAvailabilityFilter] = useState('all')
   const [foodForm, setFoodForm] = useState<MenuFoodForm>(emptyFoodForm)
   const [categoryForm, setCategoryForm] = useState<MenuCategoryForm>(emptyCategoryForm)
+  const [foodFormErrors, setFoodFormErrors] = useState<MenuFoodFormErrors>({})
+  const [categoryFormErrors, setCategoryFormErrors] = useState<MenuCategoryFormErrors>({})
   const [feedback, setFeedback] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingFood, setIsSavingFood] = useState(false)
@@ -538,6 +555,14 @@ function MenuManagerPanel() {
     })
   }
 
+  function updateFoodFormField<K extends keyof MenuFoodForm>(field: K, value: MenuFoodForm[K]) {
+    setFoodForm((current) => ({ ...current, [field]: value }))
+    setFoodFormErrors((current) => {
+      if (!(field in current)) return current
+      return { ...current, [field]: undefined }
+    })
+  }
+
   async function handleFoodSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -547,27 +572,45 @@ function MenuManagerPanel() {
     const categoryId = foodForm.categoryId ? Number(foodForm.categoryId) : null
     const defaultQuantity = Number(foodForm.defaultQuantity || 0)
     const currentQuantity = Number(foodForm.currentQuantity || 0)
+    const nextErrors: MenuFoodFormErrors = {}
 
-    if (!name || !Number.isFinite(price) || price < 0) {
-      setFeedback('Ten mon va gia khong am la bat buoc')
+    if (!name) {
+      nextErrors.name = 'Ten mon la bat buoc'
+    }
+
+    if (!Number.isFinite(price) || price < 0) {
+      nextErrors.price = 'Gia phai la so khong am'
+    }
+
+    if (!Number.isInteger(defaultQuantity) || defaultQuantity < 0) {
+      nextErrors.defaultQuantity = 'So luong mac dinh phai la so nguyen khong am'
+    }
+
+    if (!Number.isInteger(currentQuantity) || currentQuantity < 0) {
+      nextErrors.currentQuantity = 'So luong hien tai phai la so nguyen khong am'
+    } else if (Number.isInteger(defaultQuantity) && defaultQuantity >= 0 && currentQuantity > defaultQuantity) {
+      nextErrors.currentQuantity = 'So luong hien tai khong duoc lon hon so luong mac dinh'
+    }
+
+    if (restaurantId === null) {
+      nextErrors.restaurantId = 'Phai chon nha hang'
+    }
+
+    if (categoryId === null) {
+      nextErrors.categoryId = 'Phai chon danh muc'
+    }
+
+    const selectedCategory = categoryId !== null ? categories.find((category) => category.id === categoryId) : null
+    if (selectedCategory && restaurantId !== null && selectedCategory.restaurantId !== restaurantId) {
+      nextErrors.categoryId = 'Danh muc khong thuoc nha hang da chon'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFoodFormErrors(nextErrors)
       return
     }
 
-    if (!Number.isInteger(defaultQuantity) || defaultQuantity < 0 || !Number.isInteger(currentQuantity) || currentQuantity < 0) {
-      setFeedback('So luong phai la so nguyen khong am')
-      return
-    }
-
-    if (restaurantId === null || categoryId === null) {
-      setFeedback('Phai chon nha hang va danh muc')
-      return
-    }
-
-    const selectedCategory = categories.find((category) => category.id === categoryId)
-    if (selectedCategory && selectedCategory.restaurantId !== restaurantId) {
-      setFeedback('Danh muc khong thuoc nha hang da chon')
-      return
-    }
+    setFoodFormErrors({})
 
     try {
       setIsSavingFood(true)
@@ -605,11 +648,22 @@ function MenuManagerPanel() {
 
     const name = categoryForm.name.trim()
     const restaurantId = Number(categoryForm.restaurantId)
+    const nextErrors: MenuCategoryFormErrors = {}
 
-    if (!name || !Number.isFinite(restaurantId)) {
-      setFeedback('Ten danh muc va Restaurant ID la bat buoc')
+    if (!Number.isFinite(restaurantId) || !categoryForm.restaurantId) {
+      nextErrors.restaurantId = 'Phai chon nha hang'
+    }
+
+    if (!name) {
+      nextErrors.name = 'Ten danh muc la bat buoc'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setCategoryFormErrors(nextErrors)
       return
     }
+
+    setCategoryFormErrors({})
 
     try {
       setIsSavingCategory(true)
@@ -815,29 +869,36 @@ function MenuManagerPanel() {
               <h2>Form them/sua mon</h2>
               <p>Gui truc tiep vao POST/PUT /api/foods.</p>
             </div>
-            <form className="admin-form" onSubmit={(event) => void handleFoodSubmit(event)}>
+            <form className="admin-form" noValidate onSubmit={(event) => void handleFoodSubmit(event)}>
               <label className="restaurant-field">
                 <span>Ten mon</span>
-                <input value={foodForm.name} onChange={(event) => setFoodForm((current) => ({ ...current, name: event.target.value }))} />
+                <input value={foodForm.name} onChange={(event) => updateFoodFormField('name', event.target.value)} />
+                {foodFormErrors.name ? <p className="field-error">{foodFormErrors.name}</p> : null}
               </label>
               <ImageUrlField
                 id="adminFoodImageUrl"
                 label="Link hinh anh mon"
                 value={foodForm.imageUrl}
-                onChange={(value) => setFoodForm((current) => ({ ...current, imageUrl: value }))}
+                onChange={(value) => updateFoodFormField('imageUrl', value)}
               />
               <label className="restaurant-field">
                 <span>Gia</span>
                 <input
                   type="number"
-                  min="0"
                   value={foodForm.price}
-                  onChange={(event) => setFoodForm((current) => ({ ...current, price: event.target.value }))}
+                  onChange={(event) => updateFoodFormField('price', event.target.value)}
                 />
+                {foodFormErrors.price ? <p className="field-error">{foodFormErrors.price}</p> : null}
               </label>
               <label className="restaurant-field">
                 <span>Nha hang</span>
-                <select value={foodForm.restaurantId} onChange={(event) => setFoodForm((current) => ({ ...current, restaurantId: event.target.value, categoryId: '' }))}>
+                <select
+                  value={foodForm.restaurantId}
+                  onChange={(event) => {
+                    updateFoodFormField('restaurantId', event.target.value)
+                    updateFoodFormField('categoryId', '')
+                  }}
+                >
                   <option value="">Chon nha hang</option>
                   {restaurants.map((restaurant) => (
                     <option key={restaurant.id} value={restaurant.id}>
@@ -845,10 +906,11 @@ function MenuManagerPanel() {
                     </option>
                   ))}
                 </select>
+                {foodFormErrors.restaurantId ? <p className="field-error">{foodFormErrors.restaurantId}</p> : null}
               </label>
               <label className="restaurant-field">
                 <span>Danh muc</span>
-                <select value={foodForm.categoryId} onChange={(event) => setFoodForm((current) => ({ ...current, categoryId: event.target.value }))}>
+                <select value={foodForm.categoryId} onChange={(event) => updateFoodFormField('categoryId', event.target.value)}>
                   <option value="">{foodForm.restaurantId ? 'Chon danh muc' : 'Chon nha hang de hien danh muc'}</option>
                   {categoryOptions.map((category) => (
                     <option key={category.id} value={category.id}>
@@ -856,6 +918,7 @@ function MenuManagerPanel() {
                     </option>
                   ))}
                 </select>
+                {foodFormErrors.categoryId ? <p className="field-error">{foodFormErrors.categoryId}</p> : null}
               </label>
               <div className="menu-form-note">
                 {foodForm.restaurantId === '' ? (
@@ -869,26 +932,26 @@ function MenuManagerPanel() {
                   <span>SL mac dinh</span>
                   <input
                     type="number"
-                    min="0"
                     value={foodForm.defaultQuantity}
-                    onChange={(event) => setFoodForm((current) => ({ ...current, defaultQuantity: event.target.value }))}
+                    onChange={(event) => updateFoodFormField('defaultQuantity', event.target.value)}
                   />
+                  {foodFormErrors.defaultQuantity ? <p className="field-error">{foodFormErrors.defaultQuantity}</p> : null}
                 </label>
                 <label className="restaurant-field">
                   <span>SL hien tai</span>
                   <input
                     type="number"
-                    min="0"
                     value={foodForm.currentQuantity}
-                    onChange={(event) => setFoodForm((current) => ({ ...current, currentQuantity: event.target.value }))}
+                    onChange={(event) => updateFoodFormField('currentQuantity', event.target.value)}
                   />
+                  {foodFormErrors.currentQuantity ? <p className="field-error">{foodFormErrors.currentQuantity}</p> : null}
                 </label>
               </div>
               <label className="restaurant-checkbox">
                 <input
                   type="checkbox"
                   checked={foodForm.isAvailable}
-                  onChange={(event) => setFoodForm((current) => ({ ...current, isAvailable: event.target.checked }))}
+                  onChange={(event) => updateFoodFormField('isAvailable', event.target.checked)}
                 />
                 <span>Dang ban</span>
               </label>
@@ -909,10 +972,16 @@ function MenuManagerPanel() {
               <h2>Danh muc</h2>
               <p>Tao danh muc cho tung nha hang.</p>
             </div>
-            <form className="admin-form" onSubmit={(event) => void handleCategorySubmit(event)}>
+            <form className="admin-form" noValidate onSubmit={(event) => void handleCategorySubmit(event)}>
               <label className="restaurant-field">
                 <span>Nha hang</span>
-                <select value={categoryForm.restaurantId} onChange={(event) => setCategoryForm((current) => ({ ...current, restaurantId: event.target.value }))}>
+                <select
+                  value={categoryForm.restaurantId}
+                  onChange={(event) => {
+                    setCategoryForm((current) => ({ ...current, restaurantId: event.target.value }))
+                    setCategoryFormErrors((current) => ({ ...current, restaurantId: undefined }))
+                  }}
+                >
                   <option value="">Chon nha hang</option>
                   {restaurants.map((restaurant) => (
                     <option key={restaurant.id} value={restaurant.id}>
@@ -920,10 +989,18 @@ function MenuManagerPanel() {
                     </option>
                   ))}
                 </select>
+                {categoryFormErrors.restaurantId ? <p className="field-error">{categoryFormErrors.restaurantId}</p> : null}
               </label>
               <label className="restaurant-field">
                 <span>Ten danh muc</span>
-                <input value={categoryForm.name} onChange={(event) => setCategoryForm((current) => ({ ...current, name: event.target.value }))} />
+                <input
+                  value={categoryForm.name}
+                  onChange={(event) => {
+                    setCategoryForm((current) => ({ ...current, name: event.target.value }))
+                    setCategoryFormErrors((current) => ({ ...current, name: undefined }))
+                  }}
+                />
+                {categoryFormErrors.name ? <p className="field-error">{categoryFormErrors.name}</p> : null}
               </label>
               <div className="restaurant-form-actions">
                 <button type="submit" className="button-primary" disabled={isSavingCategory}>
@@ -971,6 +1048,7 @@ const tabToResource: Record<string, string> = {
   restaurants: 'restaurant-manager',
   foods: 'foods',
   categories: 'category-manager',
+  'driver-applications': 'driver-applications',
   drivers: 'drivers',
   users: 'users',
 }
@@ -1056,6 +1134,8 @@ export default function AdminPage() {
         <AdminRestaurantPanel />
       ) : config.name === 'category-manager' ? (
         <AdminCategoryPanel />
+      ) : config.name === 'driver-applications' ? (
+        <AdminDriverApplicationsPanel />
       ) : (
         <AdminResourcePanel key={config.name} config={config} />
       )}

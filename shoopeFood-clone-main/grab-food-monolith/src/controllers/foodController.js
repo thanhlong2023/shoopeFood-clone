@@ -114,6 +114,12 @@ exports.createFood = async (req, res) => {
       return res.status(400).json({ message: parsedCurrentQuantity.error });
     }
 
+    const nextDefaultQuantity = parsedDefaultQuantity.value;
+    const nextCurrentQuantity = parsedCurrentQuantity.value ?? nextDefaultQuantity;
+    if (nextCurrentQuantity > nextDefaultQuantity) {
+      return res.status(400).json({ message: "currentQuantity cannot exceed defaultQuantity" });
+    }
+
     let parsedCategoryId = null;
     if (categoryId !== undefined && categoryId !== null && Number.isFinite(Number(categoryId))) {
       parsedCategoryId = Number(categoryId);
@@ -129,8 +135,8 @@ exports.createFood = async (req, res) => {
       imageUrl: imageUrl ? String(imageUrl).trim() : null,
       price: parsedPrice,
       isAvailable: typeof isAvailable === "boolean" ? isAvailable : true,
-      defaultQuantity: parsedDefaultQuantity.value,
-      currentQuantity: parsedCurrentQuantity.value ?? parsedDefaultQuantity.value,
+      defaultQuantity: nextDefaultQuantity,
+      currentQuantity: nextCurrentQuantity,
       quantityResetDate: Food.getStockDate(),
     });
 
@@ -204,7 +210,11 @@ exports.updateFood = async (req, res) => {
       }
       nextCurrentQuantity = parsedCurrentQuantity.value;
     } else if (defaultQuantity !== undefined) {
-      nextCurrentQuantity = nextDefaultQuantity;
+      nextCurrentQuantity = Math.min(nextCurrentQuantity, nextDefaultQuantity);
+    }
+
+    if (nextCurrentQuantity > nextDefaultQuantity) {
+      return res.status(400).json({ message: "currentQuantity cannot exceed defaultQuantity" });
     }
 
     const nextImageUrl =

@@ -34,6 +34,8 @@ const emptyFoodForm: FoodFormState = {
   isAvailable: true,
 }
 
+type FoodFormErrors = Partial<Record<'name' | 'price' | 'defaultQuantity' | 'currentQuantity', string>>
+
 function formatTime(timeString: string | null | undefined): string {
   if (!timeString) return '-'
   return timeString.slice(0, 5)
@@ -42,6 +44,10 @@ function formatTime(timeString: string | null | undefined): string {
 function formatDateTime(dateString: string | null | undefined): string {
   if (!dateString) return '-'
   return new Date(dateString).toLocaleString('vi-VN')
+}
+
+function isFoodInStock(food: Food) {
+  return food.isAvailable && Number(food.currentQuantity || 0) > 0
 }
 
 function RestaurantMap({ restaurant }: { restaurant: Restaurant }) {
@@ -97,6 +103,8 @@ export default function RestaurantDetailPage() {
   const [categoryName, setCategoryName] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [menuError, setMenuError] = useState<string | null>(null)
+  const [foodErrors, setFoodErrors] = useState<FoodFormErrors>({})
+  const [categoryNameError, setCategoryNameError] = useState<string | null>(null)
   const [foodFeedback, setFoodFeedback] = useState<string | null>(null)
   const [categoryFeedback, setCategoryFeedback] = useState<string | null>(null)
 
@@ -200,6 +208,15 @@ export default function RestaurantDetailPage() {
       ...emptyFoodForm,
       categoryId: categories[0] ? String(categories[0].id) : '',
     })
+    setFoodErrors({})
+  }
+
+  function updateFoodField<K extends keyof FoodFormState>(field: K, value: FoodFormState[K]) {
+    setFoodForm((current) => ({ ...current, [field]: value }))
+    setFoodErrors((current) => {
+      if (!(field in current)) return current
+      return { ...current, [field]: undefined }
+    })
   }
 
   function buildFoodPayload(): FoodPayload | null {
@@ -208,16 +225,32 @@ export default function RestaurantDetailPage() {
     const price = Number(foodForm.price)
     const defaultQuantity = Number(foodForm.defaultQuantity)
     const currentQuantity = Number(foodForm.currentQuantity)
+    const nextErrors: FoodFormErrors = {}
 
-    if (!name || !Number.isFinite(price) || price < 0) {
-      setMenuError('Vui lòng nhập tên món và giá hợp lệ')
+    if (!name) {
+      nextErrors.name = 'Tên món là bắt buộc'
+    }
+
+    if (!Number.isFinite(price) || price < 0) {
+      nextErrors.price = 'Giá phải là số không âm'
+    }
+
+    if (!Number.isInteger(defaultQuantity) || defaultQuantity < 0) {
+      nextErrors.defaultQuantity = 'Số lượng mặc định phải là số nguyên không âm'
+    }
+
+    if (!Number.isInteger(currentQuantity) || currentQuantity < 0) {
+      nextErrors.currentQuantity = 'Số lượng hiện có phải là số nguyên không âm'
+    } else if (Number.isInteger(defaultQuantity) && defaultQuantity >= 0 && currentQuantity > defaultQuantity) {
+      nextErrors.currentQuantity = 'Số lượng hiện có không được lớn hơn số lượng mặc định'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFoodErrors(nextErrors)
       return null
     }
 
-    if (!Number.isInteger(defaultQuantity) || defaultQuantity < 0 || !Number.isInteger(currentQuantity) || currentQuantity < 0) {
-      setMenuError('Số lượng món phải là số nguyên không âm')
-      return null
-    }
+    setFoodErrors({})
 
     return {
       name,
@@ -235,13 +268,13 @@ export default function RestaurantDetailPage() {
 
     const name = categoryName.trim()
     if (!name) {
-      setMenuError('Vui lòng nhập tên danh mục')
+      setCategoryNameError('Tên danh mục là bắt buộc')
       return
     }
 
     try {
       setIsSavingCategory(true)
-      setMenuError(null)
+      setCategoryNameError(null)
       setCategoryFeedback(null)
 
       await createCategory({ name, restaurantId })
@@ -262,7 +295,6 @@ export default function RestaurantDetailPage() {
 
     try {
       setIsSavingFood(true)
-      setMenuError(null)
       setFoodFeedback(null)
 
       if (foodForm.id) {
@@ -419,15 +451,19 @@ export default function RestaurantDetailPage() {
                 <p className="empty-state">Chưa có danh mục. Thêm danh mục trước khi tạo món.</p>
               )}
 
-              <form className="category-owner-form" onSubmit={handleCategorySubmit}>
+              <form className="category-owner-form" noValidate onSubmit={handleCategorySubmit}>
                 <div className="restaurant-field">
                   <label htmlFor="categoryName">Thêm danh mục mới</label>
                   <input
                     id="categoryName"
                     value={categoryName}
-                    onChange={(event) => setCategoryName(event.target.value)}
+                    onChange={(event) => {
+                      setCategoryName(event.target.value)
+                      setCategoryNameError(null)
+                    }}
                     placeholder="Ví dụ: Món chính, Đồ uống"
                   />
+                  {categoryNameError ? <p className="field-error">{categoryNameError}</p> : null}
                 </div>
                 <button type="submit" className="button-secondary" disabled={isSavingCategory}>
                   {isSavingCategory ? 'Đang lưu...' : 'Thêm danh mục'}
@@ -437,16 +473,17 @@ export default function RestaurantDetailPage() {
           ) : null}
 
           {canManageFoods ? (
-            <form className="food-owner-form" onSubmit={handleFoodSubmit}>
+            <form className="food-owner-form" noValidate onSubmit={handleFoodSubmit}>
               <div className="restaurant-form-grid">
                 <div className="restaurant-field">
                   <label htmlFor="foodName">Tên món</label>
                   <input
                     id="foodName"
                     value={foodForm.name}
-                    onChange={(event) => setFoodForm((current) => ({ ...current, name: event.target.value }))}
+                    onChange={(event) => updateFoodField('name', event.target.value)}
                     placeholder="Ví dụ: Bún bò"
                   />
+                  {foodErrors.name ? <p className="field-error">{foodErrors.name}</p> : null}
                 </div>
 
                 <div className="restaurant-field full">
@@ -456,7 +493,7 @@ export default function RestaurantDetailPage() {
                     value={foodForm.imageUrl}
                     placeholder="https://example.com/mon-an.jpg"
                     hint="Dan link anh mon an de hien thi cho khach dat hang."
-                    onChange={(value) => setFoodForm((current) => ({ ...current, imageUrl: value }))}
+                    onChange={(value) => updateFoodField('imageUrl', value)}
                   />
                 </div>
 
@@ -465,7 +502,7 @@ export default function RestaurantDetailPage() {
                   <select
                     id="foodCategory"
                     value={foodForm.categoryId}
-                    onChange={(event) => setFoodForm((current) => ({ ...current, categoryId: event.target.value }))}
+                    onChange={(event) => updateFoodField('categoryId', event.target.value)}
                   >
                     {categories.length === 0 ? <option value="">Chưa có danh mục</option> : null}
                     {categories.map((category) => (
@@ -481,11 +518,11 @@ export default function RestaurantDetailPage() {
                   <input
                     id="foodPrice"
                     type="number"
-                    min="0"
                     step="1000"
                     value={foodForm.price}
-                    onChange={(event) => setFoodForm((current) => ({ ...current, price: event.target.value }))}
+                    onChange={(event) => updateFoodField('price', event.target.value)}
                   />
+                  {foodErrors.price ? <p className="field-error">{foodErrors.price}</p> : null}
                 </div>
 
                 <div className="restaurant-field">
@@ -493,11 +530,11 @@ export default function RestaurantDetailPage() {
                   <input
                     id="foodDefaultQuantity"
                     type="number"
-                    min="0"
                     step="1"
                     value={foodForm.defaultQuantity}
-                    onChange={(event) => setFoodForm((current) => ({ ...current, defaultQuantity: event.target.value }))}
+                    onChange={(event) => updateFoodField('defaultQuantity', event.target.value)}
                   />
+                  {foodErrors.defaultQuantity ? <p className="field-error">{foodErrors.defaultQuantity}</p> : null}
                 </div>
 
                 <div className="restaurant-field">
@@ -505,11 +542,11 @@ export default function RestaurantDetailPage() {
                   <input
                     id="foodCurrentQuantity"
                     type="number"
-                    min="0"
                     step="1"
                     value={foodForm.currentQuantity}
-                    onChange={(event) => setFoodForm((current) => ({ ...current, currentQuantity: event.target.value }))}
+                    onChange={(event) => updateFoodField('currentQuantity', event.target.value)}
                   />
+                  {foodErrors.currentQuantity ? <p className="field-error">{foodErrors.currentQuantity}</p> : null}
                 </div>
 
                 <div className="restaurant-field">
@@ -517,7 +554,7 @@ export default function RestaurantDetailPage() {
                     <input
                       type="checkbox"
                       checked={foodForm.isAvailable}
-                      onChange={(event) => setFoodForm((current) => ({ ...current, isAvailable: event.target.checked }))}
+                      onChange={(event) => updateFoodField('isAvailable', event.target.checked)}
                     />
                     <span>{foodForm.isAvailable ? 'Đang bán' : 'Ngưng bán'}</span>
                   </label>
@@ -562,8 +599,8 @@ export default function RestaurantDetailPage() {
                             />
                             <div className="food-card-header">
                               <h4>{food.name}</h4>
-                              <span className={`availability-badge ${food.isAvailable ? 'available' : 'unavailable'}`}>
-                                {food.isAvailable ? 'Còn' : 'Hết'}
+                              <span className={`availability-badge ${isFoodInStock(food) ? 'available' : 'unavailable'}`}>
+                                {isFoodInStock(food) ? 'Còn' : 'Hết'}
                               </span>
                             </div>
 
@@ -604,8 +641,8 @@ export default function RestaurantDetailPage() {
                         />
                         <div className="food-card-header">
                           <h4>{food.name}</h4>
-                          <span className={`availability-badge ${food.isAvailable ? 'available' : 'unavailable'}`}>
-                            {food.isAvailable ? 'Còn' : 'Hết'}
+                          <span className={`availability-badge ${isFoodInStock(food) ? 'available' : 'unavailable'}`}>
+                            {isFoodInStock(food) ? 'Còn' : 'Hết'}
                           </span>
                         </div>
                         <div className="food-card-details">

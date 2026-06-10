@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import PartnerSection from '../components/partner/PartnerSection'
 import { APP_NAME } from '../constants/app'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getCategories } from '../services/api/categories'
@@ -7,6 +8,7 @@ import { getFoods } from '../services/api/foods'
 import { createOrder } from '../services/api/orders'
 import { getRestaurants } from '../services/api/restaurants'
 import { foodPhotoStyle } from '../utils/foodImage'
+import { setLastOrderId } from '../utils/orderStorage'
 import { restaurantCoverStyle, restaurantThumbStyle } from '../utils/restaurantImage'
 import type { Category, CreateOrderPayload, Food, Order, Restaurant } from '../types'
 
@@ -263,7 +265,7 @@ export default function HomePage() {
       })
 
       setSuccessOrder(createdOrder)
-      localStorage.setItem('lastOrderId', String(createdOrder.id))
+      setLastOrderId(createdOrder.id)
       setCart({})
       setFoods(await getFoods())
     } catch (error) {
@@ -310,6 +312,8 @@ export default function HomePage() {
       </div>
 
       {errorMessage ? <p className="app-feedback error">{errorMessage}</p> : null}
+
+      <PartnerSection />
 
       <div className="order-layout">
         <aside className="restaurant-rail" aria-label="Nha hang">

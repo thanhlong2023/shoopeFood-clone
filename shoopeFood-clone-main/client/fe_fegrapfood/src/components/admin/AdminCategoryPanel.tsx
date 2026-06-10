@@ -15,6 +15,8 @@ const emptyForm: CategoryFormState = {
   name: '',
 }
 
+type CategoryFormErrors = Partial<Record<'restaurantId' | 'name', string>>
+
 export default function AdminCategoryPanel() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -24,6 +26,7 @@ export default function AdminCategoryPanel() {
   const [isSaving, setIsSaving] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [formErrors, setFormErrors] = useState<CategoryFormErrors>({})
 
   const restaurantById = useMemo(
     () => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant])),
@@ -67,6 +70,7 @@ export default function AdminCategoryPanel() {
       ...emptyForm,
       restaurantId: restaurantFilter,
     })
+    setFormErrors({})
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -74,11 +78,22 @@ export default function AdminCategoryPanel() {
 
     const name = form.name.trim()
     const restaurantId = Number(form.restaurantId)
+    const nextErrors: CategoryFormErrors = {}
 
-    if (!name || !Number.isFinite(restaurantId)) {
-      setErrorMessage('Phai chon nha hang va nhap ten danh muc')
+    if (!form.restaurantId || !Number.isFinite(restaurantId)) {
+      nextErrors.restaurantId = 'Phai chon nha hang'
+    }
+
+    if (!name) {
+      nextErrors.name = 'Ten danh muc la bat buoc'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors(nextErrors)
       return
     }
+
+    setFormErrors({})
 
     try {
       setIsSaving(true)
@@ -207,13 +222,15 @@ export default function AdminCategoryPanel() {
           <p>Chon dung nha hang truoc khi tao. Neu chon sai ID, chu quan se khong thay.</p>
         </div>
 
-        <form className="admin-form" onSubmit={handleSubmit}>
+        <form className="admin-form" noValidate onSubmit={handleSubmit}>
           <label className="restaurant-field">
             <span>Nha hang</span>
             <select
               value={form.restaurantId}
-              onChange={(event) => setForm((current) => ({ ...current, restaurantId: event.target.value }))}
-              required
+              onChange={(event) => {
+                setForm((current) => ({ ...current, restaurantId: event.target.value }))
+                setFormErrors((current) => ({ ...current, restaurantId: undefined }))
+              }}
             >
               <option value="">-- Chon nha hang --</option>
               {restaurants.map((restaurant) => (
@@ -222,16 +239,20 @@ export default function AdminCategoryPanel() {
                 </option>
               ))}
             </select>
+            {formErrors.restaurantId ? <p className="field-error">{formErrors.restaurantId}</p> : null}
           </label>
 
           <label className="restaurant-field">
             <span>Ten danh muc</span>
             <input
               value={form.name}
-              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+              onChange={(event) => {
+                setForm((current) => ({ ...current, name: event.target.value }))
+                setFormErrors((current) => ({ ...current, name: undefined }))
+              }}
               placeholder="vd: Mon chinh, Do uong"
-              required
             />
+            {formErrors.name ? <p className="field-error">{formErrors.name}</p> : null}
           </label>
 
           <div className="restaurant-form-actions">
