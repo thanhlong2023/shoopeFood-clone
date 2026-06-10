@@ -64,6 +64,45 @@ exports.login = async (req, res) => {
   }
 };
 
+exports.updateProfile = async (req, res) => {
+  try {
+    const { fullName, phone } = req.body;
+    const trimmedName = String(fullName || "").trim();
+    const trimmedPhone = String(phone || "").trim();
+
+    if (!trimmedName || !trimmedPhone) {
+      return res.status(400).json({ message: "fullName and phone are required" });
+    }
+
+    const user = await User.findByPk(req.user.id, {
+      include: [{ model: Role, as: "roles", attributes: ["id", "name"], through: { attributes: [] } }],
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (trimmedPhone !== user.phone) {
+      const existing = await User.findOne({ where: { phone: trimmedPhone } });
+      if (existing && existing.id !== user.id) {
+        return res.status(400).json({ message: "Phone number already exists" });
+      }
+    }
+
+    await user.update({
+      fullName: trimmedName,
+      phone: trimmedPhone,
+    });
+
+    return res.json({
+      message: "Profile updated",
+      data: normalizeAuthUser(user, req.user.role),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 exports.me = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {

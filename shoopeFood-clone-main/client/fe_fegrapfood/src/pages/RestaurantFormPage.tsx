@@ -4,7 +4,8 @@ import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { createRestaurant, getRestaurantById, updateRestaurant } from '../services/api/restaurants'
-import type { RestaurantCreateInput } from '../types'
+import { getMerchants } from '../services/api/users'
+import type { AuthUser, RestaurantCreateInput } from '../types'
 
 type RestaurantFormState = {
   ownerId: string
@@ -45,13 +46,12 @@ export default function RestaurantFormPage() {
   const { id } = useParams<{ id: string }>()
   const restaurantId = id ? Number(id) : null
   const isEditMode = restaurantId !== null && Number.isFinite(restaurantId)
+  const isAdmin = user?.role === 'ADMIN'
 
   useDocumentTitle(`${APP_NAME} | ${isEditMode ? 'Sửa nhà hàng' : 'Tạo nhà hàng'}`)
 
-  const [formData, setFormData] = useState<RestaurantFormState>(() => ({
-    ...initialFormState,
-    ownerId: String(user?.id || ''),
-  }))
+  const [merchants, setMerchants] = useState<AuthUser[]>([])
+  const [formData, setFormData] = useState<RestaurantFormState>(initialFormState)
   const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState(isEditMode)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -59,11 +59,32 @@ export default function RestaurantFormPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!isAdmin) {
+      return
+    }
+
+    let ignore = false
+
+    void (async () => {
+      try {
+        const items = await getMerchants()
+        if (!ignore) {
+          setMerchants(items)
+        }
+      } catch {
+        if (!ignore) {
+          setMerchants([])
+        }
+      }
+    })()
+
+    return () => {
+      ignore = true
+    }
+  }, [isAdmin])
+
+  useEffect(() => {
     if (!isEditMode || restaurantId === null) {
-      setFormData((current) => ({
-        ...current,
-        ownerId: String(user?.id || current.ownerId),
-      }))
       return
     }
 
@@ -106,7 +127,7 @@ export default function RestaurantFormPage() {
     return () => {
       ignore = true
     }
-  }, [isEditMode, restaurantId, user?.id])
+  }, [isEditMode, restaurantId])
 
   function handleFieldChange<K extends keyof RestaurantFormState>(field: K, value: RestaurantFormState[K]) {
     setFormData((current) => ({
@@ -138,9 +159,8 @@ export default function RestaurantFormPage() {
       nextErrors.address = 'Địa chỉ là bắt buộc'
     }
 
-    // Validate ownerId
     if (!Number.isFinite(ownerId) || ownerId <= 0) {
-      nextErrors.ownerId = 'ID chủ nhân phải là số dương'
+      nextErrors.ownerId = isAdmin ? 'Phai chon chu quan (MERCHANT)' : 'ID chu quan phai la so duong'
     }
 
     // Validate coordinates
@@ -231,8 +251,12 @@ export default function RestaurantFormPage() {
   return (
     <section className="restaurant-page">
       <div className="restaurant-form-card">
-        <h1>{isEditMode ? 'Sửa nhà hàng' : 'Tạo nhà hàng mới'}</h1>
-        <p>Nhập đầy đủ thông tin nhà hàng và gửi lên backend.</p>
+        <h1>{isEditMode ? 'Sửa nhà hàng' : 'Tạo quán cho chủ quán'}</h1>
+        <p>
+          {isAdmin
+            ? 'Admin tao quan va gan cho chu quan (MERCHANT). Quan se duoc tu dong duyet (APPROVED).'
+            : 'Nhap day du thong tin nha hang va gui len backend.'}
+        </p>
       </div>
 
       <div className="restaurant-form-card">
@@ -243,18 +267,38 @@ export default function RestaurantFormPage() {
         {!isLoading ? (
           <form className="restaurant-form" onSubmit={handleSubmit}>
             <div className="restaurant-form-grid">
-              {/* Owner ID */}
+              {/* Owner */}
               <div className="restaurant-field">
-                <label htmlFor="ownerId">ID Chủ nhân</label>
-                <input
-                  id="ownerId"
-                  name="ownerId"
-                  type="number"
-                  value={formData.ownerId}
-                  onChange={(event) => handleFieldChange('ownerId', event.target.value)}
-                  disabled={isEditMode}
-                  min="1"
-                />
+                <label htmlFor="ownerId">Chu quan (MERCHANT)</label>
+                {isAdmin ? (
+                  <select
+                    id="ownerId"
+                    name="ownerId"
+                    value={formData.ownerId}
+                    onChange={(event) => handleFieldChange('ownerId', event.target.value)}
+                    disabled={isEditMode}
+                  >
+                    <option value="">-- Chon chu quan --</option>
+                    {merchants.map((merchant) => (
+                      <option key={merchant.id} value={merchant.id}>
+                        #{merchant.id} - {merchant.fullName} ({merchant.phone})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    id="ownerId"
+                    name="ownerId"
+                    type="number"
+                    value={formData.ownerId}
+                    onChange={(event) => handleFieldChange('ownerId', event.target.value)}
+                    disabled={isEditMode}
+                    min="1"
+                  />
+                )}
+                {isAdmin && merchants.length === 0 ? (
+                  <p className="field-hint">Chua co chu quan. Tao tai Admin &gt; Nguoi dung (vai tro MERCHANT).</p>
+                ) : null}
                 {errors.ownerId ? <p className="field-error">{errors.ownerId}</p> : null}
               </div>
 

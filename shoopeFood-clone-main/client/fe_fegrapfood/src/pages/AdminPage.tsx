@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import AdminRestaurantPanel from '../components/admin/AdminRestaurantPanel'
 import { useCreate, useDelete, useList, useUpdate } from '@refinedev/core'
 import type { HttpError } from '@refinedev/core'
 import { APP_NAME } from '../constants/app'
@@ -6,7 +8,10 @@ import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { createCategory, deleteCategory, getCategories, updateCategory } from '../services/api/categories'
 import { createFood, deleteFood, getFoods, updateFood } from '../services/api/foods'
-import { getRestaurants } from '../services/api/restaurants'
+import AdminCategoryPanel from '../components/admin/AdminCategoryPanel'
+import ImageUrlField from '../components/common/ImageUrlField'
+import { getAllRestaurantsForAdmin } from '../services/api/restaurants'
+import { foodPhotoStyle } from '../utils/foodImage'
 import type { Category, Food, Restaurant } from '../types'
 
 type AdminRecord = Record<string, unknown> & {
@@ -38,6 +43,7 @@ type ResourceConfig = {
 type MenuFoodForm = {
   id: number | null
   name: string
+  imageUrl: string
   price: string
   restaurantId: string
   categoryId: string
@@ -55,6 +61,7 @@ type MenuCategoryForm = {
 const emptyFoodForm: MenuFoodForm = {
   id: null,
   name: '',
+  imageUrl: '',
   price: '',
   restaurantId: '',
   categoryId: '',
@@ -67,6 +74,13 @@ const emptyCategoryForm: MenuCategoryForm = {
   id: null,
   restaurantId: '',
   name: '',
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  CUSTOMER: 'CUSTOMER - Khach hang',
+  DRIVER: 'DRIVER - Tai xe',
+  MERCHANT: 'MERCHANT - Chu quan',
+  ADMIN: 'ADMIN - Quan tri',
 }
 
 const resourceConfigs: ResourceConfig[] = [
@@ -95,20 +109,13 @@ const resourceConfigs: ResourceConfig[] = [
     canCreate: false,
   },
   {
-    name: 'restaurants',
+    name: 'restaurant-manager',
     title: 'Nha hang',
-    description: 'Quan ly quan an, vi tri va trang thai mo cua.',
-    columns: ['id', 'name', 'ownerId', 'address', 'isOpen', 'ratingAvg'],
-    fields: [
-      { key: 'ownerId', label: 'Owner ID', type: 'number', defaultValue: 1 },
-      { key: 'name', label: 'Ten nha hang', type: 'text' },
-      { key: 'address', label: 'Dia chi', type: 'text' },
-      { key: 'latitude', label: 'Latitude', type: 'number', defaultValue: 10.7769 },
-      { key: 'longitude', label: 'Longitude', type: 'number', defaultValue: 106.7009 },
-      { key: 'imageUrl', label: 'Image URL', type: 'text', nullable: true },
-      { key: 'ratingAvg', label: 'Rating', type: 'number', defaultValue: 5 },
-      { key: 'isOpen', label: 'Dang mo cua', type: 'checkbox', defaultValue: true },
-    ],
+    description: 'Tao quan cho chu quan, duyet va quan ly danh sach.',
+    columns: [],
+    fields: [],
+    canCreate: false,
+    canDelete: false,
   },
   {
     name: 'foods',
@@ -125,14 +132,13 @@ const resourceConfigs: ResourceConfig[] = [
     ],
   },
   {
-    name: 'categories',
+    name: 'category-manager',
     title: 'Danh muc',
-    description: 'Nhom mon theo nha hang.',
-    columns: ['id', 'restaurantId', 'name'],
-    fields: [
-      { key: 'restaurantId', label: 'Restaurant ID', type: 'number', defaultValue: 1 },
-      { key: 'name', label: 'Ten danh muc', type: 'text' },
-    ],
+    description: 'Tao danh muc theo dung nha hang.',
+    columns: [],
+    fields: [],
+    canCreate: false,
+    canDelete: false,
   },
   {
     name: 'drivers',
@@ -157,6 +163,13 @@ const resourceConfigs: ResourceConfig[] = [
     fields: [
       { key: 'fullName', label: 'Ho ten', type: 'text' },
       { key: 'phone', label: 'So dien thoai', type: 'text' },
+      {
+        key: 'role',
+        label: 'Vai tro',
+        type: 'select',
+        options: ['CUSTOMER', 'DRIVER', 'MERCHANT', 'ADMIN'],
+        defaultValue: 'CUSTOMER',
+      },
       { key: 'password', label: 'Mat khau', type: 'text', defaultValue: '123456' },
       { key: 'ratingAvg', label: 'Rating', type: 'number', defaultValue: 5 },
     ],
@@ -185,7 +198,10 @@ function formatCellValue(value: unknown) {
 
 function getInitialForm(fields: FieldConfig[], record?: AdminRecord | null) {
   return fields.reduce<Record<string, FieldValue>>((values, field) => {
-    const sourceValue = record ? record[field.key] : undefined
+    let sourceValue: unknown = record ? record[field.key] : undefined
+    if (record && field.key === 'role' && Array.isArray(record.roles)) {
+      sourceValue = record.roles[0] ?? ''
+    }
     values[field.key] = (sourceValue as FieldValue | undefined) ?? field.defaultValue ?? (field.type === 'checkbox' ? false : '')
     return values
   }, {})
@@ -379,7 +395,7 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
                     >
                       {(field.options || []).map((option) => (
                         <option key={option} value={option}>
-                          {option}
+                          {field.key === 'role' ? ROLE_LABELS[option] || option : option}
                         </option>
                       ))}
                     </select>
@@ -469,7 +485,11 @@ function MenuManagerPanel() {
         ...(availabilityFilter !== 'all' ? { isAvailable: availabilityFilter === 'true' } : {}),
       }
 
-      const [restaurantData, categoryData, foodData] = await Promise.all([getRestaurants(), getCategories(), getFoods(foodFilters)])
+      const [restaurantData, categoryData, foodData] = await Promise.all([
+        getAllRestaurantsForAdmin(),
+        getCategories(),
+        getFoods(foodFilters),
+      ])
 
       setRestaurants(restaurantData)
       setCategories(categoryData)
@@ -555,6 +575,7 @@ function MenuManagerPanel() {
 
       const payload = {
         name,
+        imageUrl: foodForm.imageUrl.trim() || null,
         price,
         categoryId,
         defaultQuantity,
@@ -735,6 +756,10 @@ function MenuManagerPanel() {
 
               return (
                 <article key={food.id} className={`menu-admin-card ${isSoldOut ? 'sold-out' : ''}`}>
+                  <div
+                    className={`menu-admin-card-photo ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
+                    style={foodPhotoStyle(food.imageUrl)}
+                  />
                   <div className="menu-admin-card-head">
                     <div>
                       <span>#{food.id}</span>
@@ -759,6 +784,7 @@ function MenuManagerPanel() {
                         setFoodForm({
                           id: food.id,
                           name: food.name,
+                          imageUrl: food.imageUrl ?? '',
                           price: String(food.price),
                           restaurantId: category ? String(category.restaurantId) : '',
                           categoryId: food.categoryId ? String(food.categoryId) : '',
@@ -794,6 +820,12 @@ function MenuManagerPanel() {
                 <span>Ten mon</span>
                 <input value={foodForm.name} onChange={(event) => setFoodForm((current) => ({ ...current, name: event.target.value }))} />
               </label>
+              <ImageUrlField
+                id="adminFoodImageUrl"
+                label="Link hinh anh mon"
+                value={foodForm.imageUrl}
+                onChange={(value) => setFoodForm((current) => ({ ...current, imageUrl: value }))}
+              />
               <label className="restaurant-field">
                 <span>Gia</span>
                 <input
@@ -931,15 +963,59 @@ function MenuManagerPanel() {
   )
 }
 
+const TAB_QUERY_KEY = 'tab'
+
+const tabToResource: Record<string, string> = {
+  menu: 'menu-manager',
+  orders: 'orders',
+  restaurants: 'restaurant-manager',
+  foods: 'foods',
+  categories: 'category-manager',
+  drivers: 'drivers',
+  users: 'users',
+}
+
+const resourceToTab = Object.fromEntries(Object.entries(tabToResource).map(([tab, resource]) => [resource, tab]))
+
+function resolveResourceFromTab(tab: string | null) {
+  if (!tab) return null
+  return tabToResource[tab] ?? null
+}
+
 export default function AdminPage() {
   useDocumentTitle(`${APP_NAME} | Admin`)
 
   const { user } = useAuth()
-  const [activeResource, setActiveResource] = useState(resourceConfigs[0].name)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabFromUrl = searchParams.get(TAB_QUERY_KEY)
+  const [activeResource, setActiveResource] = useState(
+    () => resolveResourceFromTab(tabFromUrl) || resourceConfigs[0].name,
+  )
+
   const config = useMemo(
     () => resourceConfigs.find((resource) => resource.name === activeResource) || resourceConfigs[0],
     [activeResource],
   )
+
+  useEffect(() => {
+    const nextResource = resolveResourceFromTab(tabFromUrl)
+    if (nextResource) {
+      setActiveResource(nextResource)
+    }
+  }, [tabFromUrl])
+
+  function selectResource(name: string) {
+    setActiveResource(name)
+    const tab = resourceToTab[name]
+    const next = new URLSearchParams(searchParams)
+    if (tab) {
+      next.set(TAB_QUERY_KEY, tab)
+    } else {
+      next.delete(TAB_QUERY_KEY)
+    }
+    next.delete('action')
+    setSearchParams(next, { replace: true })
+  }
 
   return (
     <section className="admin-page">
@@ -967,14 +1043,22 @@ export default function AdminPage() {
             key={resource.name}
             type="button"
             className={resource.name === activeResource ? 'active' : ''}
-            onClick={() => setActiveResource(resource.name)}
+            onClick={() => selectResource(resource.name)}
           >
             {resource.title}
           </button>
         ))}
       </div>
 
-      {config.name === 'menu-manager' ? <MenuManagerPanel /> : <AdminResourcePanel key={config.name} config={config} />}
+      {config.name === 'menu-manager' ? (
+        <MenuManagerPanel />
+      ) : config.name === 'restaurant-manager' ? (
+        <AdminRestaurantPanel />
+      ) : config.name === 'category-manager' ? (
+        <AdminCategoryPanel />
+      ) : (
+        <AdminResourcePanel key={config.name} config={config} />
+      )}
     </section>
   )
 }

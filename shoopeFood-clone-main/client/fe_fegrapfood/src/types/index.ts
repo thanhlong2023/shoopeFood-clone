@@ -86,6 +86,7 @@ export type Food = {
   id: number
   categoryId: number | null
   name: string
+  imageUrl: string | null
   price: number
   isAvailable: boolean
   defaultQuantity: number

@@ -1,5 +1,7 @@
 const { Payment, PaymentTransaction, Order } = require("../models");
 
+const ALLOWED_PAYMENT_METHODS = new Set(["CASH", "E_WALLET", "CREDIT_CARD"]);
+
 // Tiện ích sleep giả lập timeout cổng thanh toán
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -9,6 +11,13 @@ exports.createPayment = async (req, res) => {
 
     if (!orderId || !idempotencyKey || !paymentMethod) {
       return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const normalizedMethod = String(paymentMethod).trim().toUpperCase();
+    if (!ALLOWED_PAYMENT_METHODS.has(normalizedMethod)) {
+      return res.status(400).json({
+        message: "Invalid paymentMethod. Allowed: CASH, E_WALLET, CREDIT_CARD",
+      });
     }
 
     const order = await Order.findByPk(orderId);
@@ -22,7 +31,7 @@ exports.createPayment = async (req, res) => {
       payment = await Payment.create({
         orderId,
         idempotencyKey,
-        paymentMethod,
+        paymentMethod: normalizedMethod,
         amount: order.totalAmount,
         status: "PENDING"
       });

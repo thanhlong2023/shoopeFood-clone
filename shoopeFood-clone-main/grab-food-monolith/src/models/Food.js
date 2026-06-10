@@ -13,6 +13,7 @@ const Food = sequelize.define(
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     categoryId: { type: DataTypes.INTEGER, field: "category_id" },
     name: { type: DataTypes.STRING, allowNull: false },
+    imageUrl: { type: DataTypes.STRING(255), allowNull: true, field: "image_url" },
     price: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
     isAvailable: { type: DataTypes.BOOLEAN, field: "is_available", defaultValue: true },
     defaultQuantity: {

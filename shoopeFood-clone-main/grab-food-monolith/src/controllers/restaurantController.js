@@ -1,5 +1,6 @@
-const { Restaurant, RestaurantChangeRequest, User } = require("../models");
+const { Restaurant, RestaurantChangeRequest, User, Role } = require("../models");
 const { Op } = require("sequelize");
+const { resolveUserRoles } = require("../utils/roleResolver");
 
 // ==== HELPER FUNCTIONS ====
 
@@ -86,6 +87,38 @@ const withSuccess = (res, status, msg, data) => {
   res.status(status).json({ message: msg, success: { message: msg, data }, data });
 };
 
+const merchantRoleInclude = {
+  model: Role,
+  as: "roles",
+  where: { name: "MERCHANT" },
+  required: true,
+  through: { attributes: [] },
+  attributes: ["id", "name"],
+};
+
+const findMerchantById = async (userId) => {
+  const merchantUser = await User.findOne({
+    where: { id: userId },
+    include: [merchantRoleInclude],
+  });
+
+  if (merchantUser) {
+    return merchantUser;
+  }
+
+  const user = await User.findByPk(userId);
+  if (!user) {
+    return null;
+  }
+
+  const ownsRestaurant = await Restaurant.findOne({
+    where: { ownerId: userId, deletedAt: null },
+    attributes: ["id"],
+  });
+
+  return ownsRestaurant ? user : null;
+};
+
 // ==== PUBLIC ENDPOINTS ====
 
 /**
@@ -167,20 +200,40 @@ exports.createRestaurant = async (req, res) => {
       ratingAvg = 5.0,
     } = req.body;
 
-    // Validate required fields
-    if (!ownerId || !name) {
-      return withError(res, 400, "ownerId and name are required");
+    const { hasRole } = await resolveUserRoles(req);
+    const isAdmin = hasRole(["ADMIN"]);
+    const isMerchant = hasRole(["MERCHANT"]);
+    let normalizedOwnerId;
+    let approvalStatus = "PENDING";
+    let approvedBy = null;
+    let approvedAt = null;
+
+    if (isAdmin) {
+      normalizedOwnerId = Number(ownerId);
+      if (!Number.isFinite(normalizedOwnerId) || normalizedOwnerId <= 0) {
+        return withError(res, 400, "ownerId of a MERCHANT user is required");
+      }
+
+      const merchantOwner = await findMerchantById(normalizedOwnerId);
+      if (!merchantOwner) {
+        return withError(res, 400, "Owner must be an existing MERCHANT user");
+      }
+
+      approvalStatus = "APPROVED";
+      approvedBy = req.user?.id || null;
+      approvedAt = new Date();
+    } else if (isMerchant) {
+      normalizedOwnerId = Number(req.user?.id);
+      if (!Number.isFinite(normalizedOwnerId)) {
+        return withError(res, 401, "User not authenticated");
+      }
+      approvalStatus = "PENDING";
+    } else {
+      return withError(res, 403, "Only ADMIN or MERCHANT can create restaurants");
     }
 
-    const normalizedOwnerId = Number(ownerId);
-    if (!Number.isFinite(normalizedOwnerId)) {
-      return withError(res, 400, "ownerId must be a number");
-    }
-
-    // Check owner exists
-    const owner = await User.findByPk(normalizedOwnerId);
-    if (!owner) {
-      return withError(res, 400, "Owner not found");
+    if (!name) {
+      return withError(res, 400, "name is required");
     }
 
     // Verify coordinates
@@ -206,7 +259,9 @@ exports.createRestaurant = async (req, res) => {
       isOpen: Boolean(isOpen),
       imageUrl: imageUrl ? String(imageUrl).trim() : null,
       ratingAvg: Number.isFinite(Number(ratingAvg)) ? Number(ratingAvg) : 5.0,
-      approvalStatus: "PENDING",
+      approvalStatus,
+      approvedBy,
+      approvedAt,
     });
 
     return withSuccess(res, 201, "Restaurant created", normalizeRestaurant(newRestaurant));
@@ -251,19 +306,37 @@ exports.updateRestaurant = async (req, res) => {
       await item.update(directUpdates);
     }
 
+    const { hasRole } = await resolveUserRoles(req);
+    const isAdmin = hasRole(["ADMIN"]);
+    const isMerchantOwner =
+      hasRole(["MERCHANT"]) && Number(item.ownerId) === Number(req.user?.id);
+
+    if (!isAdmin && !isMerchantOwner) {
+      return withError(res, 403, "Not allowed to update this restaurant");
+    }
+
+    // Merchant owner can update restaurant image immediately
+    if (isMerchantOwner && !isAdmin && approvalUpdates.imageUrl !== undefined) {
+      const imageUrl = approvalUpdates.imageUrl
+        ? String(approvalUpdates.imageUrl).trim()
+        : null;
+      await item.update({ imageUrl });
+      delete approvalUpdates.imageUrl;
+    }
+
     // Handle approval-required updates
     let changeRequest = null;
     if (Object.keys(approvalUpdates).length > 0) {
-      // Validate all approval updates
       if (approvalUpdates.ownerId) {
         const newOwnerId = Number(approvalUpdates.ownerId);
         if (!Number.isFinite(newOwnerId)) {
           return withError(res, 400, "ownerId must be a number");
         }
-        const owner = await User.findByPk(newOwnerId);
+        const owner = await findMerchantById(newOwnerId);
         if (!owner) {
-          return withError(res, 400, "New owner not found");
+          return withError(res, 400, "New owner must be a MERCHANT user");
         }
+        approvalUpdates.ownerId = newOwnerId;
       }
 
       if (approvalUpdates.latitude !== undefined || approvalUpdates.longitude !== undefined) {
@@ -275,14 +348,25 @@ exports.updateRestaurant = async (req, res) => {
         }
       }
 
-      // Create change request
-      changeRequest = await RestaurantChangeRequest.create({
-        restaurantId: id,
-        requestedBy: req.user?.id || item.ownerId,
-        payload: approvalUpdates,
-        status: "PENDING",
-      });
+      if (approvalUpdates.imageUrl !== undefined) {
+        approvalUpdates.imageUrl = approvalUpdates.imageUrl
+          ? String(approvalUpdates.imageUrl).trim()
+          : null;
+      }
+
+      if (isAdmin) {
+        await item.update(approvalUpdates);
+      } else {
+        changeRequest = await RestaurantChangeRequest.create({
+          restaurantId: id,
+          requestedBy: req.user?.id || item.ownerId,
+          payload: approvalUpdates,
+          status: "PENDING",
+        });
+      }
     }
+
+    await item.reload();
 
     return withSuccess(res, 200, "Restaurant updated", {
       restaurant: normalizeRestaurant(item),

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -17,6 +17,7 @@ import {
   patchRestaurantStatus,
   patchRestaurantTodayStatus,
 } from '../services/api/restaurants'
+import { restaurantThumbStyle } from '../utils/restaurantImage'
 import type { Restaurant, RestaurantChangeRequest } from '../types'
 
 function formatCoordinate(value: number) {
@@ -28,24 +29,10 @@ function formatDateTime(dateString: string | null | undefined) {
   return new Date(dateString).toLocaleString('vi-VN')
 }
 
-function getRestaurantImage(restaurant: Restaurant) {
-  if (restaurant.imageUrl) {
-    return restaurant.imageUrl
-  }
-
-  const images = [
-    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?auto=format&fit=crop&w=900&q=80',
-  ]
-
-  return images[(restaurant.id - 1) % images.length]
-}
-
 export default function RestaurantListPage() {
   useDocumentTitle(`${APP_NAME} | Restaurants`)
   const { user } = useAuth()
+  const location = useLocation()
 
   const [activeTab, setActiveTab] = useState<'list' | 'pending' | 'changeRequests'>('list')
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
@@ -63,11 +50,7 @@ export default function RestaurantListPage() {
   const isAdmin = user?.role === 'ADMIN'
   const isMerchant = user?.role === 'MERCHANT'
 
-  useEffect(() => {
-    void loadData()
-  }, [activeTab])
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true)
       setErrorMessage(null)
@@ -87,7 +70,11 @@ export default function RestaurantListPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [activeTab, isAdmin, isMerchant])
+
+  useEffect(() => {
+    void loadData()
+  }, [loadData, location.key])
 
   async function handleDelete(restaurant: Restaurant) {
     const confirmed = window.confirm(`Xoá nhà hàng "${restaurant.name}"?`)
@@ -201,13 +188,15 @@ export default function RestaurantListPage() {
     <section className="restaurant-page">
       <div className="restaurant-page-header">
         <div>
-          <h1>Quản lý nhà hàng</h1>
-          <p>Xem danh sách, tạo mới, cập nhật và xoá nhà hàng</p>
+          <h1>Quan ly nha hang</h1>
+          <p>Admin tao quan cho chu quan. Quan tu dong duyet va hien cho khach dat mon.</p>
         </div>
 
-        <Link to="/restaurants/new" className="button-primary">
-          Tạo nhà hàng mới
-        </Link>
+        {isAdmin ? (
+          <Link to="/restaurants/new" className="button-primary">
+            Tạo quán cho chủ quán
+          </Link>
+        ) : null}
       </div>
 
       <div className="restaurant-panel">
@@ -257,8 +246,8 @@ export default function RestaurantListPage() {
               <article key={restaurant.id} className="restaurant-manage-card">
                 <Link
                   to={`/restaurants/${restaurant.id}`}
-                  className="restaurant-manage-photo"
-                  style={{ backgroundImage: `url("${getRestaurantImage(restaurant)}")` }}
+                  className={`restaurant-manage-photo ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-manage-photo--placeholder'}`}
+                  style={restaurantThumbStyle(restaurant.imageUrl)}
                   aria-label={`Xem chi tiết ${restaurant.name}`}
                 />
 
@@ -308,43 +297,20 @@ export default function RestaurantListPage() {
                     Xem chi tiết
                   </Link>
 
-                  {isMerchant && (
-                    <Link to={`/restaurants/${restaurant.id}/edit`} className="button-secondary">
-                      Sửa
-                    </Link>
-                  )}
-
-                  {isMerchant && (
+                  {isAdmin && (
                     <>
+                      <Link to={`/restaurants/${restaurant.id}/edit`} className="button-secondary">
+                        Sửa
+                      </Link>
                       <button
                         type="button"
-                        className={`button-secondary ${restaurant.isOpen ? 'close' : 'open'}`}
-                        onClick={() => void handleToggleStatus(restaurant.id, restaurant.isOpen)}
+                        className="button-danger"
+                        onClick={() => void handleDelete(restaurant)}
                         disabled={actioningId === restaurant.id}
                       >
-                        {restaurant.isOpen ? 'Đóng cửa' : 'Mở cửa'}
-                      </button>
-
-                      <button
-                        type="button"
-                        className="button-secondary"
-                        onClick={() => setShowTodayStatusModal(restaurant.id)}
-                        disabled={actioningId === restaurant.id}
-                      >
-                        {restaurant.isOpenToday ? 'Đóng hôm nay' : 'Mở hôm nay'}
+                        {actioningId === restaurant.id ? 'Đang xoá...' : 'Xoá'}
                       </button>
                     </>
-                  )}
-
-                  {isMerchant && (
-                    <button
-                      type="button"
-                      className="button-danger"
-                      onClick={() => void handleDelete(restaurant)}
-                      disabled={actioningId === restaurant.id}
-                    >
-                      {actioningId === restaurant.id ? 'Đang xoá...' : 'Xoá'}
-                    </button>
                   )}
                 </div>
               </article>

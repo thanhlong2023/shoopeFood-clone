@@ -16,6 +16,7 @@ export async function getFoods(filters: FoodFilters = {}) {
 export type FoodPayload = {
   categoryId: number | null
   name: string
+  imageUrl?: string | null
   price: number
   isAvailable?: boolean
   defaultQuantity?: number

@@ -53,6 +53,20 @@ const baseDataProvider = simpleRestDataProvider(REFINE_API_URL, httpClient)
 
 export const dataProvider: DataProvider = {
   ...baseDataProvider,
+  getList: async (params) => {
+    if (params.resource === 'restaurants') {
+      const { data: responseData } = await httpClient.get(`${REFINE_API_URL}/restaurants`, {
+        params: { includePending: 'true' },
+      })
+      const data = Array.isArray(responseData) ? responseData : []
+      return {
+        data,
+        total: data.length,
+      }
+    }
+
+    return baseDataProvider.getList(params)
+  },
   update: (params) =>
     baseDataProvider.update({
       ...params,

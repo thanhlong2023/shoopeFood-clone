@@ -41,8 +41,8 @@ Category.belongsTo(Restaurant, { foreignKey: "restaurantId", targetKey: "id", as
 User.hasMany(Restaurant, { foreignKey: "ownerId", sourceKey: "id", as: "restaurants" });
 Restaurant.belongsTo(User, { foreignKey: "ownerId", targetKey: "id", as: "owner" });
 
-User.hasMany(RestaurantChangeRequest, { foreignKey: "approvedBy", sourceKey: "id" });
-RestaurantChangeRequest.belongsTo(User, { foreignKey: "approvedBy", targetKey: "id", as: "reviewerUser" });
+User.hasMany(RestaurantChangeRequest, { foreignKey: "reviewedBy", sourceKey: "id", as: "reviewedChangeRequests" });
+RestaurantChangeRequest.belongsTo(User, { foreignKey: "reviewedBy", targetKey: "id", as: "reviewerUser" });
 
 Restaurant.hasMany(RestaurantChangeRequest, { foreignKey: "restaurantId", sourceKey: "id", as: "changeRequests" });
 RestaurantChangeRequest.belongsTo(Restaurant, { foreignKey: "restaurantId", targetKey: "id", as: "restaurant" });

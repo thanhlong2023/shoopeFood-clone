@@ -1,21 +1,39 @@
 import { Route, Routes } from 'react-router-dom'
 import RequireAuth from '../components/common/RequireAuth'
+import RoleHomeRedirect from '../components/common/RoleHomeRedirect'
 import MainLayout from '../layouts/MainLayout'
 import AdminPage from '../pages/AdminPage'
 import HomePage from '../pages/HomePage'
 import DriverPage from '../pages/DriverPage'
 import LoginPage from '../pages/LoginPage'
-import RestaurantListPage from '../pages/RestaurantListPage'
+import MerchantMenuPage from '../pages/MerchantMenuPage'
+import MerchantOrdersPage from '../pages/MerchantOrdersPage'
+import AdminTabRedirect from '../components/common/AdminTabRedirect'
 import RestaurantDetailPage from '../pages/RestaurantDetailPage'
-import RestaurantFormPage from '../pages/RestaurantFormPage'
+import ProfilePage from '../pages/ProfilePage'
 import TrackingPage from '../pages/TrackingPage'
 
 export default function AppRouter() {
   return (
     <MainLayout>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route
+          path="/"
+          element={
+            <RoleHomeRedirect>
+              <HomePage />
+            </RoleHomeRedirect>
+          }
+        />
         <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth allowedRoles={['CUSTOMER', 'DRIVER', 'MERCHANT', 'ADMIN']}>
+              <ProfilePage />
+            </RequireAuth>
+          }
+        />
         <Route path="/tracking" element={<TrackingPage />} />
         <Route
           path="/driver"
@@ -26,25 +44,41 @@ export default function AppRouter() {
           }
         />
         <Route
+          path="/merchant/orders"
+          element={
+            <RequireAuth allowedRoles={['MERCHANT']}>
+              <MerchantOrdersPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/merchant/menu"
+          element={
+            <RequireAuth allowedRoles={['MERCHANT']}>
+              <MerchantMenuPage />
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/restaurants"
           element={
-            <RequireAuth allowedRoles={['CUSTOMER', 'MERCHANT', 'ADMIN']}>
-              <RestaurantListPage />
+            <RequireAuth allowedRoles={['ADMIN']}>
+              <AdminTabRedirect tab="restaurants" />
             </RequireAuth>
           }
         />
         <Route
           path="/restaurants/new"
           element={
-            <RequireAuth allowedRoles={['MERCHANT', 'ADMIN']}>
-              <RestaurantFormPage />
+            <RequireAuth allowedRoles={['ADMIN']}>
+              <AdminTabRedirect tab="restaurants" action="create" />
             </RequireAuth>
           }
         />
         <Route
           path="/restaurants/:id"
           element={
-            <RequireAuth allowedRoles={['CUSTOMER', 'MERCHANT', 'ADMIN']}>
+            <RequireAuth allowedRoles={['MERCHANT', 'ADMIN', 'CUSTOMER']}>
               <RestaurantDetailPage />
             </RequireAuth>
           }
@@ -52,8 +86,8 @@ export default function AppRouter() {
         <Route
           path="/restaurants/:id/edit"
           element={
-            <RequireAuth allowedRoles={['MERCHANT', 'ADMIN']}>
-              <RestaurantFormPage />
+            <RequireAuth allowedRoles={['ADMIN']}>
+              <AdminTabRedirect tab="restaurants" />
             </RequireAuth>
           }
         />

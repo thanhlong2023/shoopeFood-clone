@@ -5,6 +5,7 @@ const normalizeFood = (item) => ({
   id: item.id,
   categoryId: item.categoryId,
   name: item.name,
+  imageUrl: item.imageUrl || null,
   price: Number(item.price),
   isAvailable: Boolean(item.isAvailable),
   defaultQuantity: Number(item.defaultQuantity || 0),
@@ -94,7 +95,7 @@ exports.getFoodById = async (req, res) => {
 
 exports.createFood = async (req, res) => {
   try {
-    const { name, price, categoryId, isAvailable = true, defaultQuantity = 0, currentQuantity } = req.body;
+    const { name, price, categoryId, imageUrl = null, isAvailable = true, defaultQuantity = 0, currentQuantity } = req.body;
 
     const trimmedName = typeof name === "string" ? name.trim() : "";
     const parsedPrice = Number(price);
@@ -125,6 +126,7 @@ exports.createFood = async (req, res) => {
     const newFood = await Food.create({
       categoryId: parsedCategoryId,
       name: trimmedName,
+      imageUrl: imageUrl ? String(imageUrl).trim() : null,
       price: parsedPrice,
       isAvailable: typeof isAvailable === "boolean" ? isAvailable : true,
       defaultQuantity: parsedDefaultQuantity.value,
@@ -143,7 +145,7 @@ exports.updateFood = async (req, res) => {
     await Food.resetExpiredDailyQuantities();
 
     const id = Number(req.params.id);
-    const { name, price, categoryId, isAvailable, defaultQuantity, currentQuantity } = req.body;
+    const { name, price, categoryId, imageUrl, isAvailable, defaultQuantity, currentQuantity } = req.body;
     const item = await Food.findByPk(id);
 
     if (!item) {
@@ -205,8 +207,12 @@ exports.updateFood = async (req, res) => {
       nextCurrentQuantity = nextDefaultQuantity;
     }
 
+    const nextImageUrl =
+      imageUrl !== undefined ? (imageUrl ? String(imageUrl).trim() : null) : item.imageUrl;
+
     await item.update({
       name: trimmedName,
+      imageUrl: nextImageUrl,
       price: parsedPrice,
       categoryId: nextCategoryId,
       isAvailable: typeof isAvailable === "boolean" ? isAvailable : item.isAvailable,

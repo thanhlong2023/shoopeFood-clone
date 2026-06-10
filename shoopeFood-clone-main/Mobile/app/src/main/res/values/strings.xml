@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ShoopeFood</string>
+    <string name="login_title">Dang nhap khach hang</string>
+    <string name="login_subtitle">Ket noi backend GrabFood monolith</string>
+    <string name="phone_hint">So dien thoai</string>
+    <string name="password_hint">Mat khau</string>
+    <string name="login_button">Dang nhap</string>
+    <string name="login_required">Vui long nhap day du thong tin</string>
+    <string name="network_error">Khong ket noi duoc server. Kiem tra backend va mang.</string>
+    <string name="home_title">Nha hang gan ban</string>
+    <string name="cart_title">Gio hang</string>
+    <string name="orders_title">Don hang cua toi</string>
+    <string name="order_detail_title">Chi tiet don hang</string>
+    <string name="empty_restaurants">Chua co nha hang nao</string>
+    <string name="empty_foods">Nha hang chua co mon an</string>
+    <string name="empty_orders">Ban chua co don hang</string>
+    <string name="added_to_cart">Da them vao gio hang</string>
+    <string name="cart_empty">Gio hang dang trong</string>
+    <string name="checkout_required">Nhap dia chi va khoang cach</string>
+    <string name="invalid_distance">Khoang cach khong hop le</string>
+    <string name="order_success">Dat hang thanh cong</string>
+    <string name="subtotal_label">Tam tinh: %1$s</string>
+    <string name="receiver_address_hint">Dia chi nhan hang</string>
+    <string name="distance_hint">Khoang cach (km)</string>
+    <string name="checkout_button">Dat hang</string>
+    <string name="cart_with_count">Gio hang (%1$d mon)</string>
+    <string name="tracking_info">Nha hang: %1$s | Trang thai: %2$s</string>
+    <string name="action_orders">Don hang</string>
+    <string name="action_logout">Dang xuat</string>
+    <string name="add_food">Them</string>
+</resources>

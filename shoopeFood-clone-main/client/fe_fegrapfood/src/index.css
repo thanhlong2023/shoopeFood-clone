@@ -483,10 +483,138 @@ img {
   padding: 20px;
   overflow: hidden;
   border-radius: var(--radius-lg);
-  background:
-    linear-gradient(90deg, rgba(16, 24, 32, 0.78), rgba(16, 24, 32, 0.2)),
-    url('https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1300&q=80') center/cover;
+  background-position: center;
+  background-size: cover;
   color: #fff;
+}
+
+.restaurant-thumb--placeholder,
+.restaurant-manage-photo--placeholder,
+.food-photo--placeholder {
+  background:
+    linear-gradient(135deg, #dfe8e2 0%, #c5d6cc 100%);
+}
+
+.admin-table-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.admin-table-thumb--empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #eef2ef;
+  color: #6b7a71;
+  font-size: 0.85rem;
+}
+
+.image-url-field {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.image-url-preview {
+  border: 1px dashed #c8d4cc;
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: #f8fbf9;
+}
+
+.image-url-preview img {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+
+.image-url-preview-empty {
+  min-height: 120px;
+  display: grid;
+  place-content: center;
+  gap: 0.35rem;
+  text-align: center;
+  color: #5f6f66;
+}
+
+.image-url-preview-empty small {
+  color: #7b8a82;
+}
+
+.food-card-photo,
+.menu-admin-card-photo {
+  width: 100%;
+  height: 120px;
+  border-radius: 10px;
+  margin-bottom: 0.75rem;
+  background-position: center;
+  background-size: cover;
+}
+
+.profile-summary {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: #f4f8f5;
+}
+
+.topbar-profile-link {
+  font-size: 0.92rem;
+  color: #1f3d2d;
+  text-decoration: none;
+}
+
+.topbar-profile-link.active,
+.topbar-profile-link:hover {
+  text-decoration: underline;
+}
+
+.profile-restaurant-list {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.profile-restaurant-card {
+  padding: 1rem;
+  border: 1px solid #dce5df;
+  border-radius: 14px;
+  background: #fafcfb;
+}
+
+.profile-restaurant-card-head {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.profile-restaurant-card-head h3 {
+  margin: 0 0 0.25rem;
+}
+
+.profile-restaurant-card-head p {
+  margin: 0;
+  color: #5f6f66;
+  font-size: 0.92rem;
+}
+
+.profile-restaurant-thumb {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background-position: center;
+  background-size: cover;
 }
 
 .restaurant-cover h2 {
@@ -1545,6 +1673,50 @@ img {
   color: #106533;
   font-size: 0.82rem;
   font-weight: 900;
+}
+
+.category-owner-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fff;
+}
+
+.category-owner-panel h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.category-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.category-owner-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.category-owner-form .restaurant-field {
+  flex: 1 1 220px;
+  margin: 0;
 }
 
 .food-owner-form {

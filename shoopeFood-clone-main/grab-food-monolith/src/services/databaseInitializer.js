@@ -42,6 +42,18 @@ const ensureDatabaseExists = async () => {
   }
 };
 
+const ensureFoodImageUrlColumn = async () => {
+  const queryInterface = sequelize.getQueryInterface();
+  const columns = await queryInterface.describeTable("food_items");
+
+  if (!hasColumn(columns, "image_url")) {
+    await queryInterface.addColumn("food_items", "image_url", {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    });
+  }
+};
+
 const ensureFoodQuantityColumns = async () => {
   const queryInterface = sequelize.getQueryInterface();
   const columns = await queryInterface.describeTable("food_items");
@@ -169,6 +181,7 @@ const initializeDatabase = async () => {
   await sequelize.authenticate();
   await sequelize.sync();
   await ensureFoodQuantityColumns();
+  await ensureFoodImageUrlColumn();
   await ensureUsersCreatedAtColumn();
   await ensureDriverLocationTrackingColumns();
   await ensureRestaurantApprovalColumns();

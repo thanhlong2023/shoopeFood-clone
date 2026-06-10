@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -6,6 +6,8 @@ import { getCategories } from '../services/api/categories'
 import { getFoods } from '../services/api/foods'
 import { createOrder } from '../services/api/orders'
 import { getRestaurants } from '../services/api/restaurants'
+import { foodPhotoStyle } from '../utils/foodImage'
+import { restaurantCoverStyle, restaurantThumbStyle } from '../utils/restaurantImage'
 import type { Category, CreateOrderPayload, Food, Order, Restaurant } from '../types'
 
 type CartState = Record<number, number>
@@ -22,19 +24,6 @@ type CheckoutState = {
 type IconName = 'search' | 'location' | 'cart' | 'plus' | 'minus' | 'trash' | 'store' | 'clock' | 'star' | 'receipt' | 'check'
 
 const quickFilters = ['Com trua', 'Bun pho', 'Do uong', 'An vat', 'Chay', 'Giam gia']
-const foodImages = [
-  'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=560&q=80',
-  'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=560&q=80',
-  'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=560&q=80',
-  'https://images.unsplash.com/photo-1563379926898-05f4575a45d8?auto=format&fit=crop&w=560&q=80',
-  'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=560&q=80',
-]
-const restaurantImages = [
-  'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=720&q=80',
-  'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=720&q=80',
-  'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=720&q=80',
-]
-
 const initialCheckoutState: CheckoutState = {
   customerId: '1',
   receiverAddress: '12 Nguyen Hue, Quan 1',
@@ -68,14 +57,6 @@ function Icon({ name }: { name: IconName }) {
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(value))
-}
-
-function getFoodImage(food: Food, index: number) {
-  return foodImages[(food.id + index) % foodImages.length]
-}
-
-function getRestaurantImage(restaurant: Restaurant, index: number) {
-  return restaurant.imageUrl || restaurantImages[(restaurant.id + index) % restaurantImages.length]
 }
 
 function toEta(restaurantId: number) {
@@ -338,11 +319,9 @@ export default function HomePage() {
           </div>
 
           <div className="restaurant-stack">
-            {restaurants.map((restaurant, index) => {
+            {restaurants.map((restaurant) => {
               const isActive = activeRestaurant?.id === restaurant.id
-              const imageStyle: CSSProperties = {
-                backgroundImage: `url(${getRestaurantImage(restaurant, index)})`,
-              }
+              const thumbStyle = restaurantThumbStyle(restaurant.imageUrl)
 
               return (
                 <button
@@ -351,7 +330,11 @@ export default function HomePage() {
                   className={`restaurant-pick ${isActive ? 'active' : ''}`}
                   onClick={() => handleRestaurantSelect(restaurant.id)}
                 >
-                  <span className="restaurant-thumb" style={imageStyle} />
+                  <span
+                    className={`restaurant-thumb ${thumbStyle ? '' : 'restaurant-thumb--placeholder'}`}
+                    style={thumbStyle}
+                    aria-hidden="true"
+                  />
                   <span className="restaurant-info">
                     <strong>{restaurant.name}</strong>
                     <small>{toCuisine(categories, restaurant.id)}</small>
@@ -368,7 +351,7 @@ export default function HomePage() {
 
         <main className="menu-panel">
           {activeRestaurant ? (
-            <div className="restaurant-cover">
+            <div className="restaurant-cover" style={restaurantCoverStyle(activeRestaurant.imageUrl)}>
               <div>
                 <span className={`open-badge ${activeRestaurant.isOpen ? 'open' : 'closed'}`}>
                   {activeRestaurant.isOpen ? 'Dang mo cua' : 'Tam dong cua'}
@@ -406,17 +389,17 @@ export default function HomePage() {
           </div>
 
           <div className="menu-grid">
-            {visibleFoods.map((food, index) => {
+            {visibleFoods.map((food) => {
               const quantity = cart[food.id] || 0
               const remaining = Number(food.currentQuantity || 0)
               const isSoldOut = !food.isAvailable || remaining <= 0
-              const imageStyle: CSSProperties = {
-                backgroundImage: `url(${getFoodImage(food, index)})`,
-              }
 
               return (
                 <article key={food.id} className={`food-card ${isSoldOut ? 'sold-out' : ''}`}>
-                  <div className="food-photo" style={imageStyle}>
+                  <div
+                    className={`food-photo ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
+                    style={foodPhotoStyle(food.imageUrl)}
+                  >
                     <span>{categoryNameById.get(food.categoryId ?? 0) || 'Mon ngon'}</span>
                   </div>
                   <div className="food-body">

@@ -5,6 +5,11 @@ import { useAuth } from '../../contexts/AuthContext'
 export default function Navbar() {
   const { isAuthenticated, user, logout, hasRole } = useAuth()
 
+  const isMerchant = hasRole(['MERCHANT'])
+  const isAdmin = hasRole(['ADMIN'])
+  const isDriver = hasRole(['DRIVER'])
+  const showCustomerNav = !isAuthenticated || hasRole(['CUSTOMER'])
+
   return (
     <header className="topbar-wrap">
       <nav className="topbar" aria-label="Global navigation">
@@ -16,19 +21,35 @@ export default function Navbar() {
         </div>
 
         <ul className="topbar-links">
-          <li>
-            <NavLink to="/">Dat mon</NavLink>
-          </li>
-          <li>
-            <NavLink to="/tracking">Theo doi</NavLink>
-          </li>
-          <li>
-            <NavLink to="/driver">Tai xe</NavLink>
-          </li>
-          <li>
-            <NavLink to="/restaurants">Nha hang</NavLink>
-          </li>
-          {hasRole(['ADMIN']) ? (
+          {isMerchant ? (
+            <>
+              <li>
+                <NavLink to="/merchant/orders">Don hang</NavLink>
+              </li>
+              <li>
+                <NavLink to="/merchant/menu">Thuc don</NavLink>
+              </li>
+            </>
+          ) : null}
+
+          {showCustomerNav && !isMerchant ? (
+            <>
+              <li>
+                <NavLink to="/">Dat mon</NavLink>
+              </li>
+              <li>
+                <NavLink to="/tracking">Theo doi</NavLink>
+              </li>
+            </>
+          ) : null}
+
+          {isDriver || isAdmin ? (
+            <li>
+              <NavLink to="/driver">Tai xe</NavLink>
+            </li>
+          ) : null}
+
+          {isAdmin ? (
             <li>
               <NavLink to="/admin">Admin</NavLink>
             </li>
@@ -38,6 +59,9 @@ export default function Navbar() {
         <div className="topbar-account">
           {isAuthenticated ? (
             <>
+              <NavLink to="/profile" className="topbar-profile-link">
+                Ho so
+              </NavLink>
               <span>{user?.role}</span>
               <button type="button" onClick={logout}>
                 Logout

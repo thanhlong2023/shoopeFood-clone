@@ -12,8 +12,8 @@ type LocationState = {
 const roleOptions: Array<{ role: UserRole; label: string; hint: string; phone: string }> = [
   { role: 'CUSTOMER', label: 'Khach hang', hint: 'Dat mon va theo doi don', phone: '0900000011' },
   { role: 'DRIVER', label: 'Tai xe', hint: 'Nhan don va cap nhat vi tri', phone: '0900000012' },
-  { role: 'MERCHANT', label: 'Chu quan', hint: 'Quan ly nha hang', phone: '0900000010' },
-  { role: 'ADMIN', label: 'Admin', hint: 'Quan tri he thong', phone: '0900000010' },
+  { role: 'MERCHANT', label: 'Chu quan', hint: 'Xem don hang & quan ly mon', phone: '0900000003' },
+  { role: 'ADMIN', label: 'Admin', hint: 'Quan tri he thong', phone: '0900000005' },
 ]
 
 function getDefaultRedirect(role: UserRole) {
@@ -26,7 +26,7 @@ function getDefaultRedirect(role: UserRole) {
   }
 
   if (role === 'MERCHANT') {
-    return '/restaurants'
+    return '/merchant/orders'
   }
 
   return '/'

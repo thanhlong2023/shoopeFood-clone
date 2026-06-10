@@ -10,13 +10,22 @@ type RequireAuthProps = {
 
 export default function RequireAuth({ allowedRoles, children }: RequireAuthProps) {
   const location = useLocation()
-  const { isAuthenticated, hasRole } = useAuth()
+  const { isAuthenticated, hasRole, user } = useAuth()
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 
   if (allowedRoles && !hasRole(allowedRoles)) {
+    if (user?.role === 'MERCHANT') {
+      return <Navigate to="/merchant/orders" replace />
+    }
+    if (user?.role === 'ADMIN') {
+      return <Navigate to="/admin" replace />
+    }
+    if (user?.role === 'DRIVER') {
+      return <Navigate to="/driver" replace />
+    }
     return <Navigate to="/" replace />
   }
 
