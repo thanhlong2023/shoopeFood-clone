@@ -103,7 +103,14 @@ exports.seedIfEmpty = async () => {
   ]);
 
   await DriverDetail.bulkCreate([
-    { userId: users[2].id, vehicleType: "Motorbike", licensePlate: "59A1-12345", isOnline: true },
+    {
+      userId: users[2].id,
+      vehicleType: "Motorbike",
+      licensePlate: "59A1-12345",
+      idCardNumber: "079123456789",
+      approvalStatus: "APPROVED",
+      isOnline: true,
+    },
   ]);
 
   const categories = await Category.bulkCreate([
@@ -161,7 +168,7 @@ exports.seedIfEmpty = async () => {
       shippingFee: 7000,
       statusId: orderStatuses[0].id,
       customerId: users[1].id,
-      driverId: users[2].id,
+      driverId: null,
       restaurantId: restaurants[0].id,
       receiverAddress: "12 Nguyen Hue, District 1",
       receiverLat: 10.7769,
@@ -193,9 +200,9 @@ exports.seedIfEmpty = async () => {
   await DriverLocation.bulkCreate([
     {
       driverId: users[2].id,
-      orderId: orders[0].id,
-      latitude: restaurants[0].latitude,
-      longitude: restaurants[0].longitude,
+      orderId: null,
+      latitude: 10.7757,
+      longitude: 106.6868,
       heading: 90,
       speedKmh: 18,
     },

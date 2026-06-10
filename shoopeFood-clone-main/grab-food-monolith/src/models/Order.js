@@ -6,7 +6,7 @@ const Order = sequelize.define(
   {
     id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
     orderCode: { type: DataTypes.STRING(50), allowNull: false, field: "order_code" },
-    idempotencyKey: { type: DataTypes.STRING(100), allowNull: false, field: "idempotency_key" },
+    idempotencyKey: { type: DataTypes.STRING(100), allowNull: false, unique: true, field: "idempotency_key" },
     customerId: { type: DataTypes.INTEGER, allowNull: false, field: "customer_id" },
     restaurantId: { type: DataTypes.INTEGER, allowNull: false, field: "restaurant_id" },
     driverId: { type: DataTypes.INTEGER, field: "driver_id" },

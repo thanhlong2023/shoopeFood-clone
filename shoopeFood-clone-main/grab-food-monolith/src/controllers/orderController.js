@@ -1,66 +1,30 @@
 const shippingService = require("../services/shippingService");
-const { sequelize, User, DriverDetail, DriverLocation, Restaurant, OrderStatus, Food, Category, OrderItem } = require("../models");
+const osrmService = require("../services/osrmService");
+const {
+  sequelize,
+  User,
+  DriverDetail,
+  DriverLocation,
+  Restaurant,
+  Order,
+  OrderStatus,
+  Food,
+  Category,
+  OrderItem,
+} = require("../models");
 const orderRepository = require("../repositories/orderRepository");
 const orderFactory = require("../factories/orderFactory");
 const socketManager = require("../sockets");
+const { getBaseFeeFromOrder, normalizeOrder, normalizeRestaurantSummary } = require("../utils/orderNormalizer");
 
 const DEFAULT_SHIPPING_BASE_FEE = 20000;
 const DEFAULT_ORDER_STATUS_CODE = orderFactory.DEFAULT_ORDER_STATUS_CODE;
+const DRIVER_ACTIVE_STATUS_CODES = new Set(["DRIVER_ACCEPTED", "CONFIRMED", "PICKING_UP", "DELIVERING"]);
 
-const getBaseFeeFromOrder = (order) => {
-  if (order.subtotalAmount !== undefined && order.subtotalAmount !== null) {
-    return Number(order.subtotalAmount || 0);
-  }
-  return Math.max(0, Number(order.totalAmount || 0) - Number(order.shippingFee || 0));
-};
-
-const normalizeOrderItem = (item) => ({
-  id: item.id,
-  orderId: item.orderId,
-  foodId: item.foodId,
-  foodName: item.foodName || (item.food ? item.food.name : null),
-  quantity: Number(item.quantity || 0),
-  priceAtOrder: Number(item.priceAtOrder || 0),
-  lineTotal: Number(item.quantity || 0) * Number(item.priceAtOrder || 0),
-});
-
-const normalizeOrder = (item) => ({
-  id: item.id,
-  orderCode: item.orderCode,
-  idempotencyKey: item.idempotencyKey,
-  customer: item.customerUser ? item.customerUser.fullName || `User ${item.customerId}` : `User ${item.customerId}`,
-  customerId: item.customerId,
-  restaurantId: item.restaurantId,
-  driverId: item.driverId,
-  voucherId: item.voucherId,
-  receiverAddress: item.receiverAddress || "",
-  receiverLat: item.receiverLat,
-  receiverLng: item.receiverLng,
-  distanceKm: Number(item.distanceKm || 0),
-  baseFee: getBaseFeeFromOrder(item),
-  subtotalAmount: Number(item.subtotalAmount || 0),
-  taxAmount: Number(item.taxAmount || 0),
-  discountAmount: Number(item.discountAmount || 0),
-  totalAmount: Number(item.totalAmount || 0),
-  shippingFee: Number(item.shippingFee || 0),
-  statusId: item.statusId,
-  statusCode: item.statusInfo ? item.statusInfo.code : null,
-  status: item.statusInfo ? item.statusInfo.code : null,
-  statusLabel: item.statusInfo ? item.statusInfo.label : null,
-  paymentMethod: item.payment ? item.payment.paymentMethod : null,
-  paymentStatus: item.payment ? item.payment.status : null,
-  items: item.items ? item.items.map(normalizeOrderItem) : [],
-  version: item.version,
-  createdAt: item.createdAt,
-});
-
-const resolveStatusByCode = async (statusCode = DEFAULT_ORDER_STATUS_CODE) => {
+const resolveStatusByCode = async (statusCode = DEFAULT_ORDER_STATUS_CODE, options = {}) => {
   const normalizedCode = orderFactory.resolveStatusCode(statusCode);
-  const status = await OrderStatus.findOne({ where: { code: normalizedCode } });
-  if (!status) {
-    return null;
-  }
-  return status;
+  const status = await OrderStatus.findOne({ where: { code: normalizedCode }, ...options });
+  return status || null;
 };
 
 const createHttpError = (statusCode, message) => {
@@ -100,21 +64,6 @@ const normalizeRequestedOrderItems = (items) => {
   };
 };
 
-const normalizeRestaurantForTracking = (item) => {
-  if (!item) {
-    return null;
-  }
-
-  return {
-    id: item.id,
-    name: item.name,
-    address: item.address || "",
-    latitude: Number(item.latitude || 0),
-    longitude: Number(item.longitude || 0),
-    isOpen: Boolean(item.isOpen),
-  };
-};
-
 const normalizeDriverForTracking = (item) => {
   if (!item) {
     return null;
@@ -147,24 +96,16 @@ const normalizeDriverLocation = (item) => {
   };
 };
 
-const buildRoutePoints = (from, to, steps = 40) => {
-  const points = [];
-  const fromLat = Number(from.latitude || 0);
-  const fromLng = Number(from.longitude || 0);
-  const toLat = Number(to.latitude || 0);
-  const toLng = Number(to.longitude || 0);
+const toRoutePoint = (point) => ({
+  latitude: Number(point?.latitude ?? point?.lat ?? 0),
+  longitude: Number(point?.longitude ?? point?.lng ?? 0),
+});
 
-  for (let index = 0; index <= steps; index += 1) {
-    const ratio = index / steps;
-    const curve = Math.sin(ratio * Math.PI) * 0.0025;
-    points.push({
-      latitude: fromLat + (toLat - fromLat) * ratio + curve,
-      longitude: fromLng + (toLng - fromLng) * ratio - curve * 0.65,
-    });
-  }
-
-  return points;
-};
+const hasValidRoutePoint = (point) =>
+  Number.isFinite(Number(point?.latitude)) &&
+  Number.isFinite(Number(point?.longitude)) &&
+  Math.abs(Number(point.latitude)) <= 90 &&
+  Math.abs(Number(point.longitude)) <= 180;
 
 const calculateRouteProgress = (location, routePoints = []) => {
   if (!location || routePoints.length === 0) {
@@ -185,12 +126,123 @@ const calculateRouteProgress = (location, routePoints = []) => {
   return Math.round((nearestIndex / Math.max(routePoints.length - 1, 1)) * 100);
 };
 
+const buildRouteLeg = async ({ key, label, from, to }) => {
+  if (!hasValidRoutePoint(from) || !hasValidRoutePoint(to)) {
+    return {
+      key,
+      label,
+      from,
+      to,
+      provider: "OSRM",
+      ok: false,
+      distanceKm: 0,
+      durationMinutes: 0,
+      geometry: [],
+      steps: [],
+      error: "Missing coordinates",
+    };
+  }
+
+  const route = await osrmService.getRoute(from, to);
+  return {
+    key,
+    label,
+    from,
+    to,
+    provider: route.provider,
+    ok: route.ok,
+    distanceKm: route.distanceKm,
+    durationMinutes: route.durationMinutes,
+    geometry: route.geometry,
+    steps: route.steps,
+    error: route.error,
+  };
+};
+
+const buildTrackingRoute = async ({ driverLocation, restaurant, destination }) => {
+  const routeLegs = [];
+
+  if (driverLocation && restaurant) {
+    routeLegs.push(
+      await buildRouteLeg({
+        key: "driver_to_restaurant",
+        label: "Tai xe den nha hang",
+        from: toRoutePoint(driverLocation),
+        to: toRoutePoint(restaurant),
+      })
+    );
+  }
+
+  if (restaurant && destination) {
+    routeLegs.push(
+      await buildRouteLeg({
+        key: "restaurant_to_customer",
+        label: "Nha hang den khach hang",
+        from: toRoutePoint(restaurant),
+        to: toRoutePoint(destination),
+      })
+    );
+  }
+
+  const routePoints = routeLegs.flatMap((leg, legIndex) => {
+    if (!leg.geometry || leg.geometry.length === 0) {
+      return [];
+    }
+
+    return legIndex === 0 ? leg.geometry : leg.geometry.slice(1);
+  });
+  const okLegs = routeLegs.filter((leg) => leg.ok);
+
+  return {
+    provider: "OSRM",
+    status: routeLegs.length === 0 ? "UNAVAILABLE" : okLegs.length === routeLegs.length ? "OK" : okLegs.length > 0 ? "PARTIAL" : "ERROR",
+    totalDistanceKm: Number(okLegs.reduce((total, leg) => total + Number(leg.distanceKm || 0), 0).toFixed(2)),
+    totalDurationMinutes: Number(okLegs.reduce((total, leg) => total + Number(leg.durationMinutes || 0), 0).toFixed(1)),
+    legs: routeLegs,
+    routePoints,
+  };
+};
+
+const emitOrderUpdated = (eventName, orderData) => {
+  try {
+    const io = socketManager.getIO();
+    io.emit(eventName, orderData);
+    io.emit("order:updated", orderData);
+    io.emit(`order:${orderData.id}:updated`, orderData);
+  } catch (error) {
+    console.log("Socket not ready or err", error.message);
+  }
+};
+
+const assertMerchantOwnsOrder = async (userId, restaurantId) => {
+  const restaurant = await Restaurant.findOne({ where: { id: restaurantId, ownerId: userId, deletedAt: null } });
+  return Boolean(restaurant);
+};
+
+const canUpdateOrderStatus = async (req, order) => {
+  if (!req.user) {
+    return false;
+  }
+
+  if (req.user.role === "ADMIN") {
+    return true;
+  }
+
+  if (req.user.role === "DRIVER") {
+    return Number(order.driverId) === Number(req.user.id);
+  }
+
+  if (req.user.role === "MERCHANT") {
+    return assertMerchantOwnsOrder(req.user.id, order.restaurantId);
+  }
+
+  return false;
+};
+
 exports.createOrder = async (req, res) => {
   try {
     const {
-      customerId,
       restaurantId,
-      driverId,
       voucherId,
       receiverAddress = "",
       receiverLat,
@@ -199,20 +251,23 @@ exports.createOrder = async (req, res) => {
       baseFee = DEFAULT_SHIPPING_BASE_FEE,
       discountAmount = 0,
       taxAmount = 0,
-      statusCode = DEFAULT_ORDER_STATUS_CODE,
       shippingType = "STANDARD",
       orderCode,
       idempotencyKey,
       items,
     } = req.body;
 
+    if (!req.user?.id || req.user.role !== "CUSTOMER") {
+      return res.status(403).json({ message: "Only CUSTOMER accounts can create orders" });
+    }
+
     const requestedItems = normalizeRequestedOrderItems(items);
     if (requestedItems.error) {
       return res.status(400).json({ message: requestedItems.error });
     }
 
-    if (!Number.isFinite(Number(customerId)) || !Number.isFinite(Number(restaurantId))) {
-      return res.status(400).json({ message: "customerId and restaurantId are required" });
+    if (!Number.isFinite(Number(restaurantId))) {
+      return res.status(400).json({ message: "restaurantId is required" });
     }
 
     if (!Number.isFinite(Number(receiverLat)) || !Number.isFinite(Number(receiverLng))) {
@@ -236,7 +291,7 @@ exports.createOrder = async (req, res) => {
     }
 
     const [user, restaurant] = await Promise.all([
-      User.findByPk(Number(customerId)),
+      User.findByPk(Number(req.user.id)),
       Restaurant.findByPk(Number(restaurantId)),
     ]);
 
@@ -244,8 +299,8 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ message: "customer or restaurant not found" });
     }
 
-    if (!restaurant.isOpen) {
-      return res.status(400).json({ message: "restaurant is closed" });
+    if (!restaurant.isOpen || restaurant.approvalStatus !== "APPROVED") {
+      return res.status(400).json({ message: "restaurant is not accepting orders" });
     }
 
     const normalizedDistance = Number(distanceKm);
@@ -254,10 +309,8 @@ exports.createOrder = async (req, res) => {
     const normalizedTax = Number(taxAmount);
 
     const [statusInfo, duplicated] = await Promise.all([
-      resolveStatusByCode(statusCode),
-      idempotencyKey
-        ? orderRepository.findByIdempotencyKey(idempotencyKey)
-        : Promise.resolve(null),
+      resolveStatusByCode(DEFAULT_ORDER_STATUS_CODE),
+      idempotencyKey ? orderRepository.findByIdempotencyKey(idempotencyKey) : Promise.resolve(null),
     ]);
 
     if (!statusInfo) {
@@ -322,7 +375,7 @@ exports.createOrder = async (req, res) => {
         idempotencyKey,
         customerId: user.id,
         restaurantId: restaurant.id,
-        driverId,
+        driverId: null,
         voucherId,
         receiverAddress,
         receiverLat,
@@ -354,11 +407,10 @@ exports.createOrder = async (req, res) => {
     const created = await orderRepository.findById(createdOrderId);
     const orderData = normalizeOrder(created);
 
-    // Emit event realtime
     try {
       socketManager.getIO().emit("new_order", orderData);
-    } catch(e) {
-      console.log("Socket not ready or err", e.message);
+    } catch (error) {
+      console.log("Socket not ready or err", error.message);
     }
 
     return res.status(201).json({
@@ -366,6 +418,13 @@ exports.createOrder = async (req, res) => {
       data: orderData,
     });
   } catch (error) {
+    if (error.name === "SequelizeUniqueConstraintError" && req.body.idempotencyKey) {
+      const duplicated = await orderRepository.findByIdempotencyKey(req.body.idempotencyKey);
+      if (duplicated) {
+        return res.status(200).json({ message: "Duplicated idempotency key", data: normalizeOrder(duplicated) });
+      }
+    }
+
     return res.status(error.statusCode || 500).json({ message: error.message });
   }
 };
@@ -383,6 +442,27 @@ exports.getOrders = async (req, res) => {
     if (req.query.driverId) filters.driverId = Number(req.query.driverId);
     if (req.query.fromDate) filters.fromDate = new Date(req.query.fromDate);
     if (req.query.toDate) filters.toDate = new Date(req.query.toDate);
+
+    if (req.user?.role === "CUSTOMER") {
+      filters.customerId = req.user.id;
+    } else if (req.user?.role === "DRIVER") {
+      filters.driverId = req.user.id;
+    } else if (req.user?.role === "MERCHANT") {
+      const ownedRestaurants = await Restaurant.findAll({
+        where: { ownerId: req.user.id, deletedAt: null },
+        attributes: ["id"],
+      });
+      const ownedIds = new Set(ownedRestaurants.map((restaurant) => Number(restaurant.id)));
+      if (filters.restaurantId && !ownedIds.has(Number(filters.restaurantId))) {
+        return res.json({ data: [] });
+      }
+      if (!filters.restaurantId) {
+        if (ownedIds.size === 0) {
+          return res.json({ data: [] });
+        }
+        filters.restaurantIds = Array.from(ownedIds);
+      }
+    }
 
     const items = await orderRepository.findAll(filters);
     return res.json({ data: items.map(normalizeOrder) });
@@ -416,43 +496,41 @@ exports.getOrderTracking = async (req, res) => {
     }
 
     const orderData = normalizeOrder(item);
+    const trackingDriverId = orderData.driverId || (req.user?.role === "DRIVER" ? req.user.id : null);
 
-    const [restaurant, driver, latestLocation] = await Promise.all([
+    const [restaurant, driver, orderLocation, latestAnyLocation] = await Promise.all([
       Restaurant.findByPk(orderData.restaurantId),
-      orderData.driverId
+      trackingDriverId
         ? DriverDetail.findOne({
-            where: { userId: orderData.driverId },
+            where: { userId: trackingDriverId },
             include: [{ model: User, as: "driverUser", attributes: ["id", "fullName", "phone", "ratingAvg"] }],
           })
         : Promise.resolve(null),
-      orderData.driverId
+      trackingDriverId && orderData.driverId
         ? DriverLocation.findOne({
-            where: { driverId: orderData.driverId, orderId: orderData.id },
+            where: { driverId: trackingDriverId, orderId: orderData.id },
+            order: [["created_at", "DESC"]],
+          })
+        : Promise.resolve(null),
+      trackingDriverId
+        ? DriverLocation.findOne({
+            where: { driverId: trackingDriverId },
             order: [["created_at", "DESC"]],
           })
         : Promise.resolve(null),
     ]);
 
-    const restaurantData = normalizeRestaurantForTracking(restaurant);
+    const restaurantData = normalizeRestaurantSummary(restaurant);
     const destination = {
       latitude: Number(orderData.receiverLat || restaurantData?.latitude || 0),
       longitude: Number(orderData.receiverLng || restaurantData?.longitude || 0),
     };
-    const routePoints = restaurantData ? buildRoutePoints(restaurantData, destination) : [];
-    const locationData =
-      normalizeDriverLocation(latestLocation) ||
-      (restaurantData && orderData.driverId
-        ? {
-            id: null,
-            driverId: orderData.driverId,
-            orderId: orderData.id,
-            latitude: restaurantData.latitude,
-            longitude: restaurantData.longitude,
-            heading: 0,
-            speedKmh: 0,
-            createdAt: null,
-          }
-        : null);
+    const locationData = normalizeDriverLocation(orderLocation || latestAnyLocation);
+    const route = await buildTrackingRoute({
+      driverLocation: locationData,
+      restaurant: restaurantData,
+      destination,
+    });
 
     return res.json({
       data: {
@@ -461,8 +539,9 @@ exports.getOrderTracking = async (req, res) => {
         driver: normalizeDriverForTracking(driver),
         driverLocation: locationData,
         destination,
-        routePoints,
-        routeProgress: calculateRouteProgress(locationData, routePoints),
+        route,
+        routePoints: route.routePoints,
+        routeProgress: calculateRouteProgress(locationData, route.routePoints),
       },
     });
   } catch (error) {
@@ -470,8 +549,82 @@ exports.getOrderTracking = async (req, res) => {
   }
 };
 
+exports.acceptOrder = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const driverId = Number(req.user?.id);
+
+    if (!Number.isFinite(driverId) || req.user.role !== "DRIVER") {
+      return res.status(403).json({ message: "Only DRIVER accounts can accept orders" });
+    }
+
+    const driver = await DriverDetail.findOne({ where: { userId: driverId } });
+    if (!driver || driver.approvalStatus !== "APPROVED") {
+      return res.status(403).json({ message: "Driver account is not approved" });
+    }
+
+    let orderId = null;
+
+    await sequelize.transaction(async (transaction) => {
+      const [pendingStatus, acceptedStatus] = await Promise.all([
+        resolveStatusByCode("PENDING", { transaction }),
+        resolveStatusByCode("DRIVER_ACCEPTED", { transaction }),
+      ]);
+
+      if (!pendingStatus || !acceptedStatus) {
+        throw createHttpError(500, "Order statuses are not configured");
+      }
+
+      const order = await Order.findByPk(id, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!order) {
+        throw createHttpError(404, "Order not found");
+      }
+
+      if (order.driverId && Number(order.driverId) !== driverId) {
+        throw createHttpError(409, "Order has already been accepted by another driver");
+      }
+
+      if (order.driverId && Number(order.driverId) === driverId) {
+        orderId = order.id;
+        return;
+      }
+
+      if (Number(order.statusId) !== Number(pendingStatus.id)) {
+        throw createHttpError(409, "Only pending orders can be accepted");
+      }
+
+      await order.update(
+        {
+          driverId,
+          statusId: acceptedStatus.id,
+          version: Number(order.version || 0) + 1,
+        },
+        { transaction }
+      );
+
+      orderId = order.id;
+    });
+
+    const latest = await orderRepository.findById(orderId);
+    const orderData = normalizeOrder(latest);
+    emitOrderUpdated("order:claimed", orderData);
+
+    return res.json({ message: "Accepted", data: orderData });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};
+
 exports.updateOrder = async (req, res) => {
   try {
+    if (req.user?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Only ADMIN can edit order fields directly" });
+    }
+
     const id = Number(req.params.id);
     const item = await orderRepository.findEntityById(id);
 
@@ -496,6 +649,10 @@ exports.updateOrder = async (req, res) => {
       voucherId,
       expectedVersion,
     } = req.body;
+
+    if (driverId !== undefined) {
+      return res.status(400).json({ message: "Use the accept endpoint to assign a driver" });
+    }
 
     if (expectedVersion !== undefined && Number(expectedVersion) !== Number(item.version)) {
       return res.status(409).json({ message: "Version conflict" });
@@ -542,10 +699,6 @@ exports.updateOrder = async (req, res) => {
       item.distanceKm = Number(distanceKm);
     }
 
-    if (driverId !== undefined) {
-      item.driverId = Number.isFinite(Number(driverId)) ? Number(driverId) : null;
-    }
-
     if (voucherId !== undefined) {
       item.voucherId = Number.isFinite(Number(voucherId)) ? Number(voucherId) : null;
     }
@@ -585,13 +738,7 @@ exports.updateOrder = async (req, res) => {
 
     const latest = await orderRepository.save(item);
     const orderData = normalizeOrder(latest || item);
-
-    try {
-      socketManager.getIO().emit("order:updated", orderData);
-      socketManager.getIO().emit(`order:${orderData.id}:updated`, orderData);
-    } catch (error) {
-      console.log("Socket not ready or err", error.message);
-    }
+    emitOrderUpdated("order:updated", orderData);
 
     return res.json({ message: "Updated", data: orderData });
   } catch (error) {
@@ -617,6 +764,14 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(400).json({ message: "Invalid statusCode" });
     }
 
+    if (!(await canUpdateOrderStatus(req, item))) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    if (req.user?.role === "DRIVER" && !DRIVER_ACTIVE_STATUS_CODES.has(resolvedStatus.code) && resolvedStatus.code !== "COMPLETED" && resolvedStatus.code !== "CANCELLED") {
+      return res.status(400).json({ message: "Driver cannot set this status" });
+    }
+
     if (expectedVersion !== undefined && Number(expectedVersion) !== Number(item.version)) {
       return res.status(409).json({ message: "Version conflict" });
     }
@@ -626,13 +781,7 @@ exports.updateOrderStatus = async (req, res) => {
       version: Number(item.version || 0) + 1,
     });
     const orderData = normalizeOrder(latest);
-
-    try {
-      socketManager.getIO().emit("order:updated", orderData);
-      socketManager.getIO().emit(`order:${orderData.id}:updated`, orderData);
-    } catch (error) {
-      console.log("Socket not ready or err", error.message);
-    }
+    emitOrderUpdated("order:updated", orderData);
 
     return res.json({
       message: "Updated",
@@ -645,6 +794,10 @@ exports.updateOrderStatus = async (req, res) => {
 
 exports.deleteOrder = async (req, res) => {
   try {
+    if (req.user?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Only ADMIN can delete orders" });
+    }
+
     const id = Number(req.params.id);
     const item = await orderRepository.findEntityById(id);
 

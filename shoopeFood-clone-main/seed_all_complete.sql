@@ -58,7 +58,10 @@ CREATE TABLE `user_roles` (
 CREATE TABLE `driver_details` (
   `user_id` int NOT NULL,
   `license_plate` varchar(20) DEFAULT NULL,
+  `id_card_number` varchar(20) DEFAULT NULL,
   `vehicle_type` varchar(50) DEFAULT NULL,
+  `approval_status` varchar(20) DEFAULT 'PENDING',
+  `reject_reason` text,
   `is_online` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`user_id`),
   CONSTRAINT `driver_details_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
@@ -185,7 +188,7 @@ CREATE TABLE `orders` (
   KEY `idx_orders_restaurant_id` (`restaurant_id`),
   KEY `idx_orders_status_id` (`status_id`),
   KEY `idx_orders_order_code` (`order_code`),
-  KEY `idx_orders_idempotency_key` (`idempotency_key`),
+  UNIQUE KEY `uniq_orders_idempotency_key` (`idempotency_key`),
   KEY `idx_orders_created_at` (`created_at`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `users` (`id`),
   CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`restaurant_id`) REFERENCES `restaurants` (`id`),
@@ -267,7 +270,7 @@ CREATE TABLE `driver_locations` (
   KEY `idx_driver_locations_order_id` (`order_id`),
   KEY `idx_driver_locations_created_at` (`created_at`),
   CONSTRAINT `driver_locations_ibfk_1` FOREIGN KEY (`driver_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE `restaurant_change_requests` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -327,9 +330,9 @@ INSERT INTO user_roles (user_id, role_id) VALUES
 (6, 3),
 (5, 4);
 
-INSERT INTO driver_details (user_id, license_plate, vehicle_type, is_online) VALUES
-(2, '59A1-12345', 'Motorbike', 1),
-(4, '51B2-67890', 'Motorbike', 0);
+INSERT INTO driver_details (user_id, license_plate, id_card_number, vehicle_type, approval_status, reject_reason, is_online) VALUES
+(2, '59A1-12345', '079123456789', 'Motorbike', 'APPROVED', NULL, 1),
+(4, '51B2-67890', '079987654321', 'Motorbike', 'APPROVED', NULL, 0);
 
 INSERT INTO merchant_details (user_id, business_license, tax_code) VALUES
 (3, 'GPKD-123456789', 'MST-987654321');
@@ -398,7 +401,8 @@ INSERT INTO order_status_logs (id, order_id, previous_status, new_status, change
 (1, 1, 'DELIVERING', 'COMPLETED', 2, 'Giao hang thanh cong', '2026-06-10 08:08:00');
 
 INSERT INTO driver_locations (id, driver_id, order_id, latitude, longitude, heading, speed_kmh, created_at) VALUES
-(1, 2, 1, 10.771, 106.649, 90, 24, '2026-06-10 08:08:00');
+(1, 2, 1, 10.771, 106.649, 90, 24, '2026-06-10 08:08:00'),
+(2, 2, NULL, 10.7757, 106.6868, 90, 24, '2026-06-10 08:09:00');
 
 INSERT INTO restaurant_change_requests (id, restaurant_id, requested_by, payload, status, reviewed_by, reviewed_at, reject_reason, created_at) VALUES
 (1, 1, 1, '{"name":"Hanh Dung - Am Thuc Chay Man","address":"111-113 Au Co, P.14, Q.11","ownerId":5,"imageUrl":null,"latitude":10.771,"longitude":106.649,"ratingAvg":4.8}', 'PENDING', NULL, NULL, NULL, '2026-06-10 01:53:52'),

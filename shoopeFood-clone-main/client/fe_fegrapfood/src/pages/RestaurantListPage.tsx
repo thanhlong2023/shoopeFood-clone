@@ -14,7 +14,6 @@ import {
   getRestaurantChangeRequests,
   approveRestaurantChangeRequest,
   rejectRestaurantChangeRequest,
-  patchRestaurantStatus,
   patchRestaurantTodayStatus,
 } from '../services/api/restaurants'
 import { restaurantThumbStyle } from '../utils/restaurantImage'
@@ -119,20 +118,6 @@ export default function RestaurantListPage() {
       setActioningId(null)
     }
   }
-
-  async function handleToggleStatus(restaurantId: number, currentStatus: boolean) {
-    try {
-      setActioningId(restaurantId)
-      await patchRestaurantStatus(restaurantId, !currentStatus)
-      setSuccessMessage('Đã cập nhật trạng thái')
-      await loadData()
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Không thể cập nhật trạng thái')
-    } finally {
-      setActioningId(null)
-    }
-  }
-
   async function handleToggleTodayStatus(restaurantId: number) {
     try {
       setActioningId(restaurantId)

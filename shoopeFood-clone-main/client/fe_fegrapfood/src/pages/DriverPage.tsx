@@ -1,16 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
 import { APP_NAME } from '../constants/app'
+import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { getDrivers, updateDriverLocation } from '../services/api/drivers'
-import { getOrderTracking, getOrders, updateOrder, updateOrderStatus } from '../services/api/orders'
-import type { Driver, Order, OrderTracking, RoutePoint } from '../types'
+import { getMyDriverOrderFeed, updateDriverLocation } from '../services/api/drivers'
+import { acceptOrder, getOrderTracking, updateOrderStatus } from '../services/api/orders'
+import { createSocket } from '../services/socket'
+import type { Driver, Order, OrderTracking, RouteLeg, RoutePoint } from '../types'
 
 const defaultCenter: [number, number] = [10.7769, 106.7009]
+const activeLocationStatuses = new Set(['DRIVER_ACCEPTED', 'CONFIRMED', 'PICKING_UP', 'DELIVERING'])
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(value))
+}
+
+function formatDistance(value?: number) {
+  if (!value) return '-'
+  return `${value.toFixed(1)} km`
+}
+
+function formatDuration(value?: number) {
+  if (!value) return '-'
+  return `${Math.round(value)} phut`
 }
 
 function toLatLng(point: RoutePoint): [number, number] {
@@ -65,203 +78,243 @@ function DriverMapFit({ points }: { points: RoutePoint[] }) {
   return null
 }
 
-const activeStatusCodes = new Set(['PENDING', 'DRIVER_ACCEPTED', 'CONFIRMED', 'PICKING_UP', 'DELIVERING'])
+function RouteLegSummary({ leg }: { leg: RouteLeg }) {
+  return (
+    <div className="driver-route-leg">
+      <div>
+        <strong>{leg.label}</strong>
+        <span>{leg.ok ? `${formatDistance(leg.distanceKm)} - ${formatDuration(leg.durationMinutes)}` : leg.error || 'Chua co lo trinh'}</span>
+      </div>
+      <ol>
+        {leg.steps.slice(0, 5).map((step, index) => (
+          <li key={`${leg.key}-${index}`}>
+            {step.instruction}
+            {step.name ? ` - ${step.name}` : ''}
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
 
 export default function DriverPage() {
   useDocumentTitle(`${APP_NAME} | Tai xe`)
+  const { user } = useAuth()
+  const driverId = user?.id ?? null
 
-  const [drivers, setDrivers] = useState<Driver[]>([])
-  const [orders, setOrders] = useState<Order[]>([])
-  const [driverId, setDriverId] = useState('2')
+  const [driver, setDriver] = useState<Driver | null>(null)
+  const [availableOrders, setAvailableOrders] = useState<Order[]>([])
+  const [myOrders, setMyOrders] = useState<Order[]>([])
   const [activeOrderId, setActiveOrderId] = useState<number | null>(null)
   const [tracking, setTracking] = useState<OrderTracking | null>(null)
   const [currentPoint, setCurrentPoint] = useState<RoutePoint | null>(null)
   const [heading, setHeading] = useState(0)
+  const [gpsStatus, setGpsStatus] = useState('Dang lay vi tri GPS...')
   const [isLoading, setIsLoading] = useState(true)
-  const [isRunning, setIsRunning] = useState(false)
+  const [isActioning, setIsActioning] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const timerRef = useRef<number | null>(null)
+  const lastGpsPointRef = useRef<RoutePoint | null>(null)
 
-  async function loadDashboard(nextDriverId = Number(driverId)) {
+  const allOrders = useMemo(() => [...myOrders, ...availableOrders], [availableOrders, myOrders])
+  const activeOrder = useMemo(
+    () => allOrders.find((order) => order.id === activeOrderId) || tracking?.order || null,
+    [activeOrderId, allOrders, tracking],
+  )
+  const routeLegs = tracking?.route?.legs || []
+  const routePolylinePoints = useMemo(() => routeLegs.flatMap((leg) => leg.geometry), [routeLegs])
+  const mapPoints = useMemo(() => {
+    const points = [...routePolylinePoints]
+    if (currentPoint) points.push(currentPoint)
+    if (tracking?.restaurant) points.push(tracking.restaurant)
+    if (tracking?.destination) points.push(tracking.destination)
+    return points
+  }, [currentPoint, routePolylinePoints, tracking])
+  const mapCenter = currentPoint ? toLatLng(currentPoint) : mapPoints[0] ? toLatLng(mapPoints[0]) : defaultCenter
+  const isSelectedMine = Boolean(driverId && activeOrder?.driverId === driverId)
+  const canAcceptSelected = Boolean(activeOrder && !activeOrder.driverId && activeOrder.statusCode === 'PENDING')
+
+  const loadTracking = useCallback(async (orderId: number, quiet = false) => {
+    try {
+      if (!quiet) setErrorMessage(null)
+      const data = await getOrderTracking(orderId)
+      setTracking(data)
+      if (!lastGpsPointRef.current && data.driverLocation) {
+        setCurrentPoint({ latitude: data.driverLocation.latitude, longitude: data.driverLocation.longitude })
+        setHeading(data.driverLocation.heading || 0)
+      }
+    } catch (error) {
+      if (!quiet) setErrorMessage(error instanceof Error ? error.message : 'Khong the tai tracking')
+    }
+  }, [])
+
+  const loadFeed = useCallback(async () => {
     try {
       setIsLoading(true)
       setErrorMessage(null)
+      const feed = await getMyDriverOrderFeed()
+      setDriver(feed.driver)
+      setAvailableOrders(feed.available)
+      setMyOrders(feed.active)
 
-      const [driverData, orderData] = await Promise.all([getDrivers(), getOrders()])
-      const activeOrders = orderData.filter((order) => activeStatusCodes.has(order.statusCode || ''))
-      setDrivers(driverData)
-      setOrders(activeOrders)
-
-      if (driverData.length > 0 && !driverData.some((driver) => driver.id === nextDriverId)) {
-        setDriverId(String(driverData[0].id))
-      }
-
-      if (!activeOrderId && activeOrders[0]) {
-        setActiveOrderId(activeOrders[0].id)
-      }
+      setActiveOrderId((current) => {
+        if (current && [...feed.active, ...feed.available].some((order) => order.id === current)) {
+          return current
+        }
+        return feed.active[0]?.id ?? feed.available[0]?.id ?? null
+      })
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the tai du lieu tai xe')
+      setErrorMessage(error instanceof Error ? error.message : 'Khong the tai bang tai xe')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    void loadDashboard()
-    return () => {
-      if (timerRef.current) {
-        window.clearInterval(timerRef.current)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    void loadFeed()
+  }, [loadFeed])
 
   useEffect(() => {
     if (!activeOrderId) {
       setTracking(null)
-      setCurrentPoint(null)
       return
     }
 
-    let ignore = false
-    const selectedOrderId = activeOrderId
+    void loadTracking(activeOrderId)
+  }, [activeOrderId, loadTracking])
 
-    async function loadTracking() {
-      try {
-        const data = await getOrderTracking(selectedOrderId)
-        if (!ignore) {
-          setTracking(data)
-          setCurrentPoint(
-            data.driverLocation
-              ? { latitude: data.driverLocation.latitude, longitude: data.driverLocation.longitude }
-              : data.restaurant
-                ? { latitude: data.restaurant.latitude, longitude: data.restaurant.longitude }
-                : data.routePoints[0] || null,
-          )
-          setHeading(data.driverLocation?.heading || 0)
+  useEffect(() => {
+    if (!driverId || !navigator.geolocation) {
+      setGpsStatus('Trinh duyet khong ho tro GPS, dung vi tri cuoi cung neu co.')
+      return undefined
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const nextPoint = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
         }
-      } catch (error) {
-        if (!ignore) {
-          setErrorMessage(error instanceof Error ? error.message : 'Khong the tai tracking')
-        }
+        const previousPoint = lastGpsPointRef.current
+        const nextHeading =
+          Number.isFinite(position.coords.heading) && position.coords.heading !== null
+            ? Number(position.coords.heading)
+            : previousPoint
+              ? calculateHeading(previousPoint, nextPoint)
+              : heading
+        const activeOrderForLocation = activeOrder?.driverId === driverId && activeLocationStatuses.has(activeOrder.statusCode || '')
+
+        lastGpsPointRef.current = nextPoint
+        setCurrentPoint(nextPoint)
+        setHeading(nextHeading)
+        setGpsStatus('GPS dang cap nhat')
+
+        void updateDriverLocation(driverId, {
+          ...(activeOrderForLocation ? { orderId: activeOrder.id } : {}),
+          latitude: nextPoint.latitude,
+          longitude: nextPoint.longitude,
+          heading: nextHeading,
+          speedKmh: Number.isFinite(position.coords.speed) && position.coords.speed ? Number(position.coords.speed) * 3.6 : 28,
+        }).catch((error) => {
+          setGpsStatus(error instanceof Error ? error.message : 'Khong the gui vi tri')
+        })
+      },
+      () => {
+        setGpsStatus('Chua duoc cap quyen GPS, dung vi tri cuoi cung tren he thong.')
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 12000 },
+    )
+
+    return () => navigator.geolocation.clearWatch(watchId)
+  }, [activeOrder, driverId, heading])
+
+  useEffect(() => {
+    let isMounted = true
+    let socket: Awaited<ReturnType<typeof createSocket>> | null = null
+
+    const reloadFeed = () => {
+      void loadFeed()
+      if (activeOrderId) {
+        void loadTracking(activeOrderId, true)
       }
     }
 
-    void loadTracking()
+    void createSocket()
+      .then((createdSocket) => {
+        if (!isMounted) {
+          createdSocket.disconnect()
+          return
+        }
+
+        socket = createdSocket
+        socket.on('new_order', reloadFeed)
+        socket.on('order:updated', reloadFeed)
+        socket.on('order:claimed', reloadFeed)
+      })
+      .catch(() => {
+        // Manual reload and polling still work when Socket.io is unavailable.
+      })
 
     return () => {
-      ignore = true
+      isMounted = false
+      if (socket) {
+        socket.off('new_order', reloadFeed)
+        socket.off('order:updated', reloadFeed)
+        socket.off('order:claimed', reloadFeed)
+        socket.disconnect()
+      }
     }
-  }, [activeOrderId])
-
-  const selectedDriver = useMemo(() => drivers.find((driver) => driver.id === Number(driverId)) || null, [driverId, drivers])
-  const activeOrder = useMemo(() => orders.find((order) => order.id === activeOrderId) || tracking?.order || null, [activeOrderId, orders, tracking])
-  const routePoints = tracking?.routePoints || []
-  const routeLatLng = routePoints.map(toLatLng)
-  const mapPoints = currentPoint ? [...routePoints, currentPoint] : routePoints
-  const mapCenter = currentPoint ? toLatLng(currentPoint) : defaultCenter
+  }, [activeOrderId, loadFeed, loadTracking])
 
   async function handleAcceptOrder(order: Order) {
     try {
+      setIsActioning(true)
       setErrorMessage(null)
       setSuccessMessage(null)
-      const updated = await updateOrder(order.id, {
-        driverId: Number(driverId),
-        statusCode: 'DRIVER_ACCEPTED',
-        expectedVersion: order.version,
-      })
+      const updated = await acceptOrder(order.id)
       setSuccessMessage(`Da nhan don ${updated.orderCode}`)
-      setActiveOrderId(order.id)
-      await loadDashboard(Number(driverId))
+      setActiveOrderId(updated.id)
+      await loadFeed()
+      await loadTracking(updated.id)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Khong the nhan don')
+    } finally {
+      setIsActioning(false)
     }
   }
 
   async function handleStatus(statusCode: string) {
-    if (!activeOrder) {
-      return
-    }
+    if (!activeOrder) return
 
     try {
+      setIsActioning(true)
       setErrorMessage(null)
-      const updated = await updateOrderStatus(activeOrder.id, statusCode)
-      setOrders((current) => current.map((order) => (order.id === updated.id ? updated : order)))
-      setTracking((current) => (current ? { ...current, order: updated } : current))
+      const updated = await updateOrderStatus(activeOrder.id, statusCode, activeOrder.version)
+      setSuccessMessage(`Da cap nhat ${updated.orderCode}`)
+      await loadFeed()
+      await loadTracking(updated.id)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Khong the cap nhat trang thai')
+    } finally {
+      setIsActioning(false)
     }
   }
 
-  async function pushLocation(orderId: number, point: RoutePoint, nextHeading: number) {
-    await updateDriverLocation(Number(driverId), {
-      orderId,
-      latitude: point.latitude,
-      longitude: point.longitude,
-      heading: nextHeading,
-      speedKmh: 28,
-    })
-  }
-
-  async function startDeliveryRun() {
-    if (!activeOrder || routePoints.length < 2) {
-      setErrorMessage('Don hang chua co lo trinh')
-      return
-    }
-
-    if (timerRef.current) {
-      window.clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-
-    try {
-      setIsRunning(true)
-      setErrorMessage(null)
-      setSuccessMessage(null)
-      const assigned = await updateOrder(activeOrder.id, {
-        driverId: Number(driverId),
-        statusCode: 'DELIVERING',
-      })
-      setTracking((current) => (current ? { ...current, order: assigned } : current))
-
-      let index = 0
-      timerRef.current = window.setInterval(() => {
-        const current = routePoints[index]
-        const next = routePoints[Math.min(index + 1, routePoints.length - 1)]
-        const nextHeading = calculateHeading(current, next)
-
-        setCurrentPoint(current)
-        setHeading(nextHeading)
-        void pushLocation(activeOrder.id, current, nextHeading)
-
-        if (index >= routePoints.length - 1) {
-          if (timerRef.current) {
-            window.clearInterval(timerRef.current)
-            timerRef.current = null
-          }
-          setIsRunning(false)
-          void updateOrderStatus(activeOrder.id, 'COMPLETED').then((completed) => {
-            setSuccessMessage(`Da hoan thanh ${completed.orderCode}`)
-            setTracking((currentTracking) => (currentTracking ? { ...currentTracking, order: completed } : currentTracking))
-            void loadDashboard(Number(driverId))
-          })
-        }
-
-        index += 1
-      }, 950)
-    } catch (error) {
-      setIsRunning(false)
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the bat dau giao hang')
-    }
-  }
-
-  function stopDeliveryRun() {
-    if (timerRef.current) {
-      window.clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-    setIsRunning(false)
+  function renderOrderCard(order: Order, mode: 'available' | 'mine') {
+    return (
+      <article key={order.id} className={`driver-order-card ${order.id === activeOrderId ? 'active' : ''}`}>
+        <button type="button" onClick={() => setActiveOrderId(order.id)}>
+          <strong>{order.orderCode}</strong>
+          <span>{order.restaurant?.name || `Quan #${order.restaurantId}`}</span>
+          <small>{order.receiverAddress || `Don #${order.id}`} - {formatPrice(order.cashToCollect || order.totalAmount)} VND</small>
+        </button>
+        {mode === 'available' ? (
+          <button type="button" className="button-primary" disabled={isActioning} onClick={() => void handleAcceptOrder(order)}>
+            Nhan don
+          </button>
+        ) : null}
+      </article>
+    )
   }
 
   return (
@@ -269,26 +322,14 @@ export default function DriverPage() {
       <div className="driver-header">
         <div>
           <span className="hero-badge">Driver</span>
-          <h1>Bang dieu phoi tai xe</h1>
-          <p>{selectedDriver ? `${selectedDriver.fullName} · ${selectedDriver.licensePlate}` : 'Chon tai xe de bat dau'}</p>
+          <h1>Don hang quanh ban</h1>
+          <p>{driver ? `${driver.fullName} - ${driver.licensePlate || driver.vehicleType}` : user?.fullName || 'Tai xe'}</p>
         </div>
 
-        <label className="driver-select">
-          <span>Tai xe</span>
-          <select
-            value={driverId}
-            onChange={(event) => {
-              setDriverId(event.target.value)
-              void loadDashboard(Number(event.target.value))
-            }}
-          >
-            {drivers.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {driver.fullName || `Driver #${driver.id}`} - {driver.licensePlate || driver.vehicleType}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="driver-gps-pill">
+          <span>GPS</span>
+          <strong>{gpsStatus}</strong>
+        </div>
       </div>
 
       {errorMessage ? <p className="app-feedback error">{errorMessage}</p> : null}
@@ -297,27 +338,20 @@ export default function DriverPage() {
       <div className="driver-layout">
         <aside className="driver-orders">
           <div className="driver-panel-head">
-            <h2>{isLoading ? 'Dang tai...' : `${orders.length} don`}</h2>
-            <button type="button" className="button-secondary" onClick={() => void loadDashboard(Number(driverId))}>
+            <h2>{isLoading ? 'Dang tai...' : `${availableOrders.length} don moi`}</h2>
+            <button type="button" className="button-secondary" onClick={() => void loadFeed()} disabled={isLoading}>
               Tai lai
             </button>
           </div>
 
           <div className="driver-order-list">
-            {orders.map((order) => (
-              <article key={order.id} className={`driver-order-card ${order.id === activeOrderId ? 'active' : ''}`}>
-                <button type="button" onClick={() => setActiveOrderId(order.id)}>
-                  <strong>{order.orderCode}</strong>
-                  <span>{order.receiverAddress || `Don #${order.id}`}</span>
-                  <small>{order.statusLabel || order.statusCode} · {formatPrice(order.totalAmount)} VND</small>
-                </button>
-                <button type="button" className="button-primary" onClick={() => void handleAcceptOrder(order)}>
-                  Nhan don
-                </button>
-              </article>
-            ))}
+            <h3>Don moi</h3>
+            {availableOrders.map((order) => renderOrderCard(order, 'available'))}
+            {!isLoading && availableOrders.length === 0 ? <p className="empty-state">Chua co don moi.</p> : null}
 
-            {!isLoading && orders.length === 0 ? <p className="empty-state">Khong co don dang giao.</p> : null}
+            <h3>Don cua toi</h3>
+            {myOrders.map((order) => renderOrderCard(order, 'mine'))}
+            {!isLoading && myOrders.length === 0 ? <p className="empty-state">Ban chua nhan don nao.</p> : null}
           </div>
         </aside>
 
@@ -328,7 +362,19 @@ export default function DriverPage() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <DriverMapFit points={mapPoints} />
-            {routeLatLng.length > 0 ? <Polyline positions={routeLatLng} pathOptions={{ color: '#00b14f', weight: 6, opacity: 0.76 }} /> : null}
+            {routeLegs.map((leg) =>
+              leg.geometry.length > 0 ? (
+                <Polyline
+                  key={leg.key}
+                  positions={leg.geometry.map(toLatLng)}
+                  pathOptions={{
+                    color: leg.key === 'driver_to_restaurant' ? '#ff8a00' : '#00b14f',
+                    weight: 6,
+                    opacity: 0.78,
+                  }}
+                />
+              ) : null,
+            )}
             {tracking?.restaurant ? (
               <Marker position={[tracking.restaurant.latitude, tracking.restaurant.longitude]} icon={makePinIcon('restaurant-pin', 'R')}>
                 <Popup>{tracking.restaurant.name}</Popup>
@@ -341,7 +387,7 @@ export default function DriverPage() {
             ) : null}
             {currentPoint ? (
               <Marker position={toLatLng(currentPoint)} icon={makeDriverMotoIcon(heading)}>
-                <Popup>{selectedDriver?.fullName || 'Tai xe'}</Popup>
+                <Popup>{driver?.fullName || 'Tai xe'}</Popup>
               </Marker>
             ) : null}
           </MapContainer>
@@ -351,38 +397,78 @@ export default function DriverPage() {
           <div className="driver-control-head">
             <span>Don dang chon</span>
             <h2>{activeOrder?.orderCode || '-'}</h2>
-            <p>{activeOrder?.receiverAddress || 'Chua co don'}</p>
+            <p>{activeOrder?.receiverAddress || 'Chon don de xem chi tiet'}</p>
           </div>
 
-          <div className="driver-actions-grid">
-            <button type="button" className="button-secondary" onClick={() => void handleStatus('PICKING_UP')} disabled={!activeOrder}>
-              Lay mon
-            </button>
-            <button type="button" className="button-primary" onClick={() => void startDeliveryRun()} disabled={!activeOrder || isRunning}>
-              Chay giao hang
-            </button>
-            <button type="button" className="button-secondary" onClick={stopDeliveryRun} disabled={!isRunning}>
-              Tam dung
-            </button>
-            <button type="button" className="button-danger" onClick={() => void handleStatus('CANCELLED')} disabled={!activeOrder}>
-              Huy don
-            </button>
-          </div>
+          {activeOrder ? (
+            <>
+              <div className="driver-detail-grid">
+                <div>
+                  <span>Nha hang</span>
+                  <strong>{activeOrder.restaurant?.name || tracking?.restaurant?.name || `Quan #${activeOrder.restaurantId}`}</strong>
+                </div>
+                <div>
+                  <span>Khach hang</span>
+                  <strong>{activeOrder.customerName || `Khach #${activeOrder.customerId}`}</strong>
+                </div>
+                <div>
+                  <span>SDT khach</span>
+                  <strong>{activeOrder.customerPhone || '-'}</strong>
+                </div>
+                <div>
+                  <span>Tien can thu</span>
+                  <strong>{formatPrice(activeOrder.cashToCollect || activeOrder.totalAmount)} VND</strong>
+                </div>
+                <div>
+                  <span>ETA</span>
+                  <strong>{formatDuration(tracking?.route?.totalDurationMinutes)}</strong>
+                </div>
+                <div>
+                  <span>Quang duong</span>
+                  <strong>{formatDistance(tracking?.route?.totalDistanceKm)}</strong>
+                </div>
+              </div>
 
-          <div className="driver-summary">
-            <div>
-              <span>Trang thai</span>
-              <strong>{tracking?.order.statusLabel || tracking?.order.statusCode || '-'}</strong>
-            </div>
-            <div>
-              <span>Tien thu</span>
-              <strong>{activeOrder ? `${formatPrice(activeOrder.totalAmount)} VND` : '-'}</strong>
-            </div>
-            <div>
-              <span>So mon</span>
-              <strong>{activeOrder?.items.reduce((total, item) => total + item.quantity, 0) || 0}</strong>
-            </div>
-          </div>
+              <div className="driver-actions-grid">
+                {canAcceptSelected ? (
+                  <button type="button" className="button-primary" onClick={() => void handleAcceptOrder(activeOrder)} disabled={isActioning}>
+                    Nhan don
+                  </button>
+                ) : null}
+                <button type="button" className="button-secondary" onClick={() => void handleStatus('PICKING_UP')} disabled={!isSelectedMine || isActioning}>
+                  Den nha hang
+                </button>
+                <button type="button" className="button-primary" onClick={() => void handleStatus('DELIVERING')} disabled={!isSelectedMine || isActioning}>
+                  Da lay mon
+                </button>
+                <button type="button" className="button-secondary" onClick={() => void handleStatus('COMPLETED')} disabled={!isSelectedMine || isActioning}>
+                  Hoan thanh
+                </button>
+                <button type="button" className="button-danger" onClick={() => void handleStatus('CANCELLED')} disabled={!isSelectedMine || isActioning}>
+                  Huy don
+                </button>
+              </div>
+
+              <div className="driver-route-list">
+                {routeLegs.map((leg) => (
+                  <RouteLegSummary key={leg.key} leg={leg} />
+                ))}
+                {tracking && routeLegs.length === 0 ? <p className="empty-state">Chua co route OSRM cho don nay.</p> : null}
+              </div>
+
+              <div className="tracking-items">
+                <h2>Mon can lay</h2>
+                {(activeOrder.items || []).map((item) => (
+                  <div key={item.id} className="tracking-item">
+                    <span>{item.quantity} x {item.foodName || `Mon #${item.foodId}`}</span>
+                    <strong>{formatPrice(item.lineTotal)} VND</strong>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="empty-state">Khong co don dang chon.</p>
+          )}
         </aside>
       </div>
     </section>

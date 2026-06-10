@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import PartnerSection from '../components/partner/PartnerSection'
 import { APP_NAME } from '../constants/app'
+import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getCategories } from '../services/api/categories'
 import { getFoods } from '../services/api/foods'
@@ -15,7 +16,6 @@ import type { Category, CreateOrderPayload, Food, Order, Restaurant } from '../t
 type CartState = Record<number, number>
 
 type CheckoutState = {
-  customerId: string
   receiverAddress: string
   receiverLat: string
   receiverLng: string
@@ -27,7 +27,6 @@ type IconName = 'search' | 'location' | 'cart' | 'plus' | 'minus' | 'trash' | 's
 
 const quickFilters = ['Com trua', 'Bun pho', 'Do uong', 'An vat', 'Chay', 'Giam gia']
 const initialCheckoutState: CheckoutState = {
-  customerId: '1',
   receiverAddress: '12 Nguyen Hue, Quan 1',
   receiverLat: '10.7769',
   receiverLng: '106.7009',
@@ -78,6 +77,7 @@ function toPromotion(restaurantId: number) {
 
 export default function HomePage() {
   useDocumentTitle(`${APP_NAME} | Dat mon`)
+  const { isAuthenticated, user } = useAuth()
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -91,6 +91,7 @@ export default function HomePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successOrder, setSuccessOrder] = useState<Order | null>(null)
+  const submitKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     let ignore = false
@@ -219,8 +220,8 @@ export default function HomePage() {
       return 'Vui long nhap dia chi giao hang'
     }
 
-    if (!Number.isFinite(Number(checkout.customerId))) {
-      return 'Customer ID khong hop le'
+    if (!isAuthenticated || user?.role !== 'CUSTOMER') {
+      return 'Vui long dang nhap tai khoan khach hang de dat mon'
     }
 
     if (!Number.isFinite(Number(checkout.receiverLat)) || !Number.isFinite(Number(checkout.receiverLng))) {
@@ -247,9 +248,11 @@ export default function HomePage() {
       setIsSubmitting(true)
       setErrorMessage(null)
       setSuccessOrder(null)
+      if (!submitKeyRef.current) {
+        submitKeyRef.current = `WEB-${Date.now()}-${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`
+      }
 
       const createdOrder = await createOrder({
-        customerId: Number(checkout.customerId),
         restaurantId: activeRestaurant.id,
         receiverAddress: checkout.receiverAddress.trim(),
         receiverLat: Number(checkout.receiverLat),
@@ -258,6 +261,7 @@ export default function HomePage() {
         shippingType: checkout.shippingType,
         discountAmount,
         taxAmount: 0,
+        idempotencyKey: submitKeyRef.current,
         items: cartItems.map((item) => ({
           foodId: item.food.id,
           quantity: item.quantity,
@@ -266,6 +270,7 @@ export default function HomePage() {
 
       setSuccessOrder(createdOrder)
       setLastOrderId(createdOrder.id)
+      submitKeyRef.current = null
       setCart({})
       setFoods(await getFoods())
     } catch (error) {
@@ -473,13 +478,11 @@ export default function HomePage() {
           </div>
 
           <form className="checkout-form" onSubmit={handleSubmitOrder}>
-            <label>
-              <span>Customer ID</span>
-              <input
-                value={checkout.customerId}
-                onChange={(event) => setCheckout((current) => ({ ...current, customerId: event.target.value }))}
-              />
-            </label>
+            {!isAuthenticated ? (
+              <p className="login-account-note">
+                Vui long <Link to="/login">dang nhap khach hang</Link> de dat mon.
+              </p>
+            ) : null}
             <label>
               <span>Dia chi giao hang</span>
               <input

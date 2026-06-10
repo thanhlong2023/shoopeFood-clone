@@ -16,6 +16,16 @@ function formatPrice(value: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(value))
 }
 
+function formatDuration(value?: number) {
+  if (!value) return '-'
+  return `${Math.round(value)} phut`
+}
+
+function formatDistance(value?: number) {
+  if (!value) return '-'
+  return `${value.toFixed(1)} km`
+}
+
 function toLatLng(point: RoutePoint): [number, number] {
   return [point.latitude, point.longitude]
 }
@@ -108,7 +118,7 @@ export default function TrackingPage() {
   const resolvedOrderId = queryOrderId ? Number(queryOrderId) : lastOrderId ?? getLastOrderId()
   const hasActiveOrder = Number.isFinite(resolvedOrderId) && (resolvedOrderId ?? 0) > 0
 
-  const [activeOrderId, setActiveOrderId] = useState<number | null>(hasActiveOrder ? Number(resolvedOrderId) : null)
+  const [activeOrderId] = useState<number | null>(hasActiveOrder ? Number(resolvedOrderId) : null)
   const [tracking, setTracking] = useState<OrderTracking | null>(null)
   const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -191,14 +201,16 @@ export default function TrackingPage() {
   }, [activeOrderId, loadTracking])
 
   const mapPoints = useMemo(() => {
-    const points = [...(tracking?.routePoints || [])]
+    const points = [...((tracking?.route?.legs || []).flatMap((leg) => leg.geometry))]
     if (driverLocation) {
       points.push({ latitude: driverLocation.latitude, longitude: driverLocation.longitude })
     }
+    if (tracking?.restaurant) points.push(tracking.restaurant)
+    if (tracking?.destination) points.push(tracking.destination)
     return points
   }, [driverLocation, tracking])
 
-  const routeLatLng = useMemo(() => (tracking?.routePoints || []).map(toLatLng), [tracking])
+  const routeLegs = tracking?.route?.legs || []
   const driverPoint = driverLocation ? { latitude: driverLocation.latitude, longitude: driverLocation.longitude } : null
   const nextPoint = tracking?.routePoints.find((point) => driverPoint && Math.hypot(point.latitude - driverPoint.latitude, point.longitude - driverPoint.longitude) > 0.0005)
   const motoHeading = driverLocation?.heading || (driverPoint && nextPoint ? getHeading(driverPoint, nextPoint) : 0)
@@ -244,7 +256,19 @@ export default function TrackingPage() {
             />
             <MapAutoFit points={mapPoints} />
 
-            {routeLatLng.length > 0 ? <Polyline positions={routeLatLng} pathOptions={{ color: '#00b14f', weight: 6, opacity: 0.76 }} /> : null}
+            {routeLegs.map((leg) =>
+              leg.geometry.length > 0 ? (
+                <Polyline
+                  key={leg.key}
+                  positions={leg.geometry.map(toLatLng)}
+                  pathOptions={{
+                    color: leg.key === 'driver_to_restaurant' ? '#ff8a00' : '#00b14f',
+                    weight: 6,
+                    opacity: 0.76,
+                  }}
+                />
+              ) : null,
+            )}
 
             {tracking?.restaurant ? (
               <Marker position={[tracking.restaurant.latitude, tracking.restaurant.longitude]} icon={makePinIcon('restaurant-pin', 'R')}>
@@ -287,6 +311,10 @@ export default function TrackingPage() {
               <strong>{tracking?.driver?.fullName || 'Chua co tai xe'}</strong>
             </div>
             <div>
+              <span>SDT khach</span>
+              <strong>{tracking?.order.customerPhone || '-'}</strong>
+            </div>
+            <div>
               <span>Bien so</span>
               <strong>{tracking?.driver?.licensePlate || '-'}</strong>
             </div>
@@ -294,6 +322,29 @@ export default function TrackingPage() {
               <span>Tong tien</span>
               <strong>{tracking ? `${formatPrice(tracking.order.totalAmount)} VND` : '-'}</strong>
             </div>
+            <div>
+              <span>Tien can thu</span>
+              <strong>{tracking ? `${formatPrice(tracking.order.cashToCollect)} VND` : '-'}</strong>
+            </div>
+            <div>
+              <span>ETA</span>
+              <strong>{formatDuration(tracking?.route?.totalDurationMinutes)}</strong>
+            </div>
+            <div>
+              <span>Quang duong</span>
+              <strong>{formatDistance(tracking?.route?.totalDistanceKm)}</strong>
+            </div>
+          </div>
+
+          <div className="driver-route-list">
+            {routeLegs.map((leg) => (
+              <div key={leg.key} className="driver-route-leg">
+                <div>
+                  <strong>{leg.label}</strong>
+                  <span>{leg.ok ? `${formatDistance(leg.distanceKm)} - ${formatDuration(leg.durationMinutes)}` : leg.error || 'Chua co lo trinh'}</span>
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="tracking-items">

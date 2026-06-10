@@ -1,7 +1,8 @@
-const { Order, User, OrderStatus, Payment, OrderItem, Food } = require("../models");
+const { Order, User, OrderStatus, Payment, OrderItem, Food, Restaurant } = require("../models");
 
 const orderIncludes = [
-  { model: User, as: "customerUser", attributes: ["id", "fullName"] },
+  { model: User, as: "customerUser", attributes: ["id", "fullName", "phone"] },
+  { model: Restaurant, attributes: ["id", "name", "address", "latitude", "longitude", "isOpen"] },
   { model: OrderStatus, as: "statusInfo", attributes: ["id", "code", "label"] },
   { model: Payment, as: "payment", attributes: ["id", "paymentMethod", "status", "amount"] },
   {
@@ -44,7 +45,9 @@ class OrderRepository {
     if (filters.statusId) {
       where.statusId = filters.statusId;
     }
-    if (filters.restaurantId) {
+    if (filters.restaurantIds && filters.restaurantIds.length > 0) {
+      where.restaurantId = { [Op.in]: filters.restaurantIds };
+    } else if (filters.restaurantId) {
       where.restaurantId = filters.restaurantId;
     }
     if (filters.customerId) {

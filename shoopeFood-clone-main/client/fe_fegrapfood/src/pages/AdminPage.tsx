@@ -106,7 +106,6 @@ const resourceConfigs: ResourceConfig[] = [
     columns: ['id', 'orderCode', 'customerId', 'restaurantId', 'driverId', 'statusCode', 'totalAmount', 'createdAt'],
     fields: [
       { key: 'statusCode', label: 'Trang thai', type: 'select', options: ['PENDING', 'CONFIRMED', 'PICKING_UP', 'DELIVERING', 'COMPLETED', 'CANCELLED'] },
-      { key: 'driverId', label: 'Driver ID', type: 'number', nullable: true },
       { key: 'receiverAddress', label: 'Dia chi giao', type: 'text' },
       { key: 'distanceKm', label: 'Khoang cach km', type: 'number' },
       { key: 'discountAmount', label: 'Giam gia', type: 'number', defaultValue: 0 },

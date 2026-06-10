@@ -1155,6 +1155,26 @@ img {
   font-weight: 900;
 }
 
+.driver-gps-pill {
+  min-width: min(360px, 100%);
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.driver-gps-pill span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.driver-gps-pill strong {
+  font-size: 0.95rem;
+}
+
 .tracking-layout,
 .driver-layout {
   display: grid;
@@ -1253,14 +1273,16 @@ img {
 }
 
 .tracking-info-grid,
-.driver-summary {
+.driver-summary,
+.driver-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .tracking-info-grid div,
-.driver-summary div {
+.driver-summary div,
+.driver-detail-grid div {
   min-width: 0;
   display: grid;
   gap: 4px;
@@ -1270,14 +1292,16 @@ img {
 }
 
 .tracking-info-grid span,
-.driver-summary span {
+.driver-summary span,
+.driver-detail-grid span {
   color: var(--text-soft);
   font-weight: 900;
   font-size: 0.82rem;
 }
 
 .tracking-info-grid strong,
-.driver-summary strong {
+.driver-summary strong,
+.driver-detail-grid strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1382,6 +1406,13 @@ img {
   gap: 10px;
 }
 
+.driver-order-list h3 {
+  margin: 6px 0 0;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  text-transform: uppercase;
+}
+
 .driver-order-card {
   display: grid;
   gap: 8px;
@@ -1435,6 +1466,42 @@ img {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.driver-route-list {
+  display: grid;
+  gap: 10px;
+}
+
+.driver-route-leg {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-soft);
+}
+
+.driver-route-leg > div {
+  display: grid;
+  gap: 3px;
+}
+
+.driver-route-leg strong {
+  color: var(--text);
+}
+
+.driver-route-leg span,
+.driver-route-leg li {
+  color: var(--text-soft);
+  font-weight: 800;
+}
+
+.driver-route-leg ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
 }
 
 .empty-state {
@@ -2703,6 +2770,7 @@ img {
   .checkout-grid,
   .tracking-info-grid,
   .driver-summary,
+  .driver-detail-grid,
   .driver-actions-grid,
   .restaurant-form-grid,
   .role-grid,

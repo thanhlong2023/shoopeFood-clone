@@ -1,18 +1,18 @@
 const { Role, UserRole } = require("../models");
 
-const setUserRole = async (userId, roleName) => {
-  const role = await Role.findOne({ where: { name: roleName } });
+const setUserRole = async (userId, roleName, options = {}) => {
+  const role = await Role.findOne({ where: { name: roleName }, ...options });
   if (!role) {
     throw new Error(`${roleName} role is not configured`);
   }
 
-  const existing = await UserRole.findAll({ where: { userId } });
+  const existing = await UserRole.findAll({ where: { userId }, ...options });
   if (existing.length === 1 && Number(existing[0].roleId) === Number(role.id)) {
     return roleName;
   }
 
-  await UserRole.destroy({ where: { userId } });
-  await UserRole.create({ userId, roleId: role.id });
+  await UserRole.destroy({ where: { userId }, ...options });
+  await UserRole.create({ userId, roleId: role.id }, options);
 
   return roleName;
 };

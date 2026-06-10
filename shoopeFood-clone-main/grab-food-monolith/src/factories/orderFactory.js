@@ -1,5 +1,13 @@
 const DEFAULT_ORDER_STATUS_CODE = "PENDING";
 
+const toNullableNumber = (value) => {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  return Number.isFinite(Number(value)) ? Number(value) : null;
+};
+
 class OrderFactory {
   buildOrderCode() {
     const now = new Date();
@@ -17,8 +25,8 @@ class OrderFactory {
       idempotencyKey: String(input.idempotencyKey || this.buildIdempotencyKey()).trim(),
       customerId: Number(input.customerId),
       restaurantId: Number(input.restaurantId),
-      driverId: Number.isFinite(Number(input.driverId)) ? Number(input.driverId) : null,
-      voucherId: Number.isFinite(Number(input.voucherId)) ? Number(input.voucherId) : null,
+      driverId: toNullableNumber(input.driverId),
+      voucherId: toNullableNumber(input.voucherId),
       receiverAddress: String(input.receiverAddress || "").trim(),
       receiverLat: Number(input.receiverLat),
       receiverLng: Number(input.receiverLng),

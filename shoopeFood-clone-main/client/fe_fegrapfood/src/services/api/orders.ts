@@ -28,6 +28,11 @@ export async function getOrderTracking(id: number) {
   return response.data
 }
 
+export async function acceptOrder(id: number) {
+  const response = await httpPost<ApiResponse<Order>>(`/api/orders/${id}/accept`, {})
+  return response.data
+}
+
 export async function updateOrder(id: number, payload: UpdateOrderPayload) {
   const response = await httpPut<ApiResponse<Order>>(`/api/orders/${id}`, payload)
   return response.data

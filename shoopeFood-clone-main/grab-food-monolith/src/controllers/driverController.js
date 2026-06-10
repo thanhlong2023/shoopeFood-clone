@@ -1,5 +1,12 @@
-const { DriverDetail, DriverLocation, Order, User, sequelize } = require("../models");
+const { Op } = require("sequelize");
+const { DriverDetail, DriverLocation, Order, OrderStatus, User, sequelize } = require("../models");
 const socketManager = require("../sockets");
+const orderRepository = require("../repositories/orderRepository");
+const { normalizeOrder } = require("../utils/orderNormalizer");
+const { setUserRole } = require("../utils/roleAssignment");
+
+const PENDING_STATUS_CODE = "PENDING";
+const DRIVER_ACTIVE_STATUS_CODES = ["DRIVER_ACCEPTED", "CONFIRMED", "PICKING_UP", "DELIVERING"];
 
 const normalizeDriver = (item) => {
   const user = item.driverUser || item.User || null;
@@ -28,6 +35,13 @@ const normalizeDriverLocation = (item) => ({
   speedKmh: Number(item.speedKmh || 0),
   createdAt: item.createdAt,
 });
+
+const findApprovedDriver = (driverId, options = {}) =>
+  DriverDetail.findOne({
+    where: { userId: driverId, approvalStatus: "APPROVED" },
+    include: driverInclude,
+    ...options,
+  });
 
 exports.getDrivers = async (req, res) => {
   try {
@@ -79,6 +93,54 @@ exports.getDriverInfo = async (req, res) => {
   }
 };
 
+exports.getMyOrderFeed = async (req, res) => {
+  try {
+    const driverId = Number(req.user?.id);
+    if (!Number.isFinite(driverId) || req.user.role !== "DRIVER") {
+      return res.status(403).json({ message: "Only DRIVER accounts can view driver feed" });
+    }
+
+    const driver = await findApprovedDriver(driverId);
+    if (!driver) {
+      return res.status(403).json({ message: "Driver account is not approved" });
+    }
+
+    const statuses = await OrderStatus.findAll({
+      where: { code: { [Op.in]: [PENDING_STATUS_CODE, ...DRIVER_ACTIVE_STATUS_CODES] } },
+    });
+    const statusIdByCode = new Map(statuses.map((status) => [status.code, status.id]));
+    const pendingStatusId = statusIdByCode.get(PENDING_STATUS_CODE);
+    const activeStatusIds = DRIVER_ACTIVE_STATUS_CODES.map((code) => statusIdByCode.get(code)).filter(Boolean);
+
+    const [availableOrders, myOrders] = await Promise.all([
+      pendingStatusId
+        ? Order.findAll({
+            where: { driverId: null, statusId: pendingStatusId },
+            include: orderRepository.getIncludes(),
+            order: [["created_at", "DESC"]],
+          })
+        : Promise.resolve([]),
+      activeStatusIds.length > 0
+        ? Order.findAll({
+            where: { driverId, statusId: { [Op.in]: activeStatusIds } },
+            include: orderRepository.getIncludes(),
+            order: [["created_at", "DESC"]],
+          })
+        : Promise.resolve([]),
+    ]);
+
+    return res.json({
+      data: {
+        driver: normalizeDriver(driver),
+        available: availableOrders.map(normalizeOrder),
+        active: myOrders.map(normalizeOrder),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 exports.createDriver = async (req, res) => {
   const transaction = await sequelize.transaction();
 
@@ -120,10 +182,13 @@ exports.createDriver = async (req, res) => {
         userId: newUser.id,
         vehicleType: String(vehicleType || "").trim(),
         licensePlate: String(licensePlate || "").trim(),
+        approvalStatus: "APPROVED",
         isOnline: Boolean(isOnline),
       },
       { transaction }
     );
+
+    await setUserRole(newUser.id, "DRIVER", { transaction });
 
     await transaction.commit();
 
@@ -243,6 +308,14 @@ exports.updateDriverOnlineStatus = async (req, res) => {
       return res.status(400).json({ message: "isOnline must be boolean" });
     }
 
+    if (!req.user || (req.user.role !== "DRIVER" && req.user.role !== "ADMIN")) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    if (req.user.role === "DRIVER" && Number(req.user.id) !== id) {
+      return res.status(403).json({ message: "Drivers can only update their own status" });
+    }
+
     const item = await DriverDetail.findOne({ where: { userId: id }, include: driverInclude });
     if (!item) {
       return res.status(404).json({ message: "Driver not found" });
@@ -274,6 +347,14 @@ exports.updateDriverLocation = async (req, res) => {
       return res.status(400).json({ message: "Invalid driver id" });
     }
 
+    if (!req.user || (req.user.role !== "DRIVER" && req.user.role !== "ADMIN")) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    if (req.user.role === "DRIVER" && Number(req.user.id) !== id) {
+      return res.status(403).json({ message: "Drivers can only update their own location" });
+    }
+
     if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
       return res.status(400).json({ message: "latitude and longitude are required" });
     }
@@ -281,6 +362,10 @@ exports.updateDriverLocation = async (req, res) => {
     const driver = await DriverDetail.findOne({ where: { userId: id }, include: driverInclude });
     if (!driver) {
       return res.status(404).json({ message: "Driver not found" });
+    }
+
+    if (driver.approvalStatus !== "APPROVED") {
+      return res.status(403).json({ message: "Driver account is not approved" });
     }
 
     let normalizedOrderId = null;
@@ -295,8 +380,8 @@ exports.updateDriverLocation = async (req, res) => {
         return res.status(404).json({ message: "Order not found" });
       }
 
-      if (order.driverId !== id) {
-        await order.update({ driverId: id });
+      if (Number(order.driverId) !== id) {
+        return res.status(403).json({ message: "Order is not assigned to this driver" });
       }
     }
 

@@ -177,6 +177,29 @@ const ensureOrderItemSnapshotColumns = async () => {
   }
 };
 
+const ensureOrderIdempotencyUniqueIndex = async () => {
+  const queryInterface = sequelize.getQueryInterface();
+  const indexes = await queryInterface.showIndex("orders");
+  const hasUniqueIdempotencyIndex = indexes.some(
+    (index) =>
+      index.unique &&
+      (index.fields || []).some((field) => field.attribute === "idempotency_key" || field.name === "idempotency_key")
+  );
+
+  if (hasUniqueIdempotencyIndex) {
+    return;
+  }
+
+  try {
+    await queryInterface.addIndex("orders", ["idempotency_key"], {
+      unique: true,
+      name: "uniq_orders_idempotency_key",
+    });
+  } catch (error) {
+    console.warn("Could not add unique index for orders.idempotency_key:", error.message);
+  }
+};
+
 const ensureDriverApprovalColumns = async () => {
   const queryInterface = sequelize.getQueryInterface();
   const columns = await queryInterface.describeTable("driver_details");
@@ -272,6 +295,7 @@ const initializeDatabase = async () => {
   await ensureDriverApprovalColumns();
   await ensureRestaurantApprovalColumns();
   await ensureOrderItemSnapshotColumns();
+  await ensureOrderIdempotencyUniqueIndex();
   await ensureSingleRolePerUser();
   await ensureDemoRoleAssignments();
   await Food.resetExpiredDailyQuantities();
