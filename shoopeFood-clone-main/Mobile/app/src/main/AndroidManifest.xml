@@ -62,7 +62,7 @@
         <activity
             android:name=".ui.OrderDetailActivity"
             android:exported="false"
-            android:parentActivityName=".ui.OrdersActivity" />
+            android:parentActivityName=".ui.HomeActivity" />
 
     </application>
 </manifest>

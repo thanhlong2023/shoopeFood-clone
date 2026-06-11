@@ -43,7 +43,11 @@ export default function DriverProfilePanel({ driverId }: DriverProfilePanelProps
       try {
         setIsLoading(true)
         setErrorMessage(null)
-        const data = await getDriverProfile(driverId)
+        const id = driverId
+        if (!id) {
+          return
+        }
+        const data = await getDriverProfile(id)
         if (!ignore) {
           setProfile(data)
         }

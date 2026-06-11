@@ -43,6 +43,8 @@ public class RestaurantDetailActivity extends AppCompatActivity implements FoodA
 
     private int restaurantId;
     private String restaurantName;
+    private double restaurantLatitude;
+    private double restaurantLongitude;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,7 +79,13 @@ public class RestaurantDetailActivity extends AppCompatActivity implements FoodA
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
-        cartFab.setOnClickListener(v -> startActivity(new Intent(this, CartActivity.class)));
+        cartFab.setOnClickListener(v -> {
+            Intent intent = new Intent(this, HomeActivity.class);
+            intent.putExtra(HomeActivity.EXTRA_INITIAL_TAB, HomeActivity.TAB_CART);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
+            finish();
+        });
 
         loadRestaurant();
         loadFoods();
@@ -99,10 +107,18 @@ public class RestaurantDetailActivity extends AppCompatActivity implements FoodA
 
                 Restaurant restaurant = response.body().data;
                 restaurantName = restaurant.name;
+                restaurantLatitude = restaurant.latitude;
+                restaurantLongitude = restaurant.longitude;
                 if (getSupportActionBar() != null) {
                     getSupportActionBar().setTitle(restaurant.name);
                 }
                 addressText.setText(restaurant.address);
+                CartManager.getInstance().setRestaurant(
+                        restaurant.id,
+                        restaurant.name,
+                        restaurant.latitude,
+                        restaurant.longitude
+                );
                 metaText.setText(String.format(
                         "%.1f sao | %s",
                         restaurant.ratingAvg,
@@ -161,7 +177,7 @@ public class RestaurantDetailActivity extends AppCompatActivity implements FoodA
     @Override
     public void onAddFood(Food food) {
         CartManager cart = CartManager.getInstance();
-        cart.setRestaurant(restaurantId, restaurantName);
+        cart.setRestaurant(restaurantId, restaurantName, restaurantLatitude, restaurantLongitude);
         cart.addFood(food);
         Toast.makeText(this, R.string.added_to_cart, Toast.LENGTH_SHORT).show();
     }

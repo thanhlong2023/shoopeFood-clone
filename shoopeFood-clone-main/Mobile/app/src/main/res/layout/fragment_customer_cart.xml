@@ -2,6 +2,7 @@
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/surface_bg"
     android:fillViewport="true"
     android:overScrollMode="ifContentScrolls"
     android:scrollbars="vertical">
@@ -28,6 +29,16 @@
             android:textColor="@color/brand_green_dark"
             android:textSize="16sp" />
 
+        <TextView
+            android:id="@+id/textCartEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:text="@string/cart_empty"
+            android:textColor="@color/text_secondary"
+            android:visibility="gone" />
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerCart"
             android:layout_width="match_parent"
@@ -36,6 +47,7 @@
             android:nestedScrollingEnabled="false" />
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/layoutReceiverAddress"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp">

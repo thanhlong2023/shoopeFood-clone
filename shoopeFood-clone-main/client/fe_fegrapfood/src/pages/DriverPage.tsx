@@ -157,7 +157,7 @@ export default function DriverPage() {
     [activeOrderId, allOrders, tracking],
   )
   const hasActiveDelivery = useMemo(
-    () => myOrders.some((order) => activeLocationStatuses.has(order.statusCode)),
+    () => myOrders.some((order) => order.statusCode != null && activeLocationStatuses.has(order.statusCode)),
     [myOrders],
   )
   const routeLegs = tracking?.route?.legs || []

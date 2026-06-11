@@ -5,7 +5,9 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -13,13 +15,16 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.IntentSenderRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import com.shoopefood.mobile.R;
 import com.shoopefood.mobile.adapter.CartAdapter;
 import com.shoopefood.mobile.cart.CartManager;
@@ -42,8 +47,9 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class CartActivity extends AppCompatActivity implements CartAdapter.OnCartChangeListener {
+public class CustomerCartFragment extends Fragment implements CartAdapter.OnCartChangeListener {
 
+    private CustomerHomeHost host;
     private CartManager cartManager;
     private SessionManager sessionManager;
     private ApiService apiService;
@@ -51,8 +57,10 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
     private CartAdapter adapter;
     private TextView restaurantText;
     private TextView subtotalText;
+    private TextView emptyText;
     private TextView deliverySummaryText;
     private TextInputEditText addressInput;
+    private TextInputLayout addressLayout;
     private MaterialButton locationButton;
     private MaterialButton checkoutButton;
     private ProgressBar progressBar;
@@ -65,22 +73,25 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
     private ActivityResultLauncher<IntentSenderRequest> locationSettingsLauncher;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onAttach(@NonNull android.content.Context context) {
+        super.onAttach(context);
+        if (!(context instanceof CustomerHomeHost)) {
+            throw new IllegalStateException("Host must implement CustomerHomeHost");
+        }
+        host = (CustomerHomeHost) context;
+    }
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_cart);
-
-        cartManager = CartManager.getInstance();
-        sessionManager = new SessionManager(this);
-        apiService = ApiClient.getService(this);
-        locationHelper = new DriverLocationHelper(this);
-
+        locationHelper = new DriverLocationHelper(requireContext());
         locationPermissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestPermission(),
                 granted -> {
                     if (granted) {
                         fetchDeliveryLocation();
                     } else {
-                        Toast.makeText(this, R.string.customer_location_required, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(requireContext(), R.string.customer_location_required, Toast.LENGTH_SHORT).show();
                     }
                 }
         );
@@ -92,56 +103,82 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
                     }
                 }
         );
+    }
 
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle(R.string.cart_title);
-        }
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        return inflater.inflate(R.layout.fragment_customer_cart, container, false);
+    }
 
-        restaurantText = findViewById(R.id.textCartRestaurant);
-        subtotalText = findViewById(R.id.textCartSubtotal);
-        deliverySummaryText = findViewById(R.id.textDeliverySummary);
-        addressInput = findViewById(R.id.inputReceiverAddress);
-        locationButton = findViewById(R.id.buttonUseDeliveryLocation);
-        checkoutButton = findViewById(R.id.buttonCheckout);
-        progressBar = findViewById(R.id.progressCart);
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        cartManager = CartManager.getInstance();
+        sessionManager = new SessionManager(requireContext());
+        apiService = ApiClient.getService(requireContext());
 
-        RecyclerView recyclerView = findViewById(R.id.recyclerCart);
+        restaurantText = view.findViewById(R.id.textCartRestaurant);
+        subtotalText = view.findViewById(R.id.textCartSubtotal);
+        emptyText = view.findViewById(R.id.textCartEmpty);
+        deliverySummaryText = view.findViewById(R.id.textDeliverySummary);
+        addressInput = view.findViewById(R.id.inputReceiverAddress);
+        addressLayout = view.findViewById(R.id.layoutReceiverAddress);
+        locationButton = view.findViewById(R.id.buttonUseDeliveryLocation);
+        checkoutButton = view.findViewById(R.id.buttonCheckout);
+        progressBar = view.findViewById(R.id.progressCart);
+
+        RecyclerView recyclerView = view.findViewById(R.id.recyclerCart);
         adapter = new CartAdapter(this);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerView.setAdapter(adapter);
 
         locationButton.setOnClickListener(v -> requestDeliveryLocation());
         checkoutButton.setOnClickListener(v -> checkout());
-
         refreshCartUi();
         ensureRestaurantCoordinates();
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroyView() {
         if (locationHelper != null) {
             locationHelper.stopFetch();
         }
-        super.onDestroy();
+        super.onDestroyView();
     }
 
     @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return true;
+    public void onResume() {
+        super.onResume();
+        refreshCartUi();
+        notifyHostBadge();
+        ensureRestaurantCoordinates();
     }
 
     @Override
     public void onCartChanged() {
         refreshCartUi();
+        notifyHostBadge();
     }
 
-    private void refreshCartUi() {
+    private void notifyHostBadge() {
+        if (host != null) {
+            host.refreshCartBadge();
+        }
+    }
+
+    public void refreshCartUi() {
+        boolean isEmpty = cartManager.isEmpty();
         adapter.submitLines(cartManager.getLines());
-        restaurantText.setText(cartManager.getRestaurantName());
+        restaurantText.setText(isEmpty ? getString(R.string.cart_title) : cartManager.getRestaurantName());
         subtotalText.setText(getString(R.string.subtotal_label, CurrencyUtils.formatVnd(cartManager.getSubtotal())));
-        checkoutButton.setEnabled(!cartManager.isEmpty());
+        emptyText.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+        int deliveryVisibility = isEmpty ? View.GONE : View.VISIBLE;
+        addressLayout.setVisibility(deliveryVisibility);
+        locationButton.setVisibility(deliveryVisibility);
+        deliverySummaryText.setVisibility(deliveryVisibility);
+        checkoutButton.setEnabled(!isEmpty);
+        checkoutButton.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
         updateDeliverySummary();
     }
 
@@ -152,7 +189,7 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
 
         apiService.getRestaurantById(cartManager.getRestaurantId()).enqueue(new Callback<RestaurantResponse>() {
             @Override
-            public void onResponse(Call<RestaurantResponse> call, Response<RestaurantResponse> response) {
+            public void onResponse(@NonNull Call<RestaurantResponse> call, @NonNull Response<RestaurantResponse> response) {
                 if (!response.isSuccessful() || response.body() == null || response.body().data == null) {
                     return;
                 }
@@ -162,17 +199,17 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
                         response.body().data.latitude,
                         response.body().data.longitude
                 );
-                recalculateDeliveryDistance();
+                updateDeliverySummary();
             }
 
             @Override
-            public void onFailure(Call<RestaurantResponse> call, Throwable t) {
+            public void onFailure(@NonNull Call<RestaurantResponse> call, @NonNull Throwable t) {
             }
         });
     }
 
     private void requestDeliveryLocation() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION);
             return;
@@ -185,10 +222,13 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
         locationButton.setText(R.string.customer_fetching_location);
 
         locationHelper.ensureLocationEnabled(
-                this,
-                () -> locationHelper.fetchCurrentLocation(this, new DriverLocationHelper.OnLocationResult() {
+                requireContext(),
+                () -> locationHelper.fetchCurrentLocation(requireContext(), new DriverLocationHelper.OnLocationResult() {
                     @Override
                     public void onSuccess(double latitude, double longitude, float accuracyMeters) {
+                        if (!isAdded()) {
+                            return;
+                        }
                         receiverLat = latitude;
                         receiverLng = longitude;
                         recalculateDeliveryDistance();
@@ -198,12 +238,18 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
 
                     @Override
                     public void onError(String message) {
+                        if (!isAdded()) {
+                            return;
+                        }
                         locationButton.setEnabled(true);
                         locationButton.setText(R.string.customer_use_delivery_location);
-                        Toast.makeText(CartActivity.this, message, Toast.LENGTH_LONG).show();
+                        Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show();
                     }
                 }),
                 exception -> {
+                    if (!isAdded()) {
+                        return;
+                    }
                     try {
                         locationSettingsLauncher.launch(
                                 new IntentSenderRequest.Builder(exception.getResolution()).build()
@@ -211,13 +257,16 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
                     } catch (Exception error) {
                         locationButton.setEnabled(true);
                         locationButton.setText(R.string.customer_use_delivery_location);
-                        Toast.makeText(this, R.string.driver_location_disabled, Toast.LENGTH_LONG).show();
+                        Toast.makeText(requireContext(), R.string.driver_location_disabled, Toast.LENGTH_LONG).show();
                     }
                 },
                 () -> {
+                    if (!isAdded()) {
+                        return;
+                    }
                     locationButton.setEnabled(true);
                     locationButton.setText(R.string.customer_use_delivery_location);
-                    Toast.makeText(this, R.string.driver_location_disabled, Toast.LENGTH_LONG).show();
+                    Toast.makeText(requireContext(), R.string.driver_location_disabled, Toast.LENGTH_LONG).show();
                 }
         );
     }
@@ -240,6 +289,10 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
     }
 
     private void updateDeliverySummary() {
+        if (deliverySummaryText == null) {
+            return;
+        }
+
         if (!Double.isFinite(deliveryDistanceKm)) {
             deliverySummaryText.setText(R.string.customer_delivery_pending);
             return;
@@ -255,18 +308,18 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
 
     private void checkout() {
         if (cartManager.isEmpty() || sessionManager.getUser() == null) {
-            Toast.makeText(this, R.string.cart_empty, Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), R.string.cart_empty, Toast.LENGTH_SHORT).show();
             return;
         }
 
         String address = addressInput.getText() != null ? addressInput.getText().toString().trim() : "";
         if (address.isEmpty()) {
-            Toast.makeText(this, R.string.checkout_required, Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), R.string.checkout_required, Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (!GeoUtils.isValidCoordinate(receiverLat, receiverLng) || !Double.isFinite(deliveryDistanceKm)) {
-            Toast.makeText(this, R.string.customer_location_required, Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), R.string.customer_location_required, Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -290,27 +343,36 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
 
         apiService.createOrder(request).enqueue(new Callback<OrderResponse>() {
             @Override
-            public void onResponse(Call<OrderResponse> call, Response<OrderResponse> response) {
+            public void onResponse(@NonNull Call<OrderResponse> call, @NonNull Response<OrderResponse> response) {
                 setLoading(false);
 
                 if (!response.isSuccessful() || response.body() == null || response.body().data == null) {
-                    Toast.makeText(CartActivity.this, ApiClient.parseErrorMessage(response.raw()), Toast.LENGTH_LONG).show();
+                    Toast.makeText(requireContext(), ApiClient.parseErrorMessage(response.raw()), Toast.LENGTH_LONG).show();
                     return;
                 }
 
+                int orderId = response.body().data.id;
                 cartManager.clear();
-                Toast.makeText(CartActivity.this, R.string.order_success, Toast.LENGTH_LONG).show();
+                receiverLat = Double.NaN;
+                receiverLng = Double.NaN;
+                deliveryDistanceKm = Double.NaN;
+                refreshCartUi();
+                notifyHostBadge();
+                Toast.makeText(requireContext(), R.string.order_success, Toast.LENGTH_LONG).show();
 
-                Intent intent = new Intent(CartActivity.this, OrderDetailActivity.class);
-                intent.putExtra(OrderDetailActivity.EXTRA_ORDER_ID, response.body().data.id);
+                Intent intent = new Intent(requireContext(), OrderDetailActivity.class);
+                intent.putExtra(OrderDetailActivity.EXTRA_ORDER_ID, orderId);
                 startActivity(intent);
-                finish();
+
+                if (host != null) {
+                    host.showOrdersTab();
+                }
             }
 
             @Override
-            public void onFailure(Call<OrderResponse> call, Throwable t) {
+            public void onFailure(@NonNull Call<OrderResponse> call, @NonNull Throwable t) {
                 setLoading(false);
-                Toast.makeText(CartActivity.this, R.string.network_error, Toast.LENGTH_LONG).show();
+                Toast.makeText(requireContext(), R.string.network_error, Toast.LENGTH_LONG).show();
             }
         });
     }

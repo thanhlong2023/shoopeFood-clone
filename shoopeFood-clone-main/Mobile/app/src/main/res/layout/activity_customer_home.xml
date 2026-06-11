@@ -10,8 +10,6 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@color/surface_bg"
-        android:clipChildren="true"
-        android:clipToPadding="true"
         app:layout_constraintBottom_toTopOf="@id/bottomNavCustomer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

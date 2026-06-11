@@ -1,7 +1,12 @@
 package com.shoopefood.mobile.network;
 
+import com.shoopefood.mobile.model.ActivateRoleRequest;
 import com.shoopefood.mobile.model.ApiMessageResponse;
+import com.shoopefood.mobile.model.ApplicationStatusResponse;
+import com.shoopefood.mobile.model.ChangePasswordRequest;
 import com.shoopefood.mobile.model.CreateOrderRequest;
+import com.shoopefood.mobile.model.DriverApplicationRequest;
+import com.shoopefood.mobile.model.UpdateProfileRequest;
 import com.shoopefood.mobile.model.DriverLocationApiResponse;
 import com.shoopefood.mobile.model.DriverLocationRequest;
 import com.shoopefood.mobile.model.DrivingRouteResponse;
@@ -39,6 +44,15 @@ public interface ApiService {
 
     @GET("api/auth/me")
     Call<MeResponse> getCurrentUser();
+
+    @PUT("api/auth/profile")
+    Call<MeResponse> updateProfile(@Body UpdateProfileRequest request);
+
+    @PUT("api/auth/password")
+    Call<ApiMessageResponse> changePassword(@Body ChangePasswordRequest request);
+
+    @POST("api/auth/activate-role")
+    Call<LoginResponse> activateRole(@Body ActivateRoleRequest request);
 
     @GET("api/restaurants")
     Call<RestaurantsResponse> getRestaurants();
@@ -84,6 +98,12 @@ public interface ApiService {
 
     @POST("api/applications/merchant")
     Call<ApiMessageResponse> applyMerchant(@Body MerchantApplicationRequest request);
+
+    @POST("api/applications/driver")
+    Call<ApiMessageResponse> applyDriver(@Body DriverApplicationRequest request);
+
+    @GET("api/applications/my-status")
+    Call<ApplicationStatusResponse> getMyApplicationStatus();
 
     @GET("api/drivers/me/orders")
     Call<DriverOrderFeedResponse> getDriverOrderFeed();

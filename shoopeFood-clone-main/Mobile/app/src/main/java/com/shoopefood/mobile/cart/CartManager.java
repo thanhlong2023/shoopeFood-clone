@@ -1,6 +1,7 @@
 package com.shoopefood.mobile.cart;
 
 import com.shoopefood.mobile.model.Food;
+import com.shoopefood.mobile.util.GeoUtils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -13,6 +14,8 @@ public final class CartManager {
 
     private int restaurantId = -1;
     private String restaurantName = "";
+    private double restaurantLatitude;
+    private double restaurantLongitude;
     private final Map<Integer, CartLine> lines = new LinkedHashMap<>();
 
     private CartManager() {
@@ -26,8 +29,17 @@ public final class CartManager {
     }
 
     public void setRestaurant(int restaurantId, String restaurantName) {
+        setRestaurant(restaurantId, restaurantName, 0, 0);
+    }
+
+    public void setRestaurant(int restaurantId, String restaurantName, double latitude, double longitude) {
         if (this.restaurantId != restaurantId) {
             lines.clear();
+            this.restaurantLatitude = latitude;
+            this.restaurantLongitude = longitude;
+        } else if (GeoUtils.isValidCoordinate(latitude, longitude)) {
+            this.restaurantLatitude = latitude;
+            this.restaurantLongitude = longitude;
         }
         this.restaurantId = restaurantId;
         this.restaurantName = restaurantName;
@@ -39,6 +51,18 @@ public final class CartManager {
 
     public String getRestaurantName() {
         return restaurantName;
+    }
+
+    public double getRestaurantLatitude() {
+        return restaurantLatitude;
+    }
+
+    public double getRestaurantLongitude() {
+        return restaurantLongitude;
+    }
+
+    public boolean hasRestaurantCoordinates() {
+        return GeoUtils.isValidCoordinate(restaurantLatitude, restaurantLongitude);
     }
 
     public void addFood(Food food) {
@@ -86,6 +110,8 @@ public final class CartManager {
     public void clear() {
         restaurantId = -1;
         restaurantName = "";
+        restaurantLatitude = 0;
+        restaurantLongitude = 0;
         lines.clear();
     }
 

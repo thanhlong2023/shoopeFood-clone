@@ -42,6 +42,13 @@ public class SessionManager {
         return getToken() != null && getUser() != null;
     }
 
+    public void updateUser(AuthUser user) {
+        if (user == null) {
+            return;
+        }
+        preferences.edit().putString(KEY_USER, gson.toJson(user)).apply();
+    }
+
     public void clear() {
         preferences.edit().clear().apply();
     }

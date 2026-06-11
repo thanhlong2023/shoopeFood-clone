@@ -5,14 +5,14 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-public class OrdersActivity extends AppCompatActivity {
-
+/** @deprecated Use {@link HomeActivity} */
+@Deprecated
+public class CustomerHomeActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Intent intent = new Intent(this, HomeActivity.class);
-        intent.putExtra(HomeActivity.EXTRA_INITIAL_TAB, HomeActivity.TAB_ORDERS);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        intent.putExtras(getIntent());
         startActivity(intent);
         finish();
     }
