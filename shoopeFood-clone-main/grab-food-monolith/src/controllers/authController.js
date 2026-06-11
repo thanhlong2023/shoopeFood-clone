@@ -2,6 +2,7 @@ const { User, Role, UserRole } = require("../models");
 const { createAuthToken } = require("../utils/authToken");
 
 const SUPPORTED_ROLES = new Set(["CUSTOMER", "DRIVER", "MERCHANT", "ADMIN"]);
+const PHONE_REGEX = /^0\d{9,14}$/;
 
 const normalizeRole = (role) => String(role || "").trim().toUpperCase();
 
@@ -85,8 +86,24 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "fullName, phone and password are required" });
     }
 
+    if (fullName.length < 2 || fullName.length > 100) {
+      return res.status(400).json({ message: "fullName must be between 2 and 100 characters" });
+    }
+
+    if (!PHONE_REGEX.test(phone)) {
+      return res.status(400).json({ message: "phone must be a valid Vietnamese phone number" });
+    }
+
     if (password.length < 6) {
       return res.status(400).json({ message: "password must be at least 6 characters" });
+    }
+
+    if (password.length > 72) {
+      return res.status(400).json({ message: "password must not exceed 72 characters" });
+    }
+
+    if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      return res.status(400).json({ message: "password must include letters and numbers" });
     }
 
     const existing = await User.findOne({ where: { phone } });
@@ -162,6 +179,43 @@ exports.updateProfile = async (req, res) => {
       message: "Profile updated",
       data: normalizeAuthUser(user, req.user.role),
     });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  try {
+    const currentPassword = String(req.body.currentPassword || "");
+    const newPassword = String(req.body.newPassword || "");
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "currentPassword and newPassword are required" });
+    }
+
+    if (newPassword.length < 6 || newPassword.length > 72) {
+      return res.status(400).json({ message: "newPassword must be between 6 and 72 characters" });
+    }
+
+    if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      return res.status(400).json({ message: "newPassword must include letters and numbers" });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ message: "newPassword must be different from currentPassword" });
+    }
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (String(user.password) !== currentPassword) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    await user.update({ password: newPassword });
+    return res.json({ message: "Password changed" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

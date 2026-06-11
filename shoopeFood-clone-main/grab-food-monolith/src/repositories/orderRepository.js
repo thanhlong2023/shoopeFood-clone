@@ -9,7 +9,7 @@ const orderIncludes = [
     model: OrderItem,
     as: "items",
     attributes: ["id", "orderId", "foodId", "foodName", "quantity", "priceAtOrder"],
-    include: [{ model: Food, as: "food", attributes: ["id", "name", "price"] }],
+    include: [{ model: Food, as: "food", attributes: ["id", "name", "price", "imageUrl"] }],
   },
 ];
 

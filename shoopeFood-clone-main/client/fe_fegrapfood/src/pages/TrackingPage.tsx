@@ -8,6 +8,7 @@ import { useTrackableOrder } from '../hooks/useTrackableOrder'
 import { getOrderTracking } from '../services/api/orders'
 import { getLastOrderId } from '../utils/orderStorage'
 import { createSocket } from '../services/socket'
+import { foodPhotoStyle } from '../utils/foodImage'
 import type { DriverLocation, Order, OrderTracking, RoutePoint } from '../types'
 
 const defaultCenter: [number, number] = [10.7769, 106.7009]
@@ -78,8 +79,13 @@ function MapAutoFit({ points }: { points: RoutePoint[] }) {
       return
     }
 
+    if (validPoints.length === 1) {
+      map.setView(toLatLng(validPoints[0]), 11)
+      return
+    }
+
     const bounds = L.latLngBounds(validPoints.map(toLatLng))
-    map.fitBounds(bounds, { padding: [32, 32], maxZoom: 15 })
+    map.fitBounds(bounds, { padding: [32, 32], maxZoom: 12 })
   }, [map, points])
 
   return null
@@ -249,7 +255,7 @@ export default function TrackingPage() {
 
       <div className="tracking-layout">
         <div className="tracking-map-card">
-          <MapContainer center={mapCenter} zoom={14} scrollWheelZoom>
+          <MapContainer center={mapCenter} zoom={11} scrollWheelZoom={false}>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -351,8 +357,16 @@ export default function TrackingPage() {
             <h2>Mon da dat</h2>
             {(tracking?.order.items || []).map((item) => (
               <div key={item.id} className="tracking-item">
-                <span>{item.quantity} x {item.foodName || `Mon #${item.foodId}`}</span>
-                <strong>{formatPrice(item.lineTotal)} VND</strong>
+                <div
+                  className={`tracking-item-thumb ${item.imageUrl ? '' : 'tracking-item-thumb--placeholder'}`}
+                  style={foodPhotoStyle(item.imageUrl)}
+                >
+                  {!item.imageUrl ? <span>Chua anh</span> : null}
+                </div>
+                <div className="tracking-item-body">
+                  <span>{item.quantity} x {item.foodName || `Mon #${item.foodId}`}</span>
+                  <strong>{formatPrice(item.lineTotal)} VND</strong>
+                </div>
               </div>
             ))}
           </div>

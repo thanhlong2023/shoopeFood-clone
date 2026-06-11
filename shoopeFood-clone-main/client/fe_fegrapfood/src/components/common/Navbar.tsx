@@ -64,9 +64,14 @@ export default function Navbar() {
           {isAuthenticated ? (
             <>
               <NavLink to="/profile" className="topbar-profile-link">
-                Ho so
+                <span className="topbar-profile-avatar" aria-hidden="true">
+                  {(user?.fullName || user?.phone || 'U').charAt(0).toUpperCase()}
+                </span>
+                <span className="topbar-profile-copy">
+                  <strong>{user?.fullName || 'Ho so'}</strong>
+                  <small>{user?.role}</small>
+                </span>
               </NavLink>
-              <span>{user?.role}</span>
               <button type="button" onClick={logout}>
                 Logout
               </button>

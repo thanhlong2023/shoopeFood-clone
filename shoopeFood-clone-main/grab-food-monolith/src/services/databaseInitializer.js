@@ -200,6 +200,39 @@ const ensureOrderIdempotencyUniqueIndex = async () => {
   }
 };
 
+const ensureOrderCancellationColumns = async () => {
+  const queryInterface = sequelize.getQueryInterface();
+  const columns = await queryInterface.describeTable("orders");
+
+  if (!hasColumn(columns, "cancel_reason")) {
+    await queryInterface.addColumn("orders", "cancel_reason", {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    });
+  }
+
+  if (!hasColumn(columns, "cancelled_by_role")) {
+    await queryInterface.addColumn("orders", "cancelled_by_role", {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    });
+  }
+
+  if (!hasColumn(columns, "cancelled_by_user_id")) {
+    await queryInterface.addColumn("orders", "cancelled_by_user_id", {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    });
+  }
+
+  if (!hasColumn(columns, "cancelled_at")) {
+    await queryInterface.addColumn("orders", "cancelled_at", {
+      type: DataTypes.DATE,
+      allowNull: true,
+    });
+  }
+};
+
 const ensureDriverApprovalColumns = async () => {
   const queryInterface = sequelize.getQueryInterface();
   const columns = await queryInterface.describeTable("driver_details");
@@ -296,6 +329,7 @@ const initializeDatabase = async () => {
   await ensureRestaurantApprovalColumns();
   await ensureOrderItemSnapshotColumns();
   await ensureOrderIdempotencyUniqueIndex();
+  await ensureOrderCancellationColumns();
   await ensureSingleRolePerUser();
   await ensureDemoRoleAssignments();
   await Food.resetExpiredDailyQuantities();
@@ -309,4 +343,5 @@ module.exports = {
   ensureUsersCreatedAtColumn,
   ensureDriverLocationTrackingColumns,
   ensureOrderItemSnapshotColumns,
+  ensureOrderCancellationColumns,
 };

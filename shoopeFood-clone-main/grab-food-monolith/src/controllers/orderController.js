@@ -792,6 +792,111 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
+exports.rejectOrder = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const reason = String(req.body.reason || "").trim();
+    const expectedVersion = req.body.expectedVersion;
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
+
+    if (!reason) {
+      return res.status(400).json({ message: "Reject reason is required" });
+    }
+
+    if (reason.length > 500) {
+      return res.status(400).json({ message: "Reject reason must not exceed 500 characters" });
+    }
+
+    await sequelize.transaction(async (transaction) => {
+      const order = await Order.findByPk(id, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!order) {
+        throw createHttpError(404, "Order not found");
+      }
+
+      const restaurant = await Restaurant.findOne({
+        where: { id: order.restaurantId, ownerId: req.user.id, deletedAt: null },
+        transaction,
+      });
+
+      if (!restaurant) {
+        throw createHttpError(403, "You are not allowed to reject this order");
+      }
+
+      if (expectedVersion !== undefined && Number(expectedVersion) !== Number(order.version)) {
+        throw createHttpError(409, "Version conflict");
+      }
+
+      const currentStatus = await OrderStatus.findByPk(order.statusId, { transaction });
+      if (!currentStatus || !["PENDING", "DRIVER_ACCEPTED"].includes(currentStatus.code)) {
+        throw createHttpError(409, "Only unconfirmed orders can be rejected");
+      }
+
+      const cancelledStatus = await OrderStatus.findOne({
+        where: { code: "CANCELLED" },
+        transaction,
+      });
+      if (!cancelledStatus) {
+        throw createHttpError(500, "CANCELLED order status is not configured");
+      }
+
+      const orderItems = await OrderItem.findAll({
+        where: { orderId: order.id },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      for (const orderItem of orderItems) {
+        const food = await Food.findByPk(orderItem.foodId, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+        if (!food) {
+          continue;
+        }
+
+        food.currentQuantity = Math.min(
+          Number(food.defaultQuantity || 0),
+          Number(food.currentQuantity || 0) + Number(orderItem.quantity || 0)
+        );
+        await food.save({ transaction });
+      }
+
+      await order.update(
+        {
+          statusId: cancelledStatus.id,
+          cancelReason: reason,
+          cancelledByRole: "MERCHANT",
+          cancelledByUserId: req.user.id,
+          cancelledAt: new Date(),
+          version: Number(order.version || 0) + 1,
+        },
+        { transaction }
+      );
+    });
+
+    const rejected = await orderRepository.findById(id);
+    const orderData = normalizeOrder(rejected);
+
+    try {
+      socketManager.getIO().emit("order:updated", orderData);
+      socketManager.getIO().emit(`order:${orderData.id}:updated`, orderData);
+    } catch (error) {
+      console.log("Socket not ready or err", error.message);
+    }
+
+    return res.json({ message: "Order rejected", data: orderData });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};
+
 exports.deleteOrder = async (req, res) => {
   try {
     if (req.user?.role !== "ADMIN") {

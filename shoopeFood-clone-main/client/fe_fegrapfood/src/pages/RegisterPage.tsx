@@ -9,6 +9,8 @@ import { getDefaultRedirect } from '../utils/loginPaths'
 
 type RegisterErrors = Partial<Record<'fullName' | 'phone' | 'password' | 'confirmPassword', string>>
 
+const PHONE_REGEX = /^0\d{9,14}$/
+
 export default function RegisterPage() {
   useDocumentTitle(`${APP_NAME} | Dang ky khach hang`)
 
@@ -31,14 +33,24 @@ export default function RegisterPage() {
 
     if (!trimmedName) {
       nextErrors.fullName = 'Ho ten la bat buoc'
+    } else if (trimmedName.length < 2) {
+      nextErrors.fullName = 'Ho ten phai co it nhat 2 ky tu'
+    } else if (trimmedName.length > 100) {
+      nextErrors.fullName = 'Ho ten khong duoc qua 100 ky tu'
     }
 
     if (!trimmedPhone) {
       nextErrors.phone = 'So dien thoai la bat buoc'
+    } else if (!PHONE_REGEX.test(trimmedPhone)) {
+      nextErrors.phone = 'So dien thoai khong hop le'
     }
 
     if (!password || password.length < 6) {
       nextErrors.password = 'Mat khau phai co it nhat 6 ky tu'
+    } else if (password.length > 72) {
+      nextErrors.password = 'Mat khau khong duoc qua 72 ky tu'
+    } else if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      nextErrors.password = 'Mat khau phai gom chu va so'
     }
 
     if (password !== confirmPassword) {
@@ -82,6 +94,7 @@ export default function RegisterPage() {
           <label>
             <span>Ho ten</span>
             <input
+              maxLength={100}
               value={fullName}
               onChange={(event) => {
                 setFullName(event.target.value)
@@ -95,6 +108,8 @@ export default function RegisterPage() {
           <label>
             <span>So dien thoai</span>
             <input
+              inputMode="tel"
+              maxLength={15}
               value={phone}
               onChange={(event) => {
                 setPhone(event.target.value)
@@ -109,6 +124,7 @@ export default function RegisterPage() {
             <span>Mat khau</span>
             <input
               type="password"
+              maxLength={72}
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value)

@@ -10,6 +10,7 @@ const normalizeOrderItem = (item) => ({
   orderId: item.orderId,
   foodId: item.foodId,
   foodName: item.foodName || (item.food ? item.food.name : null),
+  imageUrl: item.food ? item.food.imageUrl : null,
   quantity: Number(item.quantity || 0),
   priceAtOrder: Number(item.priceAtOrder || 0),
   lineTotal: Number(item.quantity || 0) * Number(item.priceAtOrder || 0),
@@ -83,6 +84,10 @@ const normalizeOrder = (item) => {
     paymentStatus: item.payment ? item.payment.status : null,
     items: item.items ? item.items.map(normalizeOrderItem) : [],
     version: item.version,
+    cancelReason: item.cancelReason,
+    cancelledByRole: item.cancelledByRole,
+    cancelledByUserId: item.cancelledByUserId,
+    cancelledAt: item.cancelledAt,
     createdAt: item.createdAt,
   };
 };

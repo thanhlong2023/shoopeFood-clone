@@ -179,6 +179,10 @@ CREATE TABLE `orders` (
   `total_amount` decimal(10,2) DEFAULT NULL,
   `status_id` int NOT NULL,
   `version` int NOT NULL DEFAULT '0',
+  `cancel_reason` text,
+  `cancelled_by_role` varchar(20) DEFAULT NULL,
+  `cancelled_by_user_id` int DEFAULT NULL,
+  `cancelled_at` datetime DEFAULT NULL,
   `deleted_at` datetime DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -190,11 +194,14 @@ CREATE TABLE `orders` (
   KEY `idx_orders_order_code` (`order_code`),
   UNIQUE KEY `uniq_orders_idempotency_key` (`idempotency_key`),
   KEY `idx_orders_created_at` (`created_at`),
+  KEY `idx_orders_cancelled_by_user_id` (`cancelled_by_user_id`),
+  KEY `idx_orders_cancelled_at` (`cancelled_at`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `users` (`id`),
   CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`restaurant_id`) REFERENCES `restaurants` (`id`),
   CONSTRAINT `orders_ibfk_3` FOREIGN KEY (`driver_id`) REFERENCES `users` (`id`),
   CONSTRAINT `orders_ibfk_4` FOREIGN KEY (`voucher_id`) REFERENCES `vouchers` (`id`),
-  CONSTRAINT `orders_ibfk_5` FOREIGN KEY (`status_id`) REFERENCES `order_statuses` (`id`)
+  CONSTRAINT `orders_ibfk_5` FOREIGN KEY (`status_id`) REFERENCES `order_statuses` (`id`),
+  CONSTRAINT `orders_ibfk_6` FOREIGN KEY (`cancelled_by_user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE `order_items` (

@@ -1,15 +1,49 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
+import Modal from '../components/common/Modal'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { getOrders, updateOrderStatus } from '../services/api/orders'
+import { getOrders, rejectOrder, updateOrderStatus } from '../services/api/orders'
 import { getMyRestaurants } from '../services/api/restaurants'
 import type { Order, Restaurant } from '../types'
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(value))
 }
+
+function formatOrderTime(value: string) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Khong ro thoi gian'
+  }
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date)
+}
+
+const ORDER_STATUS_GROUPS = {
+  waiting: {
+    label: 'Cho xac nhan',
+    codes: new Set<string>(['PENDING', 'DRIVER_ACCEPTED']),
+  },
+  preparing: {
+    label: 'Dang lam',
+    codes: new Set<string>(['CONFIRMED', 'PICKING_UP', 'DELIVERING']),
+  },
+  completed: {
+    label: 'Hoan thanh',
+    codes: new Set<string>(['COMPLETED']),
+  },
+} as const
+
+type StatusFilter = '' | keyof typeof ORDER_STATUS_GROUPS
 
 export default function MerchantOrdersPage() {
   useDocumentTitle(`${APP_NAME} | Don hang quan`)
@@ -18,10 +52,13 @@ export default function MerchantOrdersPage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [restaurantFilter, setRestaurantFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('')
   const [isLoading, setIsLoading] = useState(true)
   const [actioningId, setActioningId] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [rejectingOrder, setRejectingOrder] = useState<Order | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
   const loadData = useCallback(async () => {
     try {
@@ -37,7 +74,10 @@ export default function MerchantOrdersPage() {
       const batches = await Promise.all(
         targets.map((restaurant) => getOrders({ restaurantId: restaurant.id })),
       )
-      const merged = batches.flat().sort((a, b) => b.id - a.id)
+      const merged = batches.flat().sort((a, b) => {
+        const timeDifference = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        return timeDifference || b.id - a.id
+      })
       setOrders(merged)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Khong the tai don hang')
@@ -68,7 +108,64 @@ export default function MerchantOrdersPage() {
     }
   }
 
+  function openRejectModal(order: Order) {
+    setRejectingOrder(order)
+    setRejectReason('')
+    setErrorMessage(null)
+    setFeedback(null)
+  }
+
+  function closeRejectModal() {
+    if (actioningId !== null) {
+      return
+    }
+
+    setRejectingOrder(null)
+    setRejectReason('')
+  }
+
+  async function handleReject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!rejectingOrder) {
+      return
+    }
+
+    try {
+      setActioningId(rejectingOrder.id)
+      setFeedback(null)
+      setErrorMessage(null)
+      await rejectOrder(rejectingOrder.id, rejectReason, rejectingOrder.version)
+      setFeedback(`Da tu choi don ${rejectingOrder.orderCode}`)
+      setRejectingOrder(null)
+      setRejectReason('')
+      await loadData()
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Khong the tu choi don')
+    } finally {
+      setActioningId(null)
+    }
+  }
+
   const restaurantName = (id: number) => restaurants.find((item) => item.id === id)?.name || `Quan #${id}`
+  const orderCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(ORDER_STATUS_GROUPS).map(([key, group]) => [
+          key,
+          orders.filter((order) => order.statusCode && group.codes.has(order.statusCode)).length,
+        ]),
+      ) as Record<keyof typeof ORDER_STATUS_GROUPS, number>,
+    [orders],
+  )
+  const visibleOrders = useMemo(() => {
+    if (!statusFilter) {
+      return orders
+    }
+
+    const group = ORDER_STATUS_GROUPS[statusFilter]
+    return orders.filter((order) => order.statusCode && group.codes.has(order.statusCode))
+  }, [orders, statusFilter])
 
   return (
     <section className="restaurant-page">
@@ -92,7 +189,29 @@ export default function MerchantOrdersPage() {
         </div>
       ) : (
         <>
-          <div className="menu-filter-bar" style={{ marginBottom: '1rem' }}>
+          <div className="merchant-order-stats" aria-label="Thong ke don hang">
+            <button
+              type="button"
+              className={`merchant-order-stat ${statusFilter === '' ? 'active' : ''}`}
+              onClick={() => setStatusFilter('')}
+            >
+              <span>Tat ca</span>
+              <strong>{orders.length}</strong>
+            </button>
+            {Object.entries(ORDER_STATUS_GROUPS).map(([key, group]) => (
+              <button
+                key={key}
+                type="button"
+                className={`merchant-order-stat ${statusFilter === key ? 'active' : ''}`}
+                onClick={() => setStatusFilter(key as StatusFilter)}
+              >
+                <span>{group.label}</span>
+                <strong>{orderCounts[key as keyof typeof ORDER_STATUS_GROUPS]}</strong>
+              </button>
+            ))}
+          </div>
+
+          <div className="menu-filter-bar merchant-order-filter-bar">
             <label>
               <span>Loc theo quan</span>
               <select value={restaurantFilter} onChange={(event) => setRestaurantFilter(event.target.value)}>
@@ -104,15 +223,28 @@ export default function MerchantOrdersPage() {
                 ))}
               </select>
             </label>
+            <label>
+              <span>Loc theo trang thai</span>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
+                <option value="">Tat ca trang thai</option>
+                {Object.entries(ORDER_STATUS_GROUPS).map(([key, group]) => (
+                  <option key={key} value={key}>
+                    {group.label} ({orderCounts[key as keyof typeof ORDER_STATUS_GROUPS]})
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           {isLoading ? <p className="empty-state">Dang tai don hang...</p> : null}
 
-          {!isLoading && orders.length === 0 ? (
-            <p className="empty-state">Chua co don hang nao.</p>
+          {!isLoading && visibleOrders.length === 0 ? (
+            <p className="empty-state">
+              {orders.length === 0 ? 'Chua co don hang nao.' : 'Khong co don hang phu hop bo loc.'}
+            </p>
           ) : (
             <div className="menu-card-grid">
-              {orders.map((order) => (
+              {visibleOrders.map((order) => (
                 <article key={order.id} className="menu-admin-card">
                   <div className="menu-admin-card-head">
                     <div>
@@ -123,7 +255,8 @@ export default function MerchantOrdersPage() {
                   </div>
                   <div className="menu-admin-meta">
                     <span>{order.statusLabel || order.statusCode || 'Khong ro'}</span>
-                    <span>Khach #{order.customerId}</span>
+                    <span>{order.customer || `Khach #${order.customerId}`}</span>
+                    <span>{formatOrderTime(order.createdAt)}</span>
                     <span>{order.receiverAddress}</span>
                   </div>
                   <div className="admin-actions">
@@ -131,14 +264,24 @@ export default function MerchantOrdersPage() {
                       Theo doi
                     </Link>
                     {order.statusCode === 'PENDING' || order.statusCode === 'DRIVER_ACCEPTED' ? (
-                      <button
-                        type="button"
-                        className="button-primary"
-                        disabled={actioningId === order.id}
-                        onClick={() => void handleConfirm(order)}
-                      >
-                        {actioningId === order.id ? 'Dang xac nhan...' : 'Xac nhan don'}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="button-secondary"
+                          disabled={actioningId === order.id}
+                          onClick={() => openRejectModal(order)}
+                        >
+                          Tu choi don
+                        </button>
+                        <button
+                          type="button"
+                          className="button-primary"
+                          disabled={actioningId === order.id}
+                          onClick={() => void handleConfirm(order)}
+                        >
+                          {actioningId === order.id ? 'Dang xac nhan...' : 'Xac nhan don'}
+                        </button>
+                      </>
                     ) : null}
                   </div>
                 </article>
@@ -147,6 +290,47 @@ export default function MerchantOrdersPage() {
           )}
         </>
       )}
+
+      <Modal
+        title="Tu choi don"
+        subtitle={rejectingOrder ? `Don ${rejectingOrder.orderCode} se chuyen sang trang thai da huy.` : undefined}
+        isOpen={Boolean(rejectingOrder)}
+        onClose={closeRejectModal}
+        footer={
+          rejectingOrder ? (
+            <>
+              <button type="button" className="button-secondary" onClick={closeRejectModal} disabled={actioningId !== null}>
+                Huy
+              </button>
+              <button
+                type="submit"
+                form="reject-order-form"
+                className="button-danger"
+                disabled={actioningId !== null || !rejectReason.trim()}
+              >
+                {actioningId === rejectingOrder.id ? 'Dang xu ly...' : 'Xac nhan tu choi'}
+              </button>
+            </>
+          ) : null
+        }
+      >
+        <form id="reject-order-form" className="modal-form" onSubmit={handleReject}>
+          <label className="restaurant-field">
+            <span>Ly do tu choi</span>
+            <textarea
+              value={rejectReason}
+              onChange={(event) => setRejectReason(event.target.value)}
+              placeholder="Vi du: quan het mon, khong phuc vu khu vuc nay..."
+              rows={4}
+            />
+          </label>
+          {rejectingOrder ? (
+            <p className="restaurant-status-text">
+              Don {rejectingOrder.orderCode} - {formatMoney(rejectingOrder.totalAmount)} VND
+            </p>
+          ) : null}
+        </form>
+      </Modal>
 
       {user ? (
         <p className="restaurant-status-text" style={{ marginTop: '1rem' }}>

@@ -27,6 +27,10 @@ export async function updateProfile(payload: { fullName: string; phone: string }
   return response.data
 }
 
+export async function changePassword(payload: { currentPassword: string; newPassword: string }) {
+  return httpPut<{ message: string }>('/api/auth/password', payload)
+}
+
 export async function activateRole(role: AuthUser['role']) {
   const response = await httpPost<ApiResponse<AuthSession>>('/api/auth/activate-role', { role })
   return response.data

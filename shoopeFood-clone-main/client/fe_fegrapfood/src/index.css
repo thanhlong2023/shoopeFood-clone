@@ -158,16 +158,6 @@ img {
   gap: 8px;
 }
 
-.topbar-account span {
-  max-width: 96px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--primary-dark);
-  font-size: 0.82rem;
-  font-weight: 900;
-}
-
 .topbar-account button {
   min-height: 38px;
   border: 0;
@@ -403,6 +393,17 @@ img {
   gap: 10px;
 }
 
+.restaurant-search-empty {
+  margin: 0;
+  padding: 18px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-md);
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-align: center;
+}
+
 .restaurant-pick {
   width: 100%;
   min-height: 96px;
@@ -568,20 +569,75 @@ img {
 }
 
 .topbar-profile-link {
-  font-size: 0.92rem;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 11px 5px 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
   color: #1f3d2d;
   text-decoration: none;
 }
 
 .topbar-profile-link.active,
 .topbar-profile-link:hover {
-  text-decoration: underline;
+  border-color: rgba(0, 177, 79, 0.45);
+  background: #f2fbf5;
+  box-shadow: 0 4px 14px rgba(0, 177, 79, 0.1);
+}
+
+.topbar-profile-avatar {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 900;
+}
+
+.topbar-profile-copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  line-height: 1.05;
+}
+
+.topbar-profile-copy strong,
+.topbar-profile-copy small {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-profile-copy strong {
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
+.topbar-profile-copy small {
+  color: var(--primary-dark);
+  font-size: 0.7rem;
+  font-weight: 900;
 }
 
 .profile-restaurant-list {
   display: grid;
   gap: 1.25rem;
   margin-top: 1rem;
+}
+
+.profile-security-card {
+  border-color: rgba(0, 177, 79, 0.24);
+}
+
+.profile-password-grid {
+  align-items: end;
 }
 
 .profile-restaurant-card {
@@ -1201,13 +1257,13 @@ img {
 .tracking-map-card,
 .driver-map-card {
   overflow: hidden;
-  min-height: 660px;
+  min-height: 420px;
 }
 
 .tracking-map-card .leaflet-container,
 .driver-map-card .leaflet-container {
   width: 100%;
-  min-height: 660px;
+  min-height: 420px;
 }
 
 .tracking-card,
@@ -1321,12 +1377,41 @@ img {
 
 .tracking-item {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
   color: var(--text-soft);
   font-weight: 800;
+}
+
+.tracking-item-thumb {
+  width: 72px;
+  height: 72px;
+  min-width: 72px;
+  border-radius: 16px;
+  background-color: var(--surface-soft);
+  background-position: center;
+  background-size: cover;
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: var(--text-soft);
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.tracking-item-thumb--placeholder {
+  background: #f3faf4;
+}
+
+.tracking-item-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .tracking-item strong {
@@ -2493,6 +2578,46 @@ img {
   box-shadow: 0 6px 20px rgba(18, 35, 24, 0.05);
 }
 
+.merchant-order-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 1rem;
+}
+
+.merchant-order-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  color: var(--text-soft);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  text-align: left;
+}
+
+.merchant-order-stat strong {
+  color: var(--primary-dark);
+  font-size: 1.45rem;
+}
+
+.merchant-order-stat:hover,
+.merchant-order-stat.active {
+  border-color: var(--primary);
+  background: var(--surface-soft);
+  color: var(--primary-dark);
+}
+
+.merchant-order-filter-bar {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 1rem;
+}
+
 .menu-filter-bar label,
 .menu-editor-stack label {
   min-width: 0;
@@ -2694,6 +2819,10 @@ img {
     grid-template-columns: 1fr;
   }
 
+  .merchant-order-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .hero-copy {
     padding: 24px;
   }
@@ -2734,7 +2863,7 @@ img {
   .driver-map-card,
   .tracking-map-card .leaflet-container,
   .driver-map-card .leaflet-container {
-    min-height: 460px;
+    min-height: 380px;
   }
 }
 

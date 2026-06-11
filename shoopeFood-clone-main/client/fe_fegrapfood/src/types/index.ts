@@ -123,6 +123,7 @@ export type OrderItem = {
   orderId: number
   foodId: number
   foodName: string | null
+  imageUrl?: string | null
   quantity: number
   priceAtOrder: number
   lineTotal: number
@@ -132,6 +133,7 @@ export type Order = {
   id: number
   orderCode: string
   idempotencyKey?: string
+  customer: string
   customerName: string
   customerPhone: string
   customerId: number
@@ -154,6 +156,10 @@ export type Order = {
   paymentStatus: string | null
   items: OrderItem[]
   version: number
+  cancelReason?: string | null
+  cancelledByRole?: string | null
+  cancelledByUserId?: number | null
+  cancelledAt?: string | null
   createdAt: string
 }
 

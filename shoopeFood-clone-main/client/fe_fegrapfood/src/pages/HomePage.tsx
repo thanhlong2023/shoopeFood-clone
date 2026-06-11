@@ -60,6 +60,16 @@ function formatPrice(value: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(value))
 }
 
+function normalizeSearchText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .trim()
+}
+
 function toEta(restaurantId: number) {
   const baseMinute = 18 + (restaurantId % 4) * 3
   return `${baseMinute}-${baseMinute + 7} phut`
@@ -128,6 +138,38 @@ export default function HomePage() {
   }, [])
 
   const categoryNameById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories])
+  const normalizedSearch = normalizeSearchText(searchTerm)
+  const restaurantSearchMatches = useMemo(() => {
+    if (!normalizedSearch) {
+      return new Set(restaurants.map((restaurant) => restaurant.id))
+    }
+
+    const matchingRestaurantIds = new Set<number>()
+
+    restaurants.forEach((restaurant) => {
+      const restaurantCategories = categories.filter((category) => category.restaurantId === restaurant.id)
+      const categoryIds = new Set(restaurantCategories.map((category) => category.id))
+      const restaurantFoods = foods.filter((food) => food.categoryId !== null && categoryIds.has(food.categoryId))
+      const searchableValues = [
+        restaurant.name,
+        restaurant.address,
+        toCuisine(categories, restaurant.id),
+        toPromotion(restaurant.id),
+        ...restaurantCategories.map((category) => category.name),
+        ...restaurantFoods.map((food) => food.name),
+      ]
+
+      if (searchableValues.some((value) => normalizeSearchText(value || '').includes(normalizedSearch))) {
+        matchingRestaurantIds.add(restaurant.id)
+      }
+    })
+
+    return matchingRestaurantIds
+  }, [categories, foods, normalizedSearch, restaurants])
+  const visibleRestaurants = useMemo(
+    () => restaurants.filter((restaurant) => restaurantSearchMatches.has(restaurant.id)),
+    [restaurantSearchMatches, restaurants],
+  )
   const activeRestaurant = useMemo(
     () => restaurants.find((restaurant) => restaurant.id === activeRestaurantId) ?? restaurants[0] ?? null,
     [activeRestaurantId, restaurants],
@@ -152,14 +194,29 @@ export default function HomePage() {
   }, [activeCategoryIds, activeRestaurant, foods])
 
   const visibleFoods = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase()
+    const restaurantMatchesSearch = activeRestaurant ? restaurantSearchMatches.has(activeRestaurant.id) : false
+    const restaurantDirectlyMatches =
+      Boolean(activeRestaurant) &&
+      [activeRestaurant?.name, activeRestaurant?.address, activeRestaurant ? toPromotion(activeRestaurant.id) : ''].some((value) =>
+        normalizeSearchText(value || '').includes(normalizedSearch),
+      )
 
     return menuFoods.filter((food) => {
       const matchesCategory = activeCategoryId === 'all' || food.categoryId === activeCategoryId
-      const matchesSearch = !normalizedSearch || food.name.toLowerCase().includes(normalizedSearch)
+      const categoryName = categoryNameById.get(food.categoryId ?? 0) || ''
+      const matchesSearch =
+        !normalizedSearch ||
+        restaurantDirectlyMatches ||
+        normalizeSearchText(food.name).includes(normalizedSearch) ||
+        normalizeSearchText(categoryName).includes(normalizedSearch)
+
+      if (normalizedSearch && !restaurantMatchesSearch) {
+        return false
+      }
+
       return matchesCategory && matchesSearch
     })
-  }, [activeCategoryId, menuFoods, searchTerm])
+  }, [activeCategoryId, activeRestaurant, categoryNameById, menuFoods, normalizedSearch, restaurantSearchMatches])
 
   const cartItems = useMemo(
     () =>
@@ -177,8 +234,9 @@ export default function HomePage() {
     [cartItems],
   )
   const distanceKm = Number(checkout.distanceKm) || 0
-  const shippingFee = distanceKm * 3500
-  const discountAmount = subtotal >= 100000 ? 15000 : 0
+  const hasCartItems = cartItems.length > 0
+  const shippingFee = hasCartItems ? distanceKm * 3500 : 0
+  const discountAmount = hasCartItems && subtotal >= 100000 ? 15000 : 0
   const totalAmount = Math.max(0, subtotal + shippingFee - discountAmount)
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0)
 
@@ -293,8 +351,8 @@ export default function HomePage() {
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Tim mon an, quan an..."
-              aria-label="Tim mon an"
+              placeholder="Tim ten quan, mon an, danh muc..."
+              aria-label="Tim ten quan, mon an hoac danh muc"
             />
           </div>
 
@@ -324,11 +382,11 @@ export default function HomePage() {
         <aside className="restaurant-rail" aria-label="Nha hang">
           <div className="rail-head">
             <Icon name="store" />
-            <span>{isLoading ? 'Dang tai...' : `${restaurants.length} nha hang`}</span>
+            <span>{isLoading ? 'Dang tai...' : `${visibleRestaurants.length} nha hang phu hop`}</span>
           </div>
 
           <div className="restaurant-stack">
-            {restaurants.map((restaurant) => {
+            {visibleRestaurants.map((restaurant) => {
               const isActive = activeRestaurant?.id === restaurant.id
               const thumbStyle = restaurantThumbStyle(restaurant.imageUrl)
 
@@ -355,6 +413,7 @@ export default function HomePage() {
                 </button>
               )
             })}
+            {!isLoading && visibleRestaurants.length === 0 ? <p className="restaurant-search-empty">Khong tim thay quan phu hop.</p> : null}
           </div>
         </aside>
 

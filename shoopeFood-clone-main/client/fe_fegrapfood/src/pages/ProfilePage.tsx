@@ -4,7 +4,7 @@ import { AUTH_USER_STORAGE_KEY } from '../constants/auth'
 import ImageUrlField from '../components/common/ImageUrlField'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { updateProfile } from '../services/api/auth'
+import { changePassword, updateProfile } from '../services/api/auth'
 import { getMyRestaurants, updateRestaurant } from '../services/api/restaurants'
 import { getRestaurantImageUrl, restaurantThumbStyle } from '../utils/restaurantImage'
 import type { Restaurant } from '../types'
@@ -26,6 +26,12 @@ export default function ProfilePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [restaurantFeedback, setRestaurantFeedback] = useState<string | null>(null)
   const [restaurantError, setRestaurantError] = useState<string | null>(null)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [passwordFeedback, setPasswordFeedback] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -106,12 +112,56 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleChangePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setPasswordFeedback(null)
+    setPasswordError(null)
+
+    if (!currentPassword) {
+      setPasswordError('Vui long nhap mat khau hien tai')
+      return
+    }
+
+    if (newPassword.length < 6 || newPassword.length > 72) {
+      setPasswordError('Mat khau moi phai co tu 6 den 72 ky tu')
+      return
+    }
+
+    if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      setPasswordError('Mat khau moi phai gom chu va so')
+      return
+    }
+
+    if (newPassword === currentPassword) {
+      setPasswordError('Mat khau moi phai khac mat khau hien tai')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Xac nhan mat khau moi khong khop')
+      return
+    }
+
+    try {
+      setIsChangingPassword(true)
+      await changePassword({ currentPassword, newPassword })
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setPasswordFeedback('Da doi mat khau thanh cong')
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : 'Khong the doi mat khau')
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
   return (
     <section className="restaurant-page">
       <div className="restaurant-form-card">
         <span className="hero-badge">Tai khoan</span>
         <h1>Thong tin ca nhan</h1>
-        <p>Cap nhat ho ten va so dien thoai. Khong doi mat khau hay vai tro tai day.</p>
+        <p>Cap nhat thong tin ca nhan va bao mat tai khoan.</p>
       </div>
 
       <div className="restaurant-form-card">
@@ -158,6 +208,56 @@ export default function ProfilePage() {
           <div className="restaurant-form-actions">
             <button type="submit" className="button-primary" disabled={isSaving}>
               {isSaving ? 'Dang luu...' : 'Luu thong tin'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className="restaurant-form-card profile-security-card">
+        <span className="hero-badge">Bao mat</span>
+        <h2>Doi mat khau</h2>
+        <p>Mat khau moi phai co tu 6 den 72 ky tu, gom chu va so.</p>
+
+        {passwordFeedback ? <p className="restaurant-feedback success">{passwordFeedback}</p> : null}
+        {passwordError ? <p className="restaurant-feedback error">{passwordError}</p> : null}
+
+        <form className="restaurant-form" onSubmit={handleChangePassword}>
+          <div className="restaurant-form-grid profile-password-grid">
+            <div className="restaurant-field full">
+              <label htmlFor="currentPassword">Mat khau hien tai</label>
+              <input
+                id="currentPassword"
+                type="password"
+                maxLength={72}
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+              />
+            </div>
+            <div className="restaurant-field">
+              <label htmlFor="newPassword">Mat khau moi</label>
+              <input
+                id="newPassword"
+                type="password"
+                maxLength={72}
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+              />
+            </div>
+            <div className="restaurant-field">
+              <label htmlFor="confirmPassword">Xac nhan mat khau moi</label>
+              <input
+                id="confirmPassword"
+                type="password"
+                maxLength={72}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="restaurant-form-actions">
+            <button type="submit" className="button-primary" disabled={isChangingPassword}>
+              {isChangingPassword ? 'Dang doi mat khau...' : 'Doi mat khau'}
             </button>
           </div>
         </form>

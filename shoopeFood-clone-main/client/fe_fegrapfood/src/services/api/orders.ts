@@ -1,4 +1,4 @@
-import { httpGet, httpPost, httpPut } from './http'
+import { httpGet, httpPatch, httpPost, httpPut } from './http'
 import type { ApiResponse, CreateOrderPayload, Order, OrderTracking, UpdateOrderPayload } from '../../types'
 
 export async function createOrder(payload: CreateOrderPayload) {
@@ -40,5 +40,10 @@ export async function updateOrder(id: number, payload: UpdateOrderPayload) {
 
 export async function updateOrderStatus(id: number, statusCode: string, expectedVersion?: number) {
   const response = await httpPut<ApiResponse<Order>>(`/api/orders/${id}/status`, { statusCode, expectedVersion })
+  return response.data
+}
+
+export async function rejectOrder(id: number, reason: string, expectedVersion?: number) {
+  const response = await httpPatch<ApiResponse<Order>>(`/api/orders/${id}/reject`, { reason, expectedVersion })
   return response.data
 }
