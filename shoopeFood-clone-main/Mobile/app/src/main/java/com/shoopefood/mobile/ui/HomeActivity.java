@@ -23,6 +23,7 @@ import com.shoopefood.mobile.model.RestaurantsResponse;
 import com.shoopefood.mobile.network.ApiClient;
 import com.shoopefood.mobile.network.ApiService;
 import com.shoopefood.mobile.session.SessionManager;
+import com.shoopefood.mobile.util.RoleRouter;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -52,6 +53,12 @@ public class HomeActivity extends AppCompatActivity implements RestaurantAdapter
             return;
         }
 
+        if (!RoleRouter.ROLE_CUSTOMER.equals(sessionManager.getUser().role)) {
+            startActivity(RoleRouter.getHomeIntent(this, sessionManager.getUser().role));
+            finish();
+            return;
+        }
+
         if (getSupportActionBar() != null) {
             getSupportActionBar().setTitle(R.string.home_title);
             getSupportActionBar().setSubtitle(sessionManager.getUser().fullName);
@@ -67,6 +74,7 @@ public class HomeActivity extends AppCompatActivity implements RestaurantAdapter
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
+        swipeRefreshLayout.setColorSchemeResources(R.color.brand_green);
         swipeRefreshLayout.setOnRefreshListener(this::loadRestaurants);
         cartFab.setOnClickListener(v -> startActivity(new Intent(this, CartActivity.class)));
 

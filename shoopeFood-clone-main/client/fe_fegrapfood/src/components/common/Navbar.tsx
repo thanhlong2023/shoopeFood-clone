@@ -39,7 +39,11 @@ export default function Navbar() {
               <li>
                 <NavLink to="/">Dat mon</NavLink>
               </li>
-              {hasTrackableOrder ? (
+              {isAuthenticated ? (
+                <li>
+                  <NavLink to="/tracking">Don hang</NavLink>
+                </li>
+              ) : hasTrackableOrder ? (
                 <li>
                   <NavLink to="/tracking">Theo doi</NavLink>
                 </li>

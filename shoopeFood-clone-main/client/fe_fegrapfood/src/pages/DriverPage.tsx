@@ -10,7 +10,38 @@ import { createSocket } from '../services/socket'
 import type { Driver, Order, OrderTracking, RouteLeg, RoutePoint } from '../types'
 
 const defaultCenter: [number, number] = [10.7769, 106.7009]
+const NEARBY_RADIUS_KM = 10
 const activeLocationStatuses = new Set(['DRIVER_ACCEPTED', 'CONFIRMED', 'PICKING_UP', 'DELIVERING'])
+
+function haversineKm(from: RoutePoint, to: { latitude?: number; longitude?: number }) {
+  const lat2 = Number(to.latitude)
+  const lon2 = Number(to.longitude)
+  if (!Number.isFinite(lat2) || !Number.isFinite(lon2)) {
+    return Number.POSITIVE_INFINITY
+  }
+
+  const toRad = (value: number) => (value * Math.PI) / 180
+  const dLat = toRad(lat2 - from.latitude)
+  const dLon = toRad(lon2 - from.longitude)
+  const lat1 = toRad(from.latitude)
+  const lat2Rad = toRad(lat2)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2Rad) * Math.sin(dLon / 2) ** 2
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function filterNearbyOrders(orders: Order[], point: RoutePoint | null, radiusKm = NEARBY_RADIUS_KM) {
+  if (!point) {
+    return []
+  }
+
+  return orders.filter((order) => {
+    const restaurant = order.restaurant
+    if (!restaurant?.latitude || !restaurant?.longitude) {
+      return false
+    }
+    return haversineKm(point, restaurant) <= radiusKm
+  })
+}
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(value))
@@ -116,10 +147,18 @@ export default function DriverPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const lastGpsPointRef = useRef<RoutePoint | null>(null)
 
-  const allOrders = useMemo(() => [...myOrders, ...availableOrders], [availableOrders, myOrders])
+  const nearbyAvailableOrders = useMemo(
+    () => filterNearbyOrders(availableOrders, currentPoint),
+    [availableOrders, currentPoint],
+  )
+  const allOrders = useMemo(() => [...myOrders, ...nearbyAvailableOrders], [myOrders, nearbyAvailableOrders])
   const activeOrder = useMemo(
     () => allOrders.find((order) => order.id === activeOrderId) || tracking?.order || null,
     [activeOrderId, allOrders, tracking],
+  )
+  const hasActiveDelivery = useMemo(
+    () => myOrders.some((order) => activeLocationStatuses.has(order.statusCode)),
+    [myOrders],
   )
   const routeLegs = tracking?.route?.legs || []
   const routePolylinePoints = useMemo(() => routeLegs.flatMap((leg) => leg.geometry), [routeLegs])
@@ -158,10 +197,11 @@ export default function DriverPage() {
       setMyOrders(feed.active)
 
       setActiveOrderId((current) => {
-        if (current && [...feed.active, ...feed.available].some((order) => order.id === current)) {
+        const visibleAvailable = filterNearbyOrders(feed.available, lastGpsPointRef.current)
+        if (current && [...feed.active, ...visibleAvailable].some((order) => order.id === current)) {
           return current
         }
-        return feed.active[0]?.id ?? feed.available[0]?.id ?? null
+        return feed.active[0]?.id ?? visibleAvailable[0]?.id ?? null
       })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Khong the tai bang tai xe')
@@ -267,6 +307,11 @@ export default function DriverPage() {
   }, [activeOrderId, loadFeed, loadTracking])
 
   async function handleAcceptOrder(order: Order) {
+    if (hasActiveDelivery) {
+      setErrorMessage('Ban dang co don dang giao. Hoan thanh don hien tai truoc khi nhan don moi.')
+      return
+    }
+
     try {
       setIsActioning(true)
       setErrorMessage(null)
@@ -309,8 +354,13 @@ export default function DriverPage() {
           <small>{order.receiverAddress || `Don #${order.id}`} - {formatPrice(order.cashToCollect || order.totalAmount)} VND</small>
         </button>
         {mode === 'available' ? (
-          <button type="button" className="button-primary" disabled={isActioning} onClick={() => void handleAcceptOrder(order)}>
-            Nhan don
+          <button
+            type="button"
+            className="button-primary"
+            disabled={isActioning || hasActiveDelivery}
+            onClick={() => void handleAcceptOrder(order)}
+          >
+            {hasActiveDelivery ? 'Dang giao don khac' : 'Nhan don'}
           </button>
         ) : null}
       </article>
@@ -338,16 +388,26 @@ export default function DriverPage() {
       <div className="driver-layout">
         <aside className="driver-orders">
           <div className="driver-panel-head">
-            <h2>{isLoading ? 'Dang tai...' : `${availableOrders.length} don moi`}</h2>
+            <h2>
+              {isLoading
+                ? 'Dang tai...'
+                : `${nearbyAvailableOrders.length} don trong ${NEARBY_RADIUS_KM}km`}
+            </h2>
             <button type="button" className="button-secondary" onClick={() => void loadFeed()} disabled={isLoading}>
-              Tai lai
+              Tai lai don
             </button>
           </div>
 
           <div className="driver-order-list">
-            <h3>Don moi</h3>
-            {availableOrders.map((order) => renderOrderCard(order, 'available'))}
-            {!isLoading && availableOrders.length === 0 ? <p className="empty-state">Chua co don moi.</p> : null}
+            <h3>Don moi gan ban ({NEARBY_RADIUS_KM}km)</h3>
+            {nearbyAvailableOrders.map((order) => renderOrderCard(order, 'available'))}
+            {!isLoading && nearbyAvailableOrders.length === 0 ? (
+              <p className="empty-state">
+                {currentPoint
+                  ? `Chua co don moi trong ban kinh ${NEARBY_RADIUS_KM}km. Bam Tai lai don de cap nhat.`
+                  : 'Dang cho GPS de loc don gan ban...'}
+              </p>
+            ) : null}
 
             <h3>Don cua toi</h3>
             {myOrders.map((order) => renderOrderCard(order, 'mine'))}

@@ -55,6 +55,7 @@ public class OrdersActivity extends AppCompatActivity implements OrderAdapter.On
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
+        swipeRefreshLayout.setColorSchemeResources(R.color.brand_green);
         swipeRefreshLayout.setOnRefreshListener(this::loadOrders);
         loadOrders();
     }

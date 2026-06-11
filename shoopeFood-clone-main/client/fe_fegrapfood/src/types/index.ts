@@ -140,6 +140,7 @@ export type Order = {
   restaurantId: number
   restaurant?: Pick<Restaurant, 'id' | 'name' | 'address' | 'latitude' | 'longitude' | 'isOpen'> | null
   driverId: number | null
+  driver?: Driver | null
   receiverAddress: string
   receiverLat: number | null
   receiverLng: number | null
@@ -171,6 +172,21 @@ export type Driver = {
   vehicleType: string
   licensePlate: string
   isOnline: boolean
+}
+
+export type DriverCompletedDelivery = {
+  id: number
+  orderCode: string
+  restaurantName: string
+  totalAmount: number
+  receiverAddress: string
+  completedAt: string
+}
+
+export type DriverPublicProfile = {
+  driver: Driver
+  completedCount: number
+  completedDeliveries: DriverCompletedDelivery[]
 }
 
 export type DriverLocation = {

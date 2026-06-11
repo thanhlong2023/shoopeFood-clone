@@ -34,6 +34,34 @@ const normalizeRestaurantSummary = (item) => {
 const resolveCustomerName = (item) =>
   item.customerUser ? item.customerUser.fullName || `User ${item.customerId}` : `User ${item.customerId}`;
 
+const resolveDriverSummary = (item) => {
+  if (!item.driverId) {
+    return null;
+  }
+
+  const user = item.driverUser;
+  if (!user) {
+    return {
+      id: item.driverId,
+      fullName: `Tai xe #${item.driverId}`,
+      phone: "",
+      vehicleType: "",
+      licensePlate: "",
+      isOnline: false,
+    };
+  }
+
+  const detail = user.driverDetail;
+  return {
+    id: user.id,
+    fullName: user.fullName || "",
+    phone: user.phone || "",
+    vehicleType: detail ? detail.vehicleType || "" : "",
+    licensePlate: detail ? detail.licensePlate || "" : "",
+    isOnline: detail ? Boolean(detail.isOnline) : false,
+  };
+};
+
 const resolveCashToCollect = (item) => {
   const totalAmount = Number(item.totalAmount || 0);
 
@@ -64,6 +92,7 @@ const normalizeOrder = (item) => {
     restaurantId: item.restaurantId,
     restaurant: normalizeRestaurantSummary(restaurant),
     driverId: item.driverId,
+    driver: resolveDriverSummary(item),
     voucherId: item.voucherId,
     receiverAddress: item.receiverAddress || "",
     receiverLat: item.receiverLat === null || item.receiverLat === undefined ? null : Number(item.receiverLat),

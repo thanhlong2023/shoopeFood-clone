@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -16,6 +17,7 @@ import com.shoopefood.mobile.model.LoginResponse;
 import com.shoopefood.mobile.network.ApiClient;
 import com.shoopefood.mobile.network.ApiService;
 import com.shoopefood.mobile.session.SessionManager;
+import com.shoopefood.mobile.util.RoleRouter;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -23,12 +25,19 @@ import retrofit2.Response;
 
 public class LoginActivity extends AppCompatActivity {
 
+    public static final String EXTRA_LOGIN_ROLE = "login_role";
+
+    private TextView loginTitle;
     private TextInputEditText phoneInput;
     private TextInputEditText passwordInput;
     private MaterialButton loginButton;
+    private MaterialButton switchCustomerButton;
+    private MaterialButton switchMerchantButton;
+    private MaterialButton switchDriverButton;
     private ProgressBar progressBar;
     private SessionManager sessionManager;
     private ApiService apiService;
+    private String loginRole = RoleRouter.ROLE_CUSTOMER;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,20 +47,57 @@ public class LoginActivity extends AppCompatActivity {
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getService(this);
 
+        if (getIntent().hasExtra(EXTRA_LOGIN_ROLE)) {
+            loginRole = getIntent().getStringExtra(EXTRA_LOGIN_ROLE);
+        }
+
         if (sessionManager.isLoggedIn()) {
-            openHome();
+            openHomeForRole(sessionManager.getUser().role);
             return;
         }
 
+        loginTitle = findViewById(R.id.textLoginTitle);
         phoneInput = findViewById(R.id.inputPhone);
         passwordInput = findViewById(R.id.inputPassword);
         loginButton = findViewById(R.id.buttonLogin);
+        switchCustomerButton = findViewById(R.id.buttonSwitchCustomer);
+        switchMerchantButton = findViewById(R.id.buttonSwitchMerchant);
+        switchDriverButton = findViewById(R.id.buttonSwitchDriver);
         progressBar = findViewById(R.id.progressLogin);
 
-        phoneInput.setText("0900000001");
+        applyRoleDefaults();
         passwordInput.setText("123456");
 
+        updateRoleUi();
         loginButton.setOnClickListener(v -> attemptLogin());
+        switchCustomerButton.setOnClickListener(v -> switchRole(RoleRouter.ROLE_CUSTOMER));
+        switchMerchantButton.setOnClickListener(v -> switchRole(RoleRouter.ROLE_MERCHANT));
+        switchDriverButton.setOnClickListener(v -> switchRole(RoleRouter.ROLE_DRIVER));
+    }
+
+    private void switchRole(String role) {
+        loginRole = role;
+        applyRoleDefaults();
+        updateRoleUi();
+    }
+
+    private void applyRoleDefaults() {
+        if (RoleRouter.ROLE_MERCHANT.equals(loginRole)) {
+            loginTitle.setText(R.string.login_title_merchant);
+            phoneInput.setText("0900000003");
+        } else if (RoleRouter.ROLE_DRIVER.equals(loginRole)) {
+            loginTitle.setText(R.string.login_title_driver);
+            phoneInput.setText("0900000002");
+        } else {
+            loginTitle.setText(R.string.login_title);
+            phoneInput.setText("0900000001");
+        }
+    }
+
+    private void updateRoleUi() {
+        switchCustomerButton.setEnabled(!RoleRouter.ROLE_CUSTOMER.equals(loginRole));
+        switchMerchantButton.setEnabled(!RoleRouter.ROLE_MERCHANT.equals(loginRole));
+        switchDriverButton.setEnabled(!RoleRouter.ROLE_DRIVER.equals(loginRole));
     }
 
     private void attemptLogin() {
@@ -65,7 +111,7 @@ public class LoginActivity extends AppCompatActivity {
 
         setLoading(true);
 
-        LoginRequest request = new LoginRequest(phone, password, "CUSTOMER");
+        LoginRequest request = new LoginRequest(phone, password, loginRole);
         apiService.login(request).enqueue(new Callback<LoginResponse>() {
             @Override
             public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
@@ -80,8 +126,14 @@ public class LoginActivity extends AppCompatActivity {
                     return;
                 }
 
+                String role = response.body().data.user.role;
+                if (RoleRouter.isBlockedOnMobile(role)) {
+                    Toast.makeText(LoginActivity.this, RoleRouter.getBlockedMessage(role), Toast.LENGTH_LONG).show();
+                    return;
+                }
+
                 sessionManager.saveSession(response.body().data.token, response.body().data.user);
-                openHome();
+                openHomeForRole(role);
             }
 
             @Override
@@ -92,13 +144,13 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
+    private void openHomeForRole(String role) {
+        startActivity(RoleRouter.getHomeIntent(this, role));
+        finish();
+    }
+
     private void setLoading(boolean loading) {
         progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         loginButton.setEnabled(!loading);
-    }
-
-    private void openHome() {
-        startActivity(new Intent(this, HomeActivity.class));
-        finish();
     }
 }

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_driver_profile"
+        android:icon="@drawable/ic_nav_profile"
+        android:title="@string/driver_nav_profile" />
+    <item
+        android:id="@+id/nav_driver_delivery"
+        android:icon="@drawable/ic_nav_delivery"
+        android:title="@string/driver_nav_delivery" />
+    <item
+        android:id="@+id/nav_driver_menu"
+        android:icon="@drawable/ic_nav_menu"
+        android:title="@string/driver_nav_menu" />
+    <item
+        android:id="@+id/nav_driver_income"
+        android:icon="@drawable/ic_nav_income"
+        android:title="@string/driver_nav_income" />
+</menu>

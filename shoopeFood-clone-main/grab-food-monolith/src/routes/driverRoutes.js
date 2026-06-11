@@ -6,8 +6,10 @@ const requireRole = require("../middleware/role");
 const router = express.Router();
 
 router.get("/me/orders", auth, requireRole(["DRIVER"]), driverController.getMyOrderFeed);
+router.get("/me/route", auth, requireRole(["DRIVER"]), driverController.getDrivingRoute);
 router.get("/", auth, requireRole(["ADMIN", "DRIVER"]), driverController.getDrivers);
 router.get("/:id/info", auth, driverController.getDriverInfo);
+router.get("/:id/profile", auth, driverController.getDriverProfile);
 router.get("/:id/location", auth, driverController.getLatestDriverLocation);
 router.get("/:id", auth, requireRole(["ADMIN", "DRIVER"]), driverController.getDriverById);
 router.post("/", auth, requireRole(["ADMIN"]), driverController.createDriver);

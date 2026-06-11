@@ -65,12 +65,12 @@ public final class ApiClient {
     }
 
     public static String parseErrorMessage(Response response) {
-        if (response == null || response.errorBody() == null) {
+        if (response == null || response.body() == null) {
             return "Khong the ket noi server";
         }
 
         try {
-            ApiError error = new Gson().fromJson(response.errorBody().string(), ApiError.class);
+            ApiError error = new Gson().fromJson(response.body().string(), ApiError.class);
             if (error != null && error.message != null && !error.message.isEmpty()) {
                 return error.message;
             }

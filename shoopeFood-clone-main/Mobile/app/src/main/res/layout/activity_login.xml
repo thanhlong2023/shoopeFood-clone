@@ -20,6 +20,7 @@
             android:src="@drawable/ic_app_logo" />
 
         <TextView
+            android:id="@+id/textLoginTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
@@ -74,6 +75,28 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonSwitchCustomer"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/login_as_customer" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonSwitchMerchant"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/login_as_merchant" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonSwitchDriver"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/login_as_driver" />
 
     </LinearLayout>
 </ScrollView>

@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const shippingService = require("../services/shippingService");
 const osrmService = require("../services/osrmService");
 const {
@@ -209,6 +210,14 @@ const emitOrderUpdated = (eventName, orderData) => {
     io.emit(eventName, orderData);
     io.emit("order:updated", orderData);
     io.emit(`order:${orderData.id}:updated`, orderData);
+    if (eventName === "order:claimed" && orderData.customerId) {
+      io.emit(`customer:${orderData.customerId}:driver-assigned`, {
+        orderId: orderData.id,
+        orderCode: orderData.orderCode,
+        statusCode: orderData.statusCode,
+        driver: orderData.driver || null,
+      });
+    }
   } catch (error) {
     console.log("Socket not ready or err", error.message);
   }
@@ -597,6 +606,31 @@ exports.acceptOrder = async (req, res) => {
         throw createHttpError(409, "Only pending orders can be accepted");
       }
 
+      const activeStatuses = await OrderStatus.findAll({
+        where: { code: { [Op.in]: Array.from(DRIVER_ACTIVE_STATUS_CODES) } },
+        transaction,
+      });
+      const activeStatusIds = activeStatuses.map((status) => status.id).filter(Boolean);
+
+      if (activeStatusIds.length > 0) {
+        const existingActiveOrder = await Order.findOne({
+          where: {
+            driverId,
+            statusId: { [Op.in]: activeStatusIds },
+            id: { [Op.ne]: id },
+          },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+
+        if (existingActiveOrder) {
+          throw createHttpError(
+            409,
+            "Driver already has an active order. Complete it before accepting another."
+          );
+        }
+      }
+
       await order.update(
         {
           driverId,
@@ -782,6 +816,35 @@ exports.updateOrderStatus = async (req, res) => {
     });
     const orderData = normalizeOrder(latest);
     emitOrderUpdated("order:updated", orderData);
+
+    if (resolvedStatus.code === "DELIVERING" && orderData.customerId) {
+      try {
+        socketManager.getIO().emit(`customer:${orderData.customerId}:driver-delivering`, {
+          orderId: orderData.id,
+          orderCode: orderData.orderCode,
+          statusCode: orderData.statusCode,
+          driver: orderData.driver || null,
+          cashToCollect: orderData.cashToCollect,
+          totalAmount: orderData.totalAmount,
+        });
+      } catch (error) {
+        console.log("Socket not ready or err", error.message);
+      }
+    }
+
+    if (resolvedStatus.code === "COMPLETED" && orderData.customerId) {
+      try {
+        socketManager.getIO().emit(`customer:${orderData.customerId}:delivery-completed`, {
+          orderId: orderData.id,
+          orderCode: orderData.orderCode,
+          statusCode: orderData.statusCode,
+          driver: orderData.driver || null,
+          totalAmount: orderData.totalAmount,
+        });
+      } catch (error) {
+        console.log("Socket not ready or err", error.message);
+      }
+    }
 
     return res.json({
       message: "Updated",

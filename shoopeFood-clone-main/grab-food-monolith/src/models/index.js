@@ -26,6 +26,9 @@ DriverLocation.belongsTo(User, { foreignKey: "driverId", targetKey: "id", as: "d
 User.hasMany(Order, { foreignKey: "customerId", sourceKey: "id" });
 Order.belongsTo(User, { foreignKey: "customerId", targetKey: "id", as: "customerUser" });
 
+User.hasMany(Order, { foreignKey: "driverId", sourceKey: "id", as: "driverOrders" });
+Order.belongsTo(User, { foreignKey: "driverId", targetKey: "id", as: "driverUser" });
+
 Restaurant.hasMany(Order, { foreignKey: "restaurantId", sourceKey: "id" });
 Order.belongsTo(Restaurant, { foreignKey: "restaurantId", targetKey: "id" });
 

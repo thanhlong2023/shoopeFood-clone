@@ -4,9 +4,13 @@ const socketManager = require("../sockets");
 const orderRepository = require("../repositories/orderRepository");
 const { normalizeOrder } = require("../utils/orderNormalizer");
 const { setUserRole } = require("../utils/roleAssignment");
+const osrmService = require("../services/osrmService");
 
 const PENDING_STATUS_CODE = "PENDING";
+const COMPLETED_STATUS_CODE = "COMPLETED";
 const DRIVER_ACTIVE_STATUS_CODES = ["DRIVER_ACCEPTED", "CONFIRMED", "PICKING_UP", "DELIVERING"];
+const DRIVER_PROFILE_DELIVERY_LIMIT = 10;
+const DRIVER_FEED_COMPLETED_LIMIT = 20;
 
 const normalizeDriver = (item) => {
   const user = item.driverUser || item.User || null;
@@ -93,6 +97,55 @@ exports.getDriverInfo = async (req, res) => {
   }
 };
 
+exports.getDriverProfile = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ message: "Invalid driver id" });
+    }
+
+    const item = await findApprovedDriver(id);
+    if (!item) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    const completedStatus = await OrderStatus.findOne({ where: { code: COMPLETED_STATUS_CODE } });
+    const completedWhere = completedStatus
+      ? { driverId: id, statusId: completedStatus.id }
+      : { driverId: id, id: -1 };
+
+    const [completedCount, completedOrders] = await Promise.all([
+      Order.count({ where: completedWhere }),
+      Order.findAll({
+        where: completedWhere,
+        include: orderRepository.getIncludes(),
+        order: [["created_at", "DESC"]],
+        limit: DRIVER_PROFILE_DELIVERY_LIMIT,
+      }),
+    ]);
+
+    return res.json({
+      data: {
+        driver: normalizeDriver(item),
+        completedCount,
+        completedDeliveries: completedOrders.map((order) => {
+          const payload = normalizeOrder(order);
+          return {
+            id: payload.id,
+            orderCode: payload.orderCode,
+            restaurantName: payload.restaurant?.name || `Quan #${payload.restaurantId}`,
+            totalAmount: payload.totalAmount,
+            receiverAddress: payload.receiverAddress,
+            completedAt: payload.createdAt,
+          };
+        }),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 exports.getMyOrderFeed = async (req, res) => {
   try {
     const driverId = Number(req.user?.id);
@@ -112,7 +165,12 @@ exports.getMyOrderFeed = async (req, res) => {
     const pendingStatusId = statusIdByCode.get(PENDING_STATUS_CODE);
     const activeStatusIds = DRIVER_ACTIVE_STATUS_CODES.map((code) => statusIdByCode.get(code)).filter(Boolean);
 
-    const [availableOrders, myOrders] = await Promise.all([
+    const completedStatus = await OrderStatus.findOne({ where: { code: COMPLETED_STATUS_CODE } });
+    const completedWhere = completedStatus
+      ? { driverId, statusId: completedStatus.id }
+      : { driverId, id: -1 };
+
+    const [availableOrders, myOrders, completedOrders] = await Promise.all([
       pendingStatusId
         ? Order.findAll({
             where: { driverId: null, statusId: pendingStatusId },
@@ -127,6 +185,12 @@ exports.getMyOrderFeed = async (req, res) => {
             order: [["created_at", "DESC"]],
           })
         : Promise.resolve([]),
+      Order.findAll({
+        where: completedWhere,
+        include: orderRepository.getIncludes(),
+        order: [["created_at", "DESC"]],
+        limit: DRIVER_FEED_COMPLETED_LIMIT,
+      }),
     ]);
 
     return res.json({
@@ -134,6 +198,41 @@ exports.getMyOrderFeed = async (req, res) => {
         driver: normalizeDriver(driver),
         available: availableOrders.map(normalizeOrder),
         active: myOrders.map(normalizeOrder),
+        completed: completedOrders.map(normalizeOrder),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getDrivingRoute = async (req, res) => {
+  try {
+    if (req.user?.role !== "DRIVER") {
+      return res.status(403).json({ message: "Only DRIVER accounts can request driving routes" });
+    }
+
+    const fromLat = Number(req.query.fromLat);
+    const fromLng = Number(req.query.fromLng);
+    const toLat = Number(req.query.toLat);
+    const toLng = Number(req.query.toLng);
+
+    if (![fromLat, fromLng, toLat, toLng].every(Number.isFinite)) {
+      return res.status(400).json({ message: "fromLat, fromLng, toLat and toLng are required" });
+    }
+
+    const route = await osrmService.getRoute(
+      { latitude: fromLat, longitude: fromLng },
+      { latitude: toLat, longitude: toLng },
+    );
+
+    return res.json({
+      data: {
+        ok: route.ok,
+        geometry: route.geometry || [],
+        distanceKm: route.distanceKm,
+        durationMinutes: route.durationMinutes,
+        error: route.error || null,
       },
     });
   } catch (error) {

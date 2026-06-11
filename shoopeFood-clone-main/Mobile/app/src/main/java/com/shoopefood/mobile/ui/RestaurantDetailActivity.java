@@ -10,6 +10,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.shoopefood.mobile.R;
@@ -38,6 +39,7 @@ public class RestaurantDetailActivity extends AppCompatActivity implements FoodA
     private TextView metaText;
     private TextView emptyText;
     private FloatingActionButton cartFab;
+    private SwipeRefreshLayout swipeRefreshLayout;
 
     private int restaurantId;
     private String restaurantName;
@@ -66,6 +68,9 @@ public class RestaurantDetailActivity extends AppCompatActivity implements FoodA
         emptyText = findViewById(R.id.textEmptyFoods);
         progressBar = findViewById(R.id.progressRestaurantDetail);
         cartFab = findViewById(R.id.fabCart);
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshFoods);
+        swipeRefreshLayout.setColorSchemeResources(R.color.brand_green);
+        swipeRefreshLayout.setOnRefreshListener(this::refreshFoods);
 
         RecyclerView recyclerView = findViewById(R.id.recyclerFoods);
         adapter = new FoodAdapter(this);
@@ -112,13 +117,22 @@ public class RestaurantDetailActivity extends AppCompatActivity implements FoodA
         });
     }
 
+    private void refreshFoods() {
+        loadFoods();
+    }
+
     private void loadFoods() {
-        progressBar.setVisibility(View.VISIBLE);
+        if (swipeRefreshLayout == null || !swipeRefreshLayout.isRefreshing()) {
+            progressBar.setVisibility(View.VISIBLE);
+        }
 
         apiService.getFoods(restaurantId).enqueue(new Callback<FoodsResponse>() {
             @Override
             public void onResponse(Call<FoodsResponse> call, Response<FoodsResponse> response) {
                 progressBar.setVisibility(View.GONE);
+                if (swipeRefreshLayout != null) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
 
                 if (!response.isSuccessful() || response.body() == null || response.body().data == null) {
                     Toast.makeText(
@@ -136,6 +150,9 @@ public class RestaurantDetailActivity extends AppCompatActivity implements FoodA
             @Override
             public void onFailure(Call<FoodsResponse> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
+                if (swipeRefreshLayout != null) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
                 Toast.makeText(RestaurantDetailActivity.this, R.string.network_error, Toast.LENGTH_LONG).show();
             }
         });

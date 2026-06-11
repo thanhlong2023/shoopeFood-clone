@@ -7,4 +7,7 @@
     <color name="text_primary">#1A1A1A</color>
     <color name="text_secondary">#667085</color>
     <color name="white">#FFFFFF</color>
+    <color name="status_waiting_text">#B54708</color>
+    <color name="status_cooking_text">#175CD3</color>
+    <color name="status_done_text">#027A48</color>
 </resources>

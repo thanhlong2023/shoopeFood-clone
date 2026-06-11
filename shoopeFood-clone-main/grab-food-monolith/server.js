@@ -4,6 +4,7 @@ const app = require("./src/app");
 const socketManager = require("./src/sockets");
 const { initializeDatabase } = require("./src/services/databaseInitializer");
 const { scheduleDailyFoodQuantityReset } = require("./src/services/foodQuantityResetService");
+const { schedulePendingOrderTimeoutSweep } = require("./src/services/orderTimeoutService");
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
@@ -16,6 +17,7 @@ const bootstrap = async () => {
     console.log("Database initialized successfully");
 
     scheduleDailyFoodQuantityReset();
+    schedulePendingOrderTimeoutSweep();
 
     server.listen(PORT, () => {
       console.log(`GrabFood monolith is running at http://localhost:${PORT}`);

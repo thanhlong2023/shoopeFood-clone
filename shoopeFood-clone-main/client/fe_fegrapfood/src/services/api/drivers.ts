@@ -1,5 +1,5 @@
 import { httpGet, httpPost } from './http'
-import type { ApiResponse, Driver, DriverLocation, Order, UpdateDriverLocationPayload } from '../../types'
+import type { ApiResponse, Driver, DriverLocation, DriverPublicProfile, Order, UpdateDriverLocationPayload } from '../../types'
 
 export type DriverOrderFeed = {
   driver: Driver
@@ -9,6 +9,11 @@ export type DriverOrderFeed = {
 
 export async function getDrivers() {
   const response = await httpGet<ApiResponse<Driver[]>>('/api/drivers')
+  return response.data
+}
+
+export async function getDriverProfile(driverId: number) {
+  const response = await httpGet<ApiResponse<DriverPublicProfile>>(`/api/drivers/${driverId}/profile`)
   return response.data
 }
 
