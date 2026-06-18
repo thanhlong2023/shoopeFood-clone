@@ -914,7 +914,7 @@ export default function TrackingPage() {
               <div key={item.id} className="tracking-item">
                 <div
                   className={`tracking-item-thumb ${item.imageUrl ? '' : 'tracking-item-thumb--placeholder'}`}
-                  style={foodPhotoStyle(item.imageUrl)}
+                  style={foodPhotoStyle(item.imageUrl, item.id)}
                 >
                   {!item.imageUrl ? <span>Chua ?nh</span> : null}
                 </div>

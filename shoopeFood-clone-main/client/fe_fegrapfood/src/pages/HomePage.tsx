@@ -555,7 +555,7 @@ export default function HomePage() {
           <div className="tw-restaurant-stack flex flex-col gap-2.5 max-h-[60vh] overflow-y-auto px-1 pt-[20px]">
             {previewRestaurants.map((restaurant) => {
               const isActive = activeRestaurant?.id === restaurant.id
-              const thumbStyle = restaurantThumbStyle(restaurant.imageUrl)
+              const thumbStyle = restaurantThumbStyle(restaurant.imageUrl, restaurant.id)
 
               return (
                 <button
@@ -599,7 +599,7 @@ export default function HomePage() {
         {/* Center: Menu Panel */}
         <main className="tw-menu-panel bg-white border-0 rounded-2xl shadow-sm p-5">
           {activeRestaurant ? (
-            <div className="tw-restaurant-cover rounded-xl overflow-hidden relative min-h-[160px] flex items-end p-6 mb-6 shadow-sm" style={restaurantCoverStyle(activeRestaurant.imageUrl)}>
+            <div className="tw-restaurant-cover rounded-xl overflow-hidden relative min-h-[160px] flex items-end p-6 mb-6 shadow-sm" style={restaurantCoverStyle(activeRestaurant.imageUrl, activeRestaurant.id)}>
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
               <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 w-full">
                 <div className="flex-1">
@@ -651,8 +651,8 @@ export default function HomePage() {
                     className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <span
-                      className={`h-14 w-14 shrink-0 rounded-xl bg-cover bg-center ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-thumb--placeholder'}`}
-                      style={restaurantThumbStyle(restaurant.imageUrl)}
+                      className={`h-14 w-14 shrink-0 rounded-xl bg-cover bg-center ${restaurantThumbStyle(restaurant.imageUrl, restaurant.id) ? '' : 'restaurant-thumb--placeholder'}`}
+                      style={restaurantThumbStyle(restaurant.imageUrl, restaurant.id)}
                       aria-hidden="true"
                     />
                     <span className="min-w-0">
@@ -693,8 +693,8 @@ export default function HomePage() {
                       className="w-[180px] shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
                       <span
-                        className={`block h-24 bg-cover bg-center ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
-                        style={foodPhotoStyle(food.imageUrl)}
+                        className={`block h-24 bg-cover bg-center ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
+                        style={foodPhotoStyle(food.imageUrl, food.id)}
                         aria-hidden="true"
                       />
                       <span className="block p-3">
@@ -745,8 +745,8 @@ export default function HomePage() {
                 <article key={food.id} className={`tw-food-card bg-white border-0 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col justify-between ${isSoldOut ? 'opacity-60' : ''}`}>
                   <div>
                     <div
-                      className={`tw-food-photo h-[150px] relative bg-cover bg-center ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
-                      style={foodPhotoStyle(food.imageUrl)}
+                      className={`tw-food-photo h-[150px] relative bg-cover bg-center ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
+                      style={foodPhotoStyle(food.imageUrl, food.id)}
                     >
                       <span className="absolute left-3 bottom-3 bg-black/60 text-white rounded-full text-[10px] px-2.5 py-1 font-semibold z-10">
                         {categoryNameById.get(food.categoryId ?? 0) || 'Món ngon'}

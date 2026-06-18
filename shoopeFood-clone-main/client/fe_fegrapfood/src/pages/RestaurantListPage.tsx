@@ -231,8 +231,8 @@ export default function RestaurantListPage() {
               <article key={restaurant.id} className="restaurant-manage-card">
                 <Link
                   to={`/restaurants/${restaurant.id}`}
-                  className={`restaurant-manage-photo ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-manage-photo--placeholder'}`}
-                  style={restaurantThumbStyle(restaurant.imageUrl)}
+                  className={`restaurant-manage-photo ${restaurantThumbStyle(restaurant.imageUrl, restaurant.id) ? '' : 'restaurant-manage-photo--placeholder'}`}
+                  style={restaurantThumbStyle(restaurant.imageUrl, restaurant.id)}
                   aria-label={`Xem chi tiết ${restaurant.name}`}
                 />
 

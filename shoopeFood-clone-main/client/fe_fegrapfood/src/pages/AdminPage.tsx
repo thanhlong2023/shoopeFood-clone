@@ -822,8 +822,8 @@ function MenuManagerPanel() {
               return (
                 <article key={food.id} className={`menu-admin-card ${isSoldOut ? 'sold-out' : ''}`}>
                   <div
-                    className={`menu-admin-card-photo ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
-                    style={foodPhotoStyle(food.imageUrl)}
+                    className={`menu-admin-card-photo ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
+                    style={foodPhotoStyle(food.imageUrl, food.id)}
                   />
                   <div className="menu-admin-card-head">
                     <div>

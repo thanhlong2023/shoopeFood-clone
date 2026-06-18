@@ -213,8 +213,8 @@ export default function BrowseRestaurantsPage() {
               className="group overflow-hidden rounded-3xl bg-white text-gray-900 no-underline shadow-sm transition hover:-translate-y-1 hover:shadow-md"
             >
               <div
-                className={`h-44 bg-cover bg-center ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-thumb--placeholder'}`}
-                style={restaurantThumbStyle(restaurant.imageUrl)}
+                className={`h-44 bg-cover bg-center ${restaurantThumbStyle(restaurant.imageUrl, restaurant.id) ? '' : 'restaurant-thumb--placeholder'}`}
+                style={restaurantThumbStyle(restaurant.imageUrl, restaurant.id)}
               />
               <div className="flex flex-col gap-3 p-5">
                 <div className="flex items-start justify-between gap-3">

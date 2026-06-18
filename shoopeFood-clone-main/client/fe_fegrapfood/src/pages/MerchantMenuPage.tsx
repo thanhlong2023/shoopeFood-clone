@@ -52,8 +52,8 @@ export default function MerchantMenuPage() {
           {restaurants.map((restaurant) => (
             <article key={restaurant.id} className="restaurant-manage-card">
               <div
-                className={`restaurant-manage-photo ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-manage-photo--placeholder'}`}
-                style={restaurantThumbStyle(restaurant.imageUrl)}
+                className={`restaurant-manage-photo ${restaurantThumbStyle(restaurant.imageUrl, restaurant.id) ? '' : 'restaurant-manage-photo--placeholder'}`}
+                style={restaurantThumbStyle(restaurant.imageUrl, restaurant.id)}
               />
               <div className="restaurant-manage-top">
                 <span className="restaurant-manage-id">#{restaurant.id}</span>

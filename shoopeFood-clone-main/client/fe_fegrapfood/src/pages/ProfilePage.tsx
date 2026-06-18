@@ -284,8 +284,8 @@ export default function ProfilePage() {
               <article key={restaurant.id} className="profile-restaurant-card">
                 <div className="profile-restaurant-card-head">
                   <div
-                    className={`profile-restaurant-thumb ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-thumb--placeholder'}`}
-                    style={restaurantThumbStyle(getRestaurantImageUrl(imageUrls[restaurant.id]) ?? restaurant.imageUrl)}
+                    className={`profile-restaurant-thumb ${restaurantThumbStyle(restaurant.imageUrl, restaurant.id) ? '' : 'restaurant-thumb--placeholder'}`}
+                    style={restaurantThumbStyle(getRestaurantImageUrl(imageUrls[restaurant.id]) ?? restaurant.imageUrl, restaurant.id)}
                   />
                   <div>
                     <h3>{restaurant.name}</h3>

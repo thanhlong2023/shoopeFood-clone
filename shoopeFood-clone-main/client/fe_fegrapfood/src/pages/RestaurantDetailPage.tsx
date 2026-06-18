@@ -546,7 +546,7 @@ export default function RestaurantDetailPage() {
       </div>
 
       <div className="restaurant-detail-card">
-        <div className="restaurant-detail-hero" style={restaurantCoverStyle(restaurant.imageUrl)}>
+        <div className="restaurant-detail-hero" style={restaurantCoverStyle(restaurant.imageUrl, restaurant.id)}>
           <div className="restaurant-detail-info">
             <h1>{restaurant.name}</h1>
 
@@ -887,8 +887,8 @@ export default function RestaurantDetailPage() {
                         {categoryFoods.map((food) => (
                           <div key={food.id} className="restaurant-food-card">
                             <div
-                              className={`food-card-photo ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
-                              style={foodPhotoStyle(food.imageUrl)}
+                              className={`food-card-photo ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
+                              style={foodPhotoStyle(food.imageUrl, food.id)}
                             />
                             <div className="food-card-header">
                               <h4>{food.name}</h4>
@@ -948,8 +948,8 @@ export default function RestaurantDetailPage() {
                     {(foodsByCategory[0] || []).map((food) => (
                       <div key={food.id} className="restaurant-food-card">
                         <div
-                          className={`food-card-photo ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
-                          style={foodPhotoStyle(food.imageUrl)}
+                          className={`food-card-photo ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
+                          style={foodPhotoStyle(food.imageUrl, food.id)}
                         />
                         <div className="food-card-header">
                           <h4>{food.name}</h4>
