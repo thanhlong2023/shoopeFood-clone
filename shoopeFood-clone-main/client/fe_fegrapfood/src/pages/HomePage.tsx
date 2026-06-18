@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -10,6 +10,7 @@ import { createOrder } from '../services/api/orders'
 import { getRestaurants } from '../services/api/restaurants'
 import { foodPhotoStyle } from '../utils/foodImage'
 import { setLastOrderId } from '../utils/orderStorage'
+import { saveCheckoutDraft } from '../utils/checkoutDraft'
 import { restaurantCoverStyle, restaurantThumbStyle } from '../utils/restaurantImage'
 import type { Category, CreateOrderPayload, Food, Order, Restaurant } from '../types'
 
@@ -116,6 +117,7 @@ export default function HomePage() {
   const { isAuthenticated, user } = useAuth()
   const { hasTrackableOrder, lastOrderId } = useTrackableOrder()
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -445,40 +447,49 @@ export default function HomePage() {
       return
     }
 
-    try {
-      setIsSubmitting(true)
-      setErrorMessage(null)
-      setSuccessOrder(null)
-      if (!submitKeyRef.current) {
-        submitKeyRef.current = `WEB-${Date.now()}-${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`
-      }
+    if (!isAuthenticated || user?.role !== 'CUSTOMER') {
+      setErrorMessage('Vui lòng đăng nhập tài khoản khách hàng để đặt món')
+      return
+    }
 
-      const createdOrder = await createOrder({
-        restaurantId: activeRestaurant.id,
-        receiverAddress: checkout.receiverAddress.trim(),
-        receiverLat: Number(checkout.receiverLat),
-        receiverLng: Number(checkout.receiverLng),
+    const idempotencyKey = `WEB-${Date.now()}-${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`
+
+    saveCheckoutDraft({
+      id: idempotencyKey,
+      createdAt: new Date().toISOString(),
+      idempotencyKey,
+      restaurant: {
+        id: activeRestaurant.id,
+        name: activeRestaurant.name,
+        address: activeRestaurant.address,
+        imageUrl: activeRestaurant.imageUrl,
+        ratingAvg: activeRestaurant.ratingAvg,
+      },
+      receiver: {
+        address: checkout.receiverAddress.trim(),
+        lat: Number(checkout.receiverLat),
+        lng: Number(checkout.receiverLng),
         distanceKm: Number(checkout.distanceKm),
-        shippingType: checkout.shippingType,
+      },
+      shippingType: checkout.shippingType,
+      pricing: {
+        subtotalAmount: subtotal,
+        shippingFee,
         discountAmount,
         taxAmount: 0,
-        idempotencyKey: submitKeyRef.current,
-        items: cartItems.map((item) => ({
-          foodId: item.food.id,
-          quantity: item.quantity,
-        })),
-      })
+        totalAmount,
+      },
+      items: cartItems.map((item) => ({
+        foodId: item.food.id,
+        name: item.food.name,
+        imageUrl: item.food.imageUrl ?? null,
+        price: Number(item.food.price),
+        quantity: item.quantity,
+        lineTotal: Number(item.food.price) * item.quantity,
+      })),
+    })
 
-      setSuccessOrder(createdOrder)
-      setLastOrderId(createdOrder.id)
-      submitKeyRef.current = null
-      setCart({})
-      setFoods(await getFoods())
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Không thể tạo đơn hàng')
-    } finally {
-      setIsSubmitting(false)
-    }
+    navigate('/payment')
   }
 
   return (

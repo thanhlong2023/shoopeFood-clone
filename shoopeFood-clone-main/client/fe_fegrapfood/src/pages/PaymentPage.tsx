@@ -60,7 +60,7 @@ export default function PaymentPage() {
           <p className="payment-kicker">Thanh toán</p>
           <h1>Chưa có đơn hàng để thanh toán</h1>
           <p>Giỏ hàng tạm thời không còn dữ liệu. Vui lòng quay lại chọn món rồi đặt đơn hàng lại.</p>
-          <Link to="/" className="payment-primary-button">
+          <Link to="/food" className="payment-primary-button">
             Quay lại đặt món
           </Link>
         </div>
@@ -78,7 +78,7 @@ export default function PaymentPage() {
             <h1>Xác nhận đơn hàng</h1>
             <p>{draft.restaurant.name} · {draft.receiver.address}</p>
           </div>
-          <Link to="/" className="payment-secondary-button">
+          <Link to="/food" className="payment-secondary-button">
             Chỉnh sửa giỏ hàng
           </Link>
         </header>

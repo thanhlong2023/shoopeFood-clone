@@ -63,7 +63,7 @@ export default function QrPaymentPage() {
           <p className="payment-kicker">Thanh toán QR</p>
           <h1>Không có đơn hàng cần thanh toán</h1>
           <p>Giỏ hàng tạm thời không còn dữ liệu.</p>
-          <Link to="/" className="payment-primary-button">
+          <Link to="/food" className="payment-primary-button">
             Quay lại đặt món
           </Link>
         </div>
