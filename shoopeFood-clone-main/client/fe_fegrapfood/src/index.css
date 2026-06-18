@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f5f6f3;
+  --bg: #F4F7F6;
   --surface: #ffffff;
   --surface-soft: #f7faf7;
-  --text: #172017;
-  --text-soft: #607066;
-  --line: #dde5dd;
-  --primary: #00b14f;
-  --primary-dark: #00883d;
+  --text: #1C1C1C;
+  --text-soft: #676767;
+  --line: #F0F0F0;
+  --primary: #00B14F;
+  --primary-dark: #009140;
   --accent: #ffb000;
   --danger: #d63d2e;
-  --ink: #101820;
-  --radius-lg: 8px;
-  --radius-md: 8px;
-  --radius-sm: 6px;
-  --shadow: 0 12px 32px rgba(18, 35, 24, 0.1);
-  --font-sans: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
+  --ink: #1C1C1C;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  --font-sans: 'Inter', 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
 }
 
 * {
@@ -763,14 +763,15 @@ img {
   display: grid;
   grid-template-rows: 160px auto auto;
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: none;
   border-radius: var(--radius-lg);
   background: #fff;
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .food-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   box-shadow: var(--shadow);
 }
 

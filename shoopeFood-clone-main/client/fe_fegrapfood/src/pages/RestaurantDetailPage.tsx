@@ -99,7 +99,7 @@ function RestaurantMap({ restaurant }: { restaurant: Restaurant }) {
       <CircleMarker
         center={position}
         radius={12}
-        pathOptions={{ color: '#007a3d', fillColor: '#00b14f', fillOpacity: 0.85, weight: 3 }}
+        pathOptions={{ color: '#007a3d', fillColor: 'brand', fillOpacity: 0.85, weight: 3 }}
       >
         <Popup>
           <strong>{restaurant.name}</strong>
