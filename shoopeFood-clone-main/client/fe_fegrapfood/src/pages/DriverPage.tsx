@@ -57,6 +57,11 @@ function formatDuration(value?: number) {
   return `${Math.round(value)} phut`
 }
 
+function statusText(order: Order | null) {
+  if (!order) return '-'
+  return order.statusLabel || order.statusCode || '-'
+}
+
 function toLatLng(point: RoutePoint): [number, number] {
   return [point.latitude, point.longitude]
 }
@@ -151,7 +156,9 @@ export default function DriverPage() {
     () => filterNearbyOrders(availableOrders, currentPoint),
     [availableOrders, currentPoint],
   )
-  const allOrders = useMemo(() => [...myOrders, ...nearbyAvailableOrders], [myOrders, nearbyAvailableOrders])
+  const isShowingAllConfirmed = !currentPoint || (availableOrders.length > 0 && nearbyAvailableOrders.length === 0)
+  const visibleAvailableOrders = isShowingAllConfirmed ? availableOrders : nearbyAvailableOrders
+  const allOrders = useMemo(() => [...myOrders, ...visibleAvailableOrders], [myOrders, visibleAvailableOrders])
   const activeOrder = useMemo(
     () => allOrders.find((order) => order.id === activeOrderId) || tracking?.order || null,
     [activeOrderId, allOrders, tracking],
@@ -171,7 +178,10 @@ export default function DriverPage() {
   }, [currentPoint, routePolylinePoints, tracking])
   const mapCenter = currentPoint ? toLatLng(currentPoint) : mapPoints[0] ? toLatLng(mapPoints[0]) : defaultCenter
   const isSelectedMine = Boolean(driverId && activeOrder?.driverId === driverId)
-  const canAcceptSelected = Boolean(activeOrder && !activeOrder.driverId && activeOrder.statusCode === 'PENDING')
+  const canAcceptSelected = Boolean(activeOrder && !activeOrder.driverId && activeOrder.statusCode === 'CONFIRMED')
+  const canStartPickup = Boolean(isSelectedMine && activeOrder?.statusCode === 'DRIVER_ACCEPTED')
+  const canStartDelivery = Boolean(isSelectedMine && ['DRIVER_ACCEPTED', 'PICKING_UP'].includes(activeOrder?.statusCode || ''))
+  const canCompleteDelivery = Boolean(isSelectedMine && activeOrder?.statusCode === 'DELIVERING')
 
   const loadTracking = useCallback(async (orderId: number, quiet = false) => {
     try {
@@ -197,7 +207,9 @@ export default function DriverPage() {
       setMyOrders(feed.active)
 
       setActiveOrderId((current) => {
-        const visibleAvailable = filterNearbyOrders(feed.available, lastGpsPointRef.current)
+        const visibleAvailable = lastGpsPointRef.current
+          ? filterNearbyOrders(feed.available, lastGpsPointRef.current)
+          : feed.available
         if (current && [...feed.active, ...visibleAvailable].some((order) => order.id === current)) {
           return current
         }
@@ -335,7 +347,8 @@ export default function DriverPage() {
       setIsActioning(true)
       setErrorMessage(null)
       const updated = await updateOrderStatus(activeOrder.id, statusCode, activeOrder.version)
-      setSuccessMessage(`Da cap nhat ${updated.orderCode}`)
+      setSuccessMessage(`Da cap nhat ${updated.orderCode}: ${updated.statusLabel || updated.statusCode}`)
+      setActiveOrderId(updated.id)
       await loadFeed()
       await loadTracking(updated.id)
     } catch (error) {
@@ -391,7 +404,9 @@ export default function DriverPage() {
             <h2>
               {isLoading
                 ? 'Dang tai...'
-                : `${nearbyAvailableOrders.length} don trong ${NEARBY_RADIUS_KM}km`}
+                : isShowingAllConfirmed
+                  ? `${availableOrders.length} don da xac nhan`
+                  : `${nearbyAvailableOrders.length}/${availableOrders.length} don trong ${NEARBY_RADIUS_KM}km`}
             </h2>
             <button type="button" className="button-secondary" onClick={() => void loadFeed()} disabled={isLoading}>
               Tai lai don
@@ -399,13 +414,13 @@ export default function DriverPage() {
           </div>
 
           <div className="driver-order-list">
-            <h3>Don moi gan ban ({NEARBY_RADIUS_KM}km)</h3>
-            {nearbyAvailableOrders.map((order) => renderOrderCard(order, 'available'))}
-            {!isLoading && nearbyAvailableOrders.length === 0 ? (
+            <h3>{isShowingAllConfirmed ? 'Don moi da xac nhan' : `Don moi gan ban (${NEARBY_RADIUS_KM}km)`}</h3>
+            {visibleAvailableOrders.map((order) => renderOrderCard(order, 'available'))}
+            {!isLoading && visibleAvailableOrders.length === 0 ? (
               <p className="empty-state">
                 {currentPoint
-                  ? `Chua co don moi trong ban kinh ${NEARBY_RADIUS_KM}km. Bam Tai lai don de cap nhat.`
-                  : 'Dang cho GPS de loc don gan ban...'}
+                  ? `Chua co don moi trong ban kinh ${NEARBY_RADIUS_KM}km. Neu can demo, kiem tra toa do nha hang va vi tri tai xe.`
+                  : 'Chua co don CONFIRMED nao. Hay cho merchant xac nhan don truoc.'}
               </p>
             ) : null}
 
@@ -457,6 +472,7 @@ export default function DriverPage() {
           <div className="driver-control-head">
             <span>Don dang chon</span>
             <h2>{activeOrder?.orderCode || '-'}</h2>
+            {activeOrder ? <strong className="driver-status-pill">{statusText(activeOrder)}</strong> : null}
             <p>{activeOrder?.receiverAddress || 'Chon don de xem chi tiet'}</p>
           </div>
 
@@ -495,13 +511,13 @@ export default function DriverPage() {
                     Nhan don
                   </button>
                 ) : null}
-                <button type="button" className="button-secondary" onClick={() => void handleStatus('PICKING_UP')} disabled={!isSelectedMine || isActioning}>
+                <button type="button" className="button-secondary" onClick={() => void handleStatus('PICKING_UP')} disabled={!canStartPickup || isActioning}>
                   Den nha hang
                 </button>
-                <button type="button" className="button-primary" onClick={() => void handleStatus('DELIVERING')} disabled={!isSelectedMine || isActioning}>
+                <button type="button" className="button-primary" onClick={() => void handleStatus('DELIVERING')} disabled={!canStartDelivery || isActioning}>
                   Da lay mon
                 </button>
-                <button type="button" className="button-secondary" onClick={() => void handleStatus('COMPLETED')} disabled={!isSelectedMine || isActioning}>
+                <button type="button" className="button-secondary" onClick={() => void handleStatus('COMPLETED')} disabled={!canCompleteDelivery || isActioning}>
                   Hoan thanh
                 </button>
                 <button type="button" className="button-danger" onClick={() => void handleStatus('CANCELLED')} disabled={!isSelectedMine || isActioning}>
@@ -516,14 +532,58 @@ export default function DriverPage() {
                 {tracking && routeLegs.length === 0 ? <p className="empty-state">Chua co route OSRM cho don nay.</p> : null}
               </div>
 
-              <div className="tracking-items">
-                <h2>Mon can lay</h2>
-                {(activeOrder.items || []).map((item) => (
-                  <div key={item.id} className="tracking-item">
-                    <span>{item.quantity} x {item.foodName || `Mon #${item.foodId}`}</span>
-                    <strong>{formatPrice(item.lineTotal)} VND</strong>
+              <div className="driver-invoice-card">
+                <div className="driver-invoice-head">
+                  <div>
+                    <span>Hoa don</span>
+                    <h2>{activeOrder.orderCode}</h2>
                   </div>
-                ))}
+                  <strong>{statusText(activeOrder)}</strong>
+                </div>
+
+                <div className="tracking-items">
+                  <h2>Mon can lay</h2>
+                  {(activeOrder.items || []).length > 0 ? (
+                    (activeOrder.items || []).map((item) => (
+                      <div key={item.id} className="tracking-item driver-invoice-item">
+                        <div>
+                          <span>{item.quantity} x {item.foodName || `Mon #${item.foodId}`}</span>
+                          <small>{formatPrice(item.priceAtOrder)} VND / mon</small>
+                        </div>
+                        <strong>{formatPrice(item.lineTotal)} VND</strong>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="empty-state">Don nay chua co chi tiet mon trong du lieu tra ve.</p>
+                  )}
+                </div>
+
+                <div className="bill-box driver-invoice-totals">
+                  <div>
+                    <span>Tien mon</span>
+                    <strong>{formatPrice(activeOrder.subtotalAmount)} VND</strong>
+                  </div>
+                  <div>
+                    <span>Phi giao hang</span>
+                    <strong>{formatPrice(activeOrder.shippingFee)} VND</strong>
+                  </div>
+                  <div>
+                    <span>Thue</span>
+                    <strong>{formatPrice(activeOrder.taxAmount)} VND</strong>
+                  </div>
+                  <div>
+                    <span>Giam gia</span>
+                    <strong>-{formatPrice(activeOrder.discountAmount)} VND</strong>
+                  </div>
+                  <div className="bill-total">
+                    <span>Tong don</span>
+                    <strong>{formatPrice(activeOrder.totalAmount)} VND</strong>
+                  </div>
+                  <div className="bill-total driver-cash-total">
+                    <span>Tai xe thu</span>
+                    <strong>{formatPrice(activeOrder.cashToCollect || activeOrder.totalAmount)} VND</strong>
+                  </div>
+                </div>
               </div>
             </>
           ) : (

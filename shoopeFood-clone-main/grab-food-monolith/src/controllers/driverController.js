@@ -6,7 +6,7 @@ const { normalizeOrder } = require("../utils/orderNormalizer");
 const { setUserRole } = require("../utils/roleAssignment");
 const osrmService = require("../services/osrmService");
 
-const PENDING_STATUS_CODE = "PENDING";
+const DRIVER_AVAILABLE_STATUS_CODE = "CONFIRMED";
 const COMPLETED_STATUS_CODE = "COMPLETED";
 const DRIVER_ACTIVE_STATUS_CODES = ["DRIVER_ACCEPTED", "CONFIRMED", "PICKING_UP", "DELIVERING"];
 const DRIVER_PROFILE_DELIVERY_LIMIT = 10;
@@ -159,10 +159,10 @@ exports.getMyOrderFeed = async (req, res) => {
     }
 
     const statuses = await OrderStatus.findAll({
-      where: { code: { [Op.in]: [PENDING_STATUS_CODE, ...DRIVER_ACTIVE_STATUS_CODES] } },
+      where: { code: { [Op.in]: [DRIVER_AVAILABLE_STATUS_CODE, ...DRIVER_ACTIVE_STATUS_CODES] } },
     });
     const statusIdByCode = new Map(statuses.map((status) => [status.code, status.id]));
-    const pendingStatusId = statusIdByCode.get(PENDING_STATUS_CODE);
+    const availableStatusId = statusIdByCode.get(DRIVER_AVAILABLE_STATUS_CODE);
     const activeStatusIds = DRIVER_ACTIVE_STATUS_CODES.map((code) => statusIdByCode.get(code)).filter(Boolean);
 
     const completedStatus = await OrderStatus.findOne({ where: { code: COMPLETED_STATUS_CODE } });
@@ -171,9 +171,9 @@ exports.getMyOrderFeed = async (req, res) => {
       : { driverId, id: -1 };
 
     const [availableOrders, myOrders, completedOrders] = await Promise.all([
-      pendingStatusId
+      availableStatusId
         ? Order.findAll({
-            where: { driverId: null, statusId: pendingStatusId },
+            where: { driverId: null, statusId: availableStatusId },
             include: orderRepository.getIncludes(),
             order: [["created_at", "DESC"]],
           })

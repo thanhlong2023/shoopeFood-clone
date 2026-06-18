@@ -5,12 +5,24 @@ import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getRestaurantById } from '../services/api/restaurants'
+import { createOrder } from '../services/api/orders'
 import ImageUrlField from '../components/common/ImageUrlField'
 import { createFood, getFoods, updateFood, type FoodPayload } from '../services/api/foods'
 import { createCategory, getCategories } from '../services/api/categories'
 import { foodPhotoStyle } from '../utils/foodImage'
 import { restaurantCoverStyle } from '../utils/restaurantImage'
-import type { Restaurant, Food, Category } from '../types'
+import { setLastOrderId } from '../utils/orderStorage'
+import type { Restaurant, Food, Category, CreateOrderPayload, Order } from '../types'
+
+type CartState = Record<number, number>
+
+type CheckoutState = {
+  receiverAddress: string
+  receiverLat: string
+  receiverLng: string
+  distanceKm: string
+  shippingType: NonNullable<CreateOrderPayload['shippingType']>
+}
 
 type FoodFormState = {
   id: number | null
@@ -34,6 +46,14 @@ const emptyFoodForm: FoodFormState = {
   isAvailable: true,
 }
 
+const emptyCheckout: CheckoutState = {
+  receiverAddress: '',
+  receiverLat: '',
+  receiverLng: '',
+  distanceKm: '',
+  shippingType: 'STANDARD',
+}
+
 type FoodFormErrors = Partial<Record<'name' | 'price' | 'defaultQuantity' | 'currentQuantity', string>>
 
 function formatTime(timeString: string | null | undefined): string {
@@ -44,6 +64,22 @@ function formatTime(timeString: string | null | undefined): string {
 function formatDateTime(dateString: string | null | undefined): string {
   if (!dateString) return '-'
   return new Date(dateString).toLocaleString('vi-VN')
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('vi-VN').format(Math.round(value))
+}
+
+function calculateDistanceKm(fromLat: number, fromLng: number, toLat: number, toLng: number) {
+  const earthRadiusKm = 6371
+  const toRad = (value: number) => (value * Math.PI) / 180
+  const dLat = toRad(toLat - fromLat)
+  const dLng = toRad(toLng - fromLng)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
 function isFoodInStock(food: Food) {
@@ -87,7 +123,7 @@ function MapViewUpdater({ position }: { position: [number, number] }) {
 
 export default function RestaurantDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const restaurantId = Number(id)
 
   useDocumentTitle(`${APP_NAME} | Chi tiết nhà hàng`)
@@ -107,6 +143,11 @@ export default function RestaurantDetailPage() {
   const [categoryNameError, setCategoryNameError] = useState<string | null>(null)
   const [foodFeedback, setFoodFeedback] = useState<string | null>(null)
   const [categoryFeedback, setCategoryFeedback] = useState<string | null>(null)
+  const [cart, setCart] = useState<CartState>({})
+  const [checkout, setCheckout] = useState<CheckoutState>(emptyCheckout)
+  const [isLocating, setIsLocating] = useState(false)
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false)
+  const [orderFeedback, setOrderFeedback] = useState<Order | null>(null)
 
   const isAdmin = user?.role === 'ADMIN'
   const isMerchantOwner = Boolean(
@@ -116,6 +157,13 @@ export default function RestaurantDetailPage() {
   const backLabel = isMerchantOwner ? 'Quay lai thuc don' : isAdmin ? 'Quay lai quan ly' : 'Quay lai dat mon'
   const canManageFoods = Boolean(
     restaurant && user && (user.role === 'ADMIN' || isMerchantOwner),
+  )
+  const canOrder = Boolean(
+    restaurant &&
+      !canManageFoods &&
+      restaurant.approvalStatus === 'APPROVED' &&
+      restaurant.isOpen &&
+      restaurant.isOpenToday,
   )
 
   const loadMenu = useCallback(async () => {
@@ -188,6 +236,152 @@ export default function RestaurantDetailPage() {
       return groups
     }, {})
   }, [foods])
+
+  const cartItems = useMemo(
+    () =>
+      foods
+        .map((food) => ({
+          food,
+          quantity: cart[food.id] || 0,
+        }))
+        .filter((item) => item.quantity > 0),
+    [cart, foods],
+  )
+  const subtotal = useMemo(
+    () => cartItems.reduce((total, item) => total + Number(item.food.price || 0) * item.quantity, 0),
+    [cartItems],
+  )
+  const distanceKm = Number(checkout.distanceKm) || 0
+  const shippingFee = cartItems.length > 0 ? distanceKm * 3500 : 0
+  const discountAmount = cartItems.length > 0 && subtotal >= 100000 ? 15000 : 0
+  const totalAmount = Math.max(0, subtotal + shippingFee - discountAmount)
+  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0)
+
+  useEffect(() => {
+    const receiverLat = Number(checkout.receiverLat)
+    const receiverLng = Number(checkout.receiverLng)
+
+    if (
+      !restaurant ||
+      !Number.isFinite(receiverLat) ||
+      !Number.isFinite(receiverLng) ||
+      !Number.isFinite(Number(restaurant.latitude)) ||
+      !Number.isFinite(Number(restaurant.longitude))
+    ) {
+      return
+    }
+
+    const nextDistance = calculateDistanceKm(restaurant.latitude, restaurant.longitude, receiverLat, receiverLng)
+    setCheckout((current) => ({ ...current, distanceKm: nextDistance.toFixed(2) }))
+  }, [restaurant, checkout.receiverLat, checkout.receiverLng])
+
+  function updateCart(food: Food, nextQuantity: number) {
+    const maxQuantity = Math.max(0, Number(food.currentQuantity || 0))
+    const normalizedQuantity = Math.max(0, Math.min(nextQuantity, maxQuantity))
+
+    setCart((current) => {
+      const nextCart = { ...current }
+
+      if (normalizedQuantity === 0) {
+        delete nextCart[food.id]
+      } else {
+        nextCart[food.id] = normalizedQuantity
+      }
+
+      return nextCart
+    })
+    setOrderFeedback(null)
+  }
+
+  function useCurrentLocation() {
+    if (!navigator.geolocation) {
+      setMenuError('Trinh duyet khong ho tro lay vi tri')
+      return
+    }
+
+    setIsLocating(true)
+    setMenuError(null)
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const receiverLat = position.coords.latitude
+        const receiverLng = position.coords.longitude
+        const nextDistance = restaurant
+          ? calculateDistanceKm(restaurant.latitude, restaurant.longitude, receiverLat, receiverLng)
+          : Number(checkout.distanceKm)
+
+        setCheckout((current) => ({
+          ...current,
+          receiverLat: receiverLat.toFixed(6),
+          receiverLng: receiverLng.toFixed(6),
+          distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
+        }))
+        setIsLocating(false)
+      },
+      (error) => {
+        setMenuError(error.message || 'Khong the lay vi tri hien tai')
+        setIsLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    )
+  }
+
+  function validateOrder() {
+    if (!restaurant) return 'Khong tim thay nha hang'
+    if (!canOrder) return 'Nha hang hien chua nhan don'
+    if (!isAuthenticated || user?.role !== 'CUSTOMER') return 'Vui long dang nhap tai khoan khach hang de dat mon'
+    if (cartItems.length === 0) return 'Gio hang dang trong'
+    if (!checkout.receiverAddress.trim()) return 'Vui long nhap dia chi giao hang'
+    if (!Number.isFinite(Number(checkout.receiverLat)) || !Number.isFinite(Number(checkout.receiverLng))) {
+      return 'Toa do giao hang khong hop le'
+    }
+    if (!Number.isFinite(Number(checkout.distanceKm)) || Number(checkout.distanceKm) <= 0) {
+      return 'Khoang cach giao hang khong hop le'
+    }
+
+    return null
+  }
+
+  async function handleOrderSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const validationError = validateOrder()
+
+    if (validationError || !restaurant) {
+      setMenuError(validationError)
+      return
+    }
+
+    try {
+      setIsSubmittingOrder(true)
+      setMenuError(null)
+      setOrderFeedback(null)
+
+      const createdOrder = await createOrder({
+        restaurantId: restaurant.id,
+        receiverAddress: checkout.receiverAddress.trim(),
+        receiverLat: Number(checkout.receiverLat),
+        receiverLng: Number(checkout.receiverLng),
+        distanceKm: Number(checkout.distanceKm),
+        shippingType: checkout.shippingType,
+        discountAmount,
+        taxAmount: 0,
+        idempotencyKey: `RESTAURANT-${restaurant.id}-${Date.now()}-${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`,
+        items: cartItems.map((item) => ({
+          foodId: item.food.id,
+          quantity: item.quantity,
+        })),
+      })
+
+      setOrderFeedback(createdOrder)
+      setLastOrderId(createdOrder.id)
+      setCart({})
+      await loadMenu()
+    } catch (error) {
+      setMenuError(error instanceof Error ? error.message : 'Khong the tao don hang')
+    } finally {
+      setIsSubmittingOrder(false)
+    }
+  }
 
   function editFood(food: Food) {
     setFoodFeedback(null)
@@ -429,6 +623,105 @@ export default function RestaurantDetailPage() {
           {menuError ? <p className="restaurant-feedback error">{menuError}</p> : null}
           {foodFeedback ? <p className="restaurant-feedback success">{foodFeedback}</p> : null}
           {categoryFeedback ? <p className="restaurant-feedback success">{categoryFeedback}</p> : null}
+          {orderFeedback ? (
+            <p className="restaurant-feedback success">
+              Da dat don {orderFeedback.orderCode}. <Link to={`/tracking?orderId=${orderFeedback.id}`}>Theo doi don</Link>
+            </p>
+          ) : null}
+
+          {!canManageFoods ? (
+            <form className="restaurant-order-panel" onSubmit={handleOrderSubmit}>
+              <div className="section-heading-row">
+                <h3>Gio hang tu quan nay</h3>
+                <span className="owner-note">{cartCount} mon</span>
+              </div>
+
+              <div className="restaurant-cart-lines">
+                {cartItems.map((item) => (
+                  <div key={item.food.id} className="restaurant-cart-line">
+                    <span>{item.food.name}</span>
+                    <strong>
+                      {item.quantity} x {formatMoney(Number(item.food.price))} d
+                    </strong>
+                  </div>
+                ))}
+                {cartItems.length === 0 ? <p className="empty-state">Chon mon ben duoi de dat hang.</p> : null}
+              </div>
+
+              <div className="restaurant-form-grid">
+                <div className="restaurant-field full">
+                  <label htmlFor="restaurantReceiverAddress">Dia chi giao hang</label>
+                  <input
+                    id="restaurantReceiverAddress"
+                    value={checkout.receiverAddress}
+                    onChange={(event) => setCheckout((current) => ({ ...current, receiverAddress: event.target.value }))}
+                    placeholder="Nhap dia chi giao hang"
+                  />
+                </div>
+
+                <div className="restaurant-field">
+                  <label htmlFor="restaurantReceiverLat">Lat</label>
+                  <input
+                    id="restaurantReceiverLat"
+                    value={checkout.receiverLat}
+                    onChange={(event) => setCheckout((current) => ({ ...current, receiverLat: event.target.value }))}
+                  />
+                </div>
+
+                <div className="restaurant-field">
+                  <label htmlFor="restaurantReceiverLng">Lng</label>
+                  <input
+                    id="restaurantReceiverLng"
+                    value={checkout.receiverLng}
+                    onChange={(event) => setCheckout((current) => ({ ...current, receiverLng: event.target.value }))}
+                  />
+                </div>
+
+                <div className="restaurant-field">
+                  <label htmlFor="restaurantDistanceKm">Km</label>
+                  <input
+                    id="restaurantDistanceKm"
+                    value={checkout.distanceKm}
+                    onChange={(event) => setCheckout((current) => ({ ...current, distanceKm: event.target.value }))}
+                  />
+                </div>
+
+                <div className="restaurant-field">
+                  <label htmlFor="restaurantShippingType">Giao hang</label>
+                  <select
+                    id="restaurantShippingType"
+                    value={checkout.shippingType}
+                    onChange={(event) =>
+                      setCheckout((current) => ({
+                        ...current,
+                        shippingType: event.target.value as CheckoutState['shippingType'],
+                      }))
+                    }
+                  >
+                    <option value="STANDARD">Standard</option>
+                    <option value="FAST">Fast</option>
+                    <option value="ECO">Eco</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="restaurant-order-summary">
+                <span>Tam tinh: {formatMoney(subtotal)} d</span>
+                <span>Ship: {formatMoney(shippingFee)} d</span>
+                <span>Uu dai: -{formatMoney(discountAmount)} d</span>
+                <strong>Tong: {formatMoney(totalAmount)} d</strong>
+              </div>
+
+              <div className="restaurant-form-actions">
+                <button type="button" className="button-secondary" onClick={useCurrentLocation} disabled={isLocating}>
+                  {isLocating ? 'Dang lay vi tri...' : 'Dung vi tri hien tai'}
+                </button>
+                <button type="submit" className="button-primary" disabled={isSubmittingOrder || cartItems.length === 0}>
+                  {isSubmittingOrder ? 'Dang dat hang...' : 'Dat hang'}
+                </button>
+              </div>
+            </form>
+          ) : null}
 
           {canManageFoods ? (
             <div className="category-owner-panel">
@@ -614,6 +907,25 @@ export default function RestaurantDetailPage() {
                               {food.quantityResetDate ? <p>Reset lúc: {formatDateTime(food.quantityResetDate)}</p> : null}
                             </div>
 
+                            {canOrder ? (
+                              <div className="restaurant-order-actions">
+                                {(cart[food.id] || 0) > 0 ? (
+                                  <button type="button" className="button-secondary" onClick={() => updateCart(food, (cart[food.id] || 0) - 1)}>
+                                    -
+                                  </button>
+                                ) : null}
+                                {(cart[food.id] || 0) > 0 ? <strong>{cart[food.id]}</strong> : null}
+                                <button
+                                  type="button"
+                                  className="button-primary"
+                                  onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
+                                  disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
+                                >
+                                  Them
+                                </button>
+                              </div>
+                            ) : null}
+
                             {canManageFoods ? (
                               <div className="food-card-actions">
                                 <button type="button" className="button-secondary" onClick={() => editFood(food)}>
@@ -650,6 +962,25 @@ export default function RestaurantDetailPage() {
                             <strong>{food.price.toLocaleString('vi-VN')} đ</strong>
                           </p>
                         </div>
+                        {canOrder ? (
+                          <div className="restaurant-order-actions">
+                            {(cart[food.id] || 0) > 0 ? (
+                              <button type="button" className="button-secondary" onClick={() => updateCart(food, (cart[food.id] || 0) - 1)}>
+                                -
+                              </button>
+                            ) : null}
+                            {(cart[food.id] || 0) > 0 ? <strong>{cart[food.id]}</strong> : null}
+                            <button
+                              type="button"
+                              className="button-primary"
+                              onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
+                              disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
+                            >
+                              Them
+                            </button>
+                          </div>
+                        ) : null}
+
                         {canManageFoods ? (
                           <div className="food-card-actions">
                             <button type="button" className="button-secondary" onClick={() => editFood(food)}>

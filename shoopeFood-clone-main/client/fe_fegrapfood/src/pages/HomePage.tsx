@@ -60,6 +60,18 @@ function formatPrice(value: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(value))
 }
 
+function calculateDistanceKm(fromLat: number, fromLng: number, toLat: number, toLng: number) {
+  const earthRadiusKm = 6371
+  const toRad = (value: number) => (value * Math.PI) / 180
+  const dLat = toRad(toLat - fromLat)
+  const dLng = toRad(toLng - fromLng)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 function normalizeSearchText(value: string) {
   return value
     .normalize('NFD')
@@ -99,6 +111,7 @@ export default function HomePage() {
   const [checkout, setCheckout] = useState<CheckoutState>(initialCheckoutState)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLocating, setIsLocating] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successOrder, setSuccessOrder] = useState<Order | null>(null)
   const submitKeyRef = useRef<string | null>(null)
@@ -240,6 +253,24 @@ export default function HomePage() {
   const totalAmount = Math.max(0, subtotal + shippingFee - discountAmount)
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0)
 
+  useEffect(() => {
+    const receiverLat = Number(checkout.receiverLat)
+    const receiverLng = Number(checkout.receiverLng)
+
+    if (
+      !activeRestaurant ||
+      !Number.isFinite(receiverLat) ||
+      !Number.isFinite(receiverLng) ||
+      !Number.isFinite(Number(activeRestaurant.latitude)) ||
+      !Number.isFinite(Number(activeRestaurant.longitude))
+    ) {
+      return
+    }
+
+    const nextDistance = calculateDistanceKm(activeRestaurant.latitude, activeRestaurant.longitude, receiverLat, receiverLng)
+    setCheckout((current) => ({ ...current, distanceKm: nextDistance.toFixed(2) }))
+  }, [activeRestaurant, checkout.receiverLat, checkout.receiverLng])
+
   function handleRestaurantSelect(restaurantId: number) {
     setActiveRestaurantId(restaurantId)
     setActiveCategoryId('all')
@@ -263,6 +294,39 @@ export default function HomePage() {
 
       return nextCart
     })
+  }
+
+  function useCurrentLocation() {
+    if (!navigator.geolocation) {
+      setErrorMessage('Trinh duyet khong ho tro lay vi tri')
+      return
+    }
+
+    setIsLocating(true)
+    setErrorMessage(null)
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const receiverLat = position.coords.latitude
+        const receiverLng = position.coords.longitude
+        const nextDistance = activeRestaurant
+          ? calculateDistanceKm(activeRestaurant.latitude, activeRestaurant.longitude, receiverLat, receiverLng)
+          : Number(checkout.distanceKm)
+
+        setCheckout((current) => ({
+          ...current,
+          receiverLat: receiverLat.toFixed(6),
+          receiverLng: receiverLng.toFixed(6),
+          distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
+        }))
+        setIsLocating(false)
+      },
+      (error) => {
+        setErrorMessage(error.message || 'Khong the lay vi tri hien tai')
+        setIsLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    )
   }
 
   function validateCheckout() {
@@ -549,6 +613,11 @@ export default function HomePage() {
                 onChange={(event) => setCheckout((current) => ({ ...current, receiverAddress: event.target.value }))}
               />
             </label>
+
+            <button type="button" className="button-secondary" onClick={useCurrentLocation} disabled={isLocating}>
+              <Icon name="location" />
+              {isLocating ? 'Dang lay vi tri...' : 'Dung vi tri hien tai'}
+            </button>
 
             <div className="checkout-grid">
               <label>

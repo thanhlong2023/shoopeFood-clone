@@ -2074,6 +2074,15 @@ img {
   gap: 5px;
 }
 
+.driver-status-pill {
+  width: fit-content;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #e8f8ee;
+  color: #087036;
+  font-size: 0.86rem;
+}
+
 .driver-control-head p {
   margin: 0;
 }
@@ -2087,6 +2096,63 @@ img {
 .driver-route-list {
   display: grid;
   gap: 10px;
+}
+
+.driver-invoice-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fbfffd;
+}
+
+.driver-invoice-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.driver-invoice-head span {
+  color: var(--text-soft);
+  font-weight: 900;
+}
+
+.driver-invoice-head h2 {
+  margin: 2px 0 0;
+}
+
+.driver-invoice-head > strong {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #e8f8ee;
+  color: #087036;
+  white-space: nowrap;
+}
+
+.driver-invoice-item {
+  justify-content: space-between;
+}
+
+.driver-invoice-item div {
+  display: grid;
+  gap: 3px;
+}
+
+.driver-invoice-item small {
+  color: var(--text-soft);
+  font-weight: 800;
+}
+
+.driver-invoice-totals {
+  margin-top: 0;
+}
+
+.driver-cash-total strong {
+  color: var(--primary-dark);
 }
 
 .driver-route-leg {
@@ -2459,6 +2525,58 @@ img {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: #fff;
+}
+
+.restaurant-order-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fbfffd;
+}
+
+.restaurant-cart-lines {
+  display: grid;
+  gap: 8px;
+}
+
+.restaurant-cart-line,
+.restaurant-order-summary,
+.restaurant-order-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.restaurant-cart-line,
+.restaurant-order-summary {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.restaurant-cart-line {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.restaurant-order-summary {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: #f4fbf7;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.restaurant-order-actions {
+  justify-content: flex-end;
+}
+
+.restaurant-order-actions .button-primary,
+.restaurant-order-actions .button-secondary {
+  min-width: 42px;
 }
 
 .food-card-actions {

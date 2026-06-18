@@ -575,12 +575,12 @@ exports.acceptOrder = async (req, res) => {
     let orderId = null;
 
     await sequelize.transaction(async (transaction) => {
-      const [pendingStatus, acceptedStatus] = await Promise.all([
-        resolveStatusByCode("PENDING", { transaction }),
+      const [confirmedStatus, acceptedStatus] = await Promise.all([
+        resolveStatusByCode("CONFIRMED", { transaction }),
         resolveStatusByCode("DRIVER_ACCEPTED", { transaction }),
       ]);
 
-      if (!pendingStatus || !acceptedStatus) {
+      if (!confirmedStatus || !acceptedStatus) {
         throw createHttpError(500, "Order statuses are not configured");
       }
 
@@ -602,8 +602,8 @@ exports.acceptOrder = async (req, res) => {
         return;
       }
 
-      if (Number(order.statusId) !== Number(pendingStatus.id)) {
-        throw createHttpError(409, "Only pending orders can be accepted");
+      if (Number(order.statusId) !== Number(confirmedStatus.id)) {
+        throw createHttpError(409, "Only confirmed orders can be accepted");
       }
 
       const activeStatuses = await OrderStatus.findAll({
