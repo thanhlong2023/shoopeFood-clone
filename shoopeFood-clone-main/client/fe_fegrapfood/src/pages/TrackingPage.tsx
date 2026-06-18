@@ -825,7 +825,7 @@ export default function TrackingPage() {
                   key={leg.key}
                   positions={leg.geometry.map(toLatLng)}
                   pathOptions={{
-                    color: leg.key === 'driver_to_restaurant' ? '#ff8a00' : '#00b14f',
+                    color: leg.key === 'driver_to_restaurant' ? '#ff8a00' : 'brand',
                     weight: 6,
                     opacity: 0.76,
                   }}
@@ -850,7 +850,7 @@ export default function TrackingPage() {
                 <Marker position={[simulatedDriverLocation.latitude, simulatedDriverLocation.longitude]} icon={makeMotoIcon(motoHeading)}>
                   <Popup>{tracking?.driver?.fullName || 'T�i x?'}</Popup>
                 </Marker>
-                <CircleMarker center={[simulatedDriverLocation.latitude, simulatedDriverLocation.longitude]} radius={16} pathOptions={{ color: '#00b14f', opacity: 0.2 }} />
+                <CircleMarker center={[simulatedDriverLocation.latitude, simulatedDriverLocation.longitude]} radius={16} pathOptions={{ color: 'brand', opacity: 0.2 }} />
               </>
             ) : null}
           </MapContainer>

@@ -529,7 +529,7 @@ export default function HomePage() {
         <div className="hero-plate hidden md:grid place-items-center p-8" aria-hidden="true">
           <div className="plate-photo w-[280px] h-[280px] rounded-full border-8 border-white/80 shadow-2xl" />
           <div className="floating-ticket absolute bottom-8 right-8 bg-white p-4 rounded-xl shadow-lg flex flex-col min-w-[120px]">
-            <strong className="text-2xl font-black text-[#00b14f]">{cartCount}</strong>
+            <strong className="text-2xl font-black text-brand">{cartCount}</strong>
             <span className="text-xs text-gray-500 font-bold">món trong giỏ</span>
           </div>
         </div>
@@ -538,13 +538,13 @@ export default function HomePage() {
       {errorMessage ? <p className="app-feedback error bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 mb-4">{errorMessage}</p> : null}
 
       {isAuthenticated && hasTrackableOrder ? (
-        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-green-100 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-brand-light bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00b14f]">Đơn đang theo dõi</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-brand">Đơn đang theo dõi</p>
             <h2 className="mt-1 text-lg font-black text-gray-900">Bạn có đơn #{lastOrderId} đang hoạt động</h2>
             <p className="text-sm font-semibold text-gray-500">Mở trang theo dõi để xem trạng thái và vị trí tài xế realtime.</p>
           </div>
-          <Link to={`/tracking?orderId=${lastOrderId}`} className="rounded-full bg-[#00b14f] px-5 py-3 text-center text-sm font-black text-white no-underline shadow-sm">
+          <Link to={`/tracking?orderId=${lastOrderId}`} className="rounded-full bg-brand px-5 py-3 text-center text-sm font-black text-white no-underline shadow-sm">
             Theo dõi đơn
           </Link>
         </div>
@@ -573,7 +573,7 @@ export default function HomePage() {
                   key={restaurant.id}
                   type="button"
                   className={`w-full flex items-center gap-3 p-3 border-0 bg-white hover:bg-gray-50 rounded-xl transition-all duration-200 text-left focus:outline-none ${
-                    isActive ? 'ring-2 ring-[#00b14f] bg-green-50/20' : 'shadow-sm'
+                    isActive ? 'ring-2 ring-brand bg-green-50/20' : 'shadow-sm'
                   }`}
                   onClick={() => handleRestaurantSelect(restaurant.id)}
                 >
@@ -601,7 +601,7 @@ export default function HomePage() {
 
           <Link
             to={searchTerm ? `/restaurants?q=${encodeURIComponent(searchTerm)}` : '/restaurants'}
-            className="mt-3 flex items-center justify-center rounded-full bg-[#00b14f] px-4 py-2 text-xs font-black text-white no-underline shadow-sm"
+            className="mt-3 flex items-center justify-center rounded-full bg-brand px-4 py-2 text-xs font-black text-white no-underline shadow-sm"
           >
             Xem tất cả nhà hàng
           </Link>
@@ -646,10 +646,10 @@ export default function HomePage() {
             <div className="mb-6 rounded-2xl bg-gray-50 p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#00b14f]">Gợi ý nhanh</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brand">Gợi ý nhanh</p>
                   <h2 className="text-base font-black text-gray-900">Nhà hàng nổi bật</h2>
                 </div>
-                <Link to="/restaurants" className="text-xs font-black text-[#00b14f] no-underline">
+                <Link to="/restaurants" className="text-xs font-black text-brand no-underline">
                   Xem tất cả
                 </Link>
               </div>
@@ -673,7 +673,7 @@ export default function HomePage() {
                       </span>
                       <span className="mt-1 flex flex-wrap gap-1">
                         {getPromotionBadges(restaurant).slice(0, 2).map((badge) => (
-                          <span key={badge} className="rounded-full bg-orange-50 px-2 py-0.5 text-[9px] font-black text-orange-600">
+                          <span key={badge} className="rounded-full bg-brand-light px-2 py-0.5 text-[9px] font-black text-brand">
                             {badge}
                           </span>
                         ))}
@@ -689,7 +689,7 @@ export default function HomePage() {
             <div className="mb-6">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-500">Random hôm nay</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-900">Random hôm nay</p>
                   <h2 className="text-base font-black text-gray-900">Món ngon hôm nay</h2>
                 </div>
               </div>
@@ -711,7 +711,7 @@ export default function HomePage() {
                       <span className="block p-3">
                         <strong className="block truncate text-xs font-black text-gray-900">{food.name}</strong>
                         <span className="mt-1 block truncate text-[10px] font-bold text-gray-500">{restaurant?.name || 'Nhà hàng'}</span>
-                        <span className="mt-2 block text-xs font-black text-[#EE4D2D]">{formatPrice(Number(food.price))}</span>
+                        <span className="mt-2 block text-xs font-black text-[gray-900]">{formatPrice(Number(food.price))}</span>
                       </span>
                     </button>
                   )
@@ -725,7 +725,7 @@ export default function HomePage() {
             <button
               type="button"
               className={`px-4 py-2 rounded-full text-xs font-bold transition-all border-0 ${
-                activeCategoryId === 'all' ? 'bg-[#00b14f] text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                activeCategoryId === 'all' ? 'bg-brand text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
               onClick={() => setActiveCategoryId('all')}
             >
@@ -736,7 +736,7 @@ export default function HomePage() {
                 key={category.id}
                 type="button"
                 className={`px-4 py-2 rounded-full text-xs font-bold transition-all border-0 whitespace-nowrap ${
-                  activeCategoryId === category.id ? 'bg-[#00b14f] text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  activeCategoryId === category.id ? 'bg-brand text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
                 onClick={() => setActiveCategoryId(category.id)}
               >
@@ -766,7 +766,7 @@ export default function HomePage() {
                     <div className="tw-food-body p-4 flex flex-col gap-1">
                       <h3 className="font-bold text-gray-900 text-sm line-clamp-1 m-0">{food.name}</h3>
                       <div className="flex justify-between items-center mt-2">
-                        <span className="font-extrabold text-[#EE4D2D] text-sm">{formatPrice(Number(food.price))} đ</span>
+                        <span className="font-extrabold text-[gray-900] text-sm">{formatPrice(Number(food.price))} đ</span>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isSoldOut ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
                           {isSoldOut ? 'Hết món' : `Còn ${remaining}`}
                         </span>
@@ -792,7 +792,7 @@ export default function HomePage() {
                     )}
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 px-4 py-1.5 bg-[#00b14f] hover:bg-[#00883d] disabled:bg-gray-100 disabled:text-gray-400 text-white rounded-full text-xs font-bold transition-all cursor-pointer border-0 shadow-sm"
+                      className="inline-flex items-center gap-1 px-4 py-1.5 bg-brand hover:bg-brand-dark disabled:bg-gray-100 disabled:text-gray-400 text-white rounded-full text-xs font-bold transition-all cursor-pointer border-0 shadow-sm"
                       onClick={() => updateFoodQuantity(food, quantity + 1)}
                       disabled={isSoldOut || quantity >= remaining}
                     >
@@ -815,7 +815,7 @@ export default function HomePage() {
               <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider">Giỏ hàng của bạn</span>
               <h2 className="text-base font-extrabold text-gray-800 m-0">{cartCount} món</h2>
             </div>
-            <div className="p-2 bg-green-50 text-[#00b14f] rounded-full">
+            <div className="p-2 bg-brand-light text-brand rounded-full">
               <Icon name="cart" />
             </div>
           </div>
@@ -855,14 +855,14 @@ export default function HomePage() {
 
           <form className="tw-checkout-form flex flex-col gap-4 border-t border-gray-100 pt-4" onSubmit={handleSubmitOrder}>
             {!isAuthenticated ? (
-              <p className="bg-orange-50 text-orange-700 text-xs p-3 rounded-xl border border-orange-100 font-semibold leading-relaxed">
-                Vui lòng <Link to="/login" className="underline font-bold hover:text-orange-950">đăng nhập khách hàng</Link> để đặt món.
+              <p className="bg-brand-light text-brand-dark text-xs p-3 rounded-xl border border-brand-light font-semibold leading-relaxed">
+                Vui lòng <Link to="/login" className="underline font-bold hover:text-brand-dark">đăng nhập khách hàng</Link> để đặt món.
               </p>
             ) : null}
             
             {/* Delivery Address Panel Card */}
             <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-start gap-3">
-              <div className="text-rose-500 mt-1 shrink-0">
+              <div className="text-gray-900 mt-1 shrink-0">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -885,7 +885,7 @@ export default function HomePage() {
                       rows={2}
                       value={checkout.receiverAddress}
                       onChange={(event) => setCheckout((current) => ({ ...current, receiverAddress: event.target.value }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#00b14f] focus:border-transparent font-medium bg-gray-50 resize-none"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium bg-gray-50 resize-none"
                       placeholder="Nhập địa chỉ giao hàng..."
                     />
                   </div>
@@ -914,7 +914,7 @@ export default function HomePage() {
                       shippingType: event.target.value as CheckoutState['shippingType'],
                     }))
                   }
-                  className="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#00b14f] focus:border-transparent font-bold text-gray-800 bg-gray-50 cursor-pointer shadow-sm transition-all hover:bg-white"
+                  className="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-bold text-gray-800 bg-gray-50 cursor-pointer shadow-sm transition-all hover:bg-white"
                 >
                   <option value="STANDARD">🛵 Giao tiêu chuẩn (Standard)</option>
                   <option value="FAST">🚀 Giao siêu tốc (Fast)</option>
@@ -950,13 +950,13 @@ export default function HomePage() {
               <div className="border-t border-gray-200/60 my-1" />
               <div className="tw-bill-total flex justify-between items-center">
                 <span className="text-xs font-bold text-gray-700">Tổng thanh toán</span>
-                <strong className="text-xl font-bold text-rose-600">{formatPrice(totalAmount)}</strong>
+                <strong className="text-xl font-bold text-brand-dark">{formatPrice(totalAmount)}</strong>
               </div>
             </div>
 
             <button
               type="submit"
-              className="tw-checkout-button w-full flex items-center justify-center gap-2 py-4 bg-rose-500 hover:bg-rose-600 disabled:bg-gray-100 disabled:text-gray-400 text-white border-0 rounded-xl text-sm font-bold transition-colors cursor-pointer shadow-md mt-1"
+              className="tw-checkout-button w-full flex items-center justify-center gap-2 py-4 bg-brand hover:bg-brand-dark disabled:bg-gray-100 disabled:text-gray-400 text-white border-0 rounded-xl text-sm font-bold transition-colors cursor-pointer shadow-md mt-1"
               disabled={isSubmitting || cartItems.length === 0}
             >
               <Icon name="receipt" />
@@ -975,7 +975,7 @@ export default function HomePage() {
                   {formatPrice(successOrder.totalAmount)} · {successOrder.statusLabel || successOrder.statusCode}
                 </span>
               </div>
-              <Link to={`/tracking?orderId=${successOrder.id}`} className="text-xs font-black text-[#00b14f] hover:underline whitespace-nowrap">
+              <Link to={`/tracking?orderId=${successOrder.id}`} className="text-xs font-black text-brand hover:underline whitespace-nowrap">
                 Theo dõi
               </Link>
             </div>

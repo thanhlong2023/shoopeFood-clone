@@ -65,7 +65,7 @@ export default function Navbar() {
         {/* Left: Brand Logo + Integrated Search Bar */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <NavLink to="/" className="flex items-center gap-2 text-gray-900 no-underline font-bold shrink-0 hover:opacity-80 transition-opacity">
-            <span className="w-[34px] h-[34px] inline-grid place-items-center rounded-lg bg-[#00b14f] text-white font-black" aria-hidden="true">
+            <span className="w-[34px] h-[34px] inline-grid place-items-center rounded-lg bg-brand text-white font-black" aria-hidden="true">
               G
             </span>
             <strong className="text-lg tracking-tight hidden sm:inline">{APP_NAME}</strong>
@@ -75,7 +75,7 @@ export default function Navbar() {
           {!isPortal && (
             <NavLink 
               to="/" 
-              className="p-2 text-gray-400 hover:text-[#00b14f] hover:bg-green-50 rounded-lg transition-colors border-0 bg-transparent flex items-center justify-center cursor-pointer ml-2"
+              className="p-2 text-gray-400 hover:text-brand hover:bg-brand-light rounded-lg transition-colors border-0 bg-transparent flex items-center justify-center cursor-pointer ml-2"
               title="Chọn ứng dụng khác"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,7 +97,7 @@ export default function Navbar() {
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Tìm món ăn, nhà hàng..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#00b14f] focus:border-transparent text-sm bg-gray-50 transition-all"
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent text-sm bg-gray-50 transition-all"
               />
             </div>
           )}
@@ -121,14 +121,14 @@ export default function Navbar() {
               {showCustomerNav && !isMerchant && (
                 <>
                   <li>
-                    <NavLink to="/food" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00b14f] shadow-sm' : 'text-gray-500'}`}>Đặt món</NavLink>
+                    <NavLink to="/food" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-500'}`}>Đặt món</NavLink>
                   </li>
                   <li>
-                    <NavLink to="/restaurants" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00b14f] shadow-sm' : 'text-gray-500'}`}>Nhà hàng</NavLink>
+                    <NavLink to="/restaurants" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-500'}`}>Nhà hàng</NavLink>
                   </li>
                   {isAuthenticated ? (
                     <li>
-                      <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00b14f] shadow-sm' : 'text-gray-500'}`}>Theo dõi</NavLink>
+                      <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-500'}`}>Theo dõi</NavLink>
                     </li>
                   ) : null}
                 </>
@@ -153,7 +153,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={handleCartClick}
-              className="relative p-2 text-gray-600 hover:text-[#00b14f] bg-transparent border-0 cursor-pointer transition-colors"
+              className="relative p-2 text-gray-600 hover:text-brand bg-transparent border-0 cursor-pointer transition-colors"
               aria-label="Xem giỏ hàng"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
