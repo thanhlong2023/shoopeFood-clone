@@ -12,6 +12,7 @@ router.get("/page", orderController.getOrdersPage);
 router.get("/:id/tracking", optionalAuth, orderController.getOrderTracking);
 router.get("/:id", orderController.getOrderById);
 router.post("/:id/accept", auth, requireRole(["DRIVER"]), orderController.acceptOrder);
+router.post("/:id/cancel", auth, requireRole(["CUSTOMER"]), orderController.cancelOrder);
 router.post("/", auth, requireRole(["CUSTOMER"]), orderController.createOrder);
 router.patch("/:id/reject", auth, requireRole(["MERCHANT"]), orderController.rejectOrder);
 router.put("/:id/status", auth, orderController.updateOrderStatus);

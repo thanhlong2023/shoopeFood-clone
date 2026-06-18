@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 type ModalProps = {
   title: string
@@ -28,7 +29,7 @@ export default function Modal({ title, subtitle, isOpen, onClose, children, foot
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div
         className="modal-card"
@@ -51,6 +52,7 @@ export default function Modal({ title, subtitle, isOpen, onClose, children, foot
 
         {footer ? <div className="modal-footer">{footer}</div> : null}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

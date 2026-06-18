@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import PartnerSection from '../components/partner/PartnerSection'
+import { Link, useSearchParams } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -50,14 +49,14 @@ function Icon({ name }: { name: IconName }) {
   }
 
   return (
-    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d={paths[name]} />
+    <svg className="icon w-4 h-4 fill-none stroke-current stroke-2" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d={paths[name]} />
     </svg>
   )
 }
 
 function formatPrice(value: number) {
-  return new Intl.NumberFormat('vi-VN').format(Math.round(value))
+  return new Intl.NumberFormat('vi-VN').format(Math.round(value)) + ' ₫'
 }
 
 function calculateDistanceKm(fromLat: number, fromLng: number, toLat: number, toLng: number) {
@@ -84,29 +83,29 @@ function normalizeSearchText(value: string) {
 
 function toEta(restaurantId: number) {
   const baseMinute = 18 + (restaurantId % 4) * 3
-  return `${baseMinute}-${baseMinute + 7} phut`
+  return `${baseMinute}-${baseMinute + 7} phút`
 }
 
 function toCuisine(categories: Category[], restaurantId: number) {
   const names = categories.filter((item) => item.restaurantId === restaurantId).map((item) => item.name)
-  return names.slice(0, 2).join(' · ') || 'Mon ngon moi ngay'
+  return names.slice(0, 2).join(' · ') || 'Món ngon mỗi ngày'
 }
 
 function toPromotion(restaurantId: number) {
-  const promotions = ['Giam 20% den 40k', 'Freeship 3km', 'Combo trua tiet kiem', 'Tang mon tu 99k']
+  const promotions = ['Giảm 20% đến 40k', 'Freeship 3km', 'Combo trưa tiết kiệm', 'Tặng món từ 99k']
   return promotions[restaurantId % promotions.length]
 }
 
 export default function HomePage() {
-  useDocumentTitle(`${APP_NAME} | Dat mon`)
+  useDocumentTitle(`${APP_NAME} | Đặt món`)
   const { isAuthenticated, user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [foods, setFoods] = useState<Food[]>([])
   const [activeRestaurantId, setActiveRestaurantId] = useState<number | null>(null)
   const [activeCategoryId, setActiveCategoryId] = useState<number | 'all'>('all')
-  const [searchTerm, setSearchTerm] = useState('')
   const [cart, setCart] = useState<CartState>({})
   const [checkout, setCheckout] = useState<CheckoutState>(initialCheckoutState)
   const [isLoading, setIsLoading] = useState(true)
@@ -115,6 +114,19 @@ export default function HomePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successOrder, setSuccessOrder] = useState<Order | null>(null)
   const submitKeyRef = useRef<string | null>(null)
+
+  // Search term synced with URL
+  const searchTerm = searchParams.get('q') || ''
+  const setSearchTerm = (val: string) => {
+    setSearchParams((prev) => {
+      if (!val) {
+        prev.delete('q')
+      } else {
+        prev.set('q', val)
+      }
+      return prev
+    })
+  }
 
   useEffect(() => {
     let ignore = false
@@ -134,7 +146,7 @@ export default function HomePage() {
         }
       } catch (error) {
         if (!ignore) {
-          setErrorMessage(error instanceof Error ? error.message : 'Khong the ket noi API')
+          setErrorMessage(error instanceof Error ? error.message : 'Không thể kết nối API')
         }
       } finally {
         if (!ignore) {
@@ -248,10 +260,28 @@ export default function HomePage() {
   )
   const distanceKm = Number(checkout.distanceKm) || 0
   const hasCartItems = cartItems.length > 0
-  const shippingFee = hasCartItems ? distanceKm * 3500 : 0
+  
+  const roundedDistance = Math.ceil(distanceKm * 10) / 10
+  const shippingFee = useMemo(() => {
+    if (!hasCartItems) return 0
+    const standardFee = roundedDistance <= 2 ? 16000 : 16000 + (roundedDistance - 2) * 5000
+    if (checkout.shippingType === 'FAST') {
+      return standardFee + 5000
+    }
+    if (checkout.shippingType === 'ECO') {
+      return Math.max(12000, standardFee - 4000)
+    }
+    return standardFee
+  }, [hasCartItems, roundedDistance, checkout.shippingType])
+
   const discountAmount = hasCartItems && subtotal >= 100000 ? 15000 : 0
   const totalAmount = Math.max(0, subtotal + shippingFee - discountAmount)
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0)
+
+  // Dispatch custom event to sync with Navbar Cart badge
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: cartCount } }))
+  }, [cartCount])
 
   useEffect(() => {
     const receiverLat = Number(checkout.receiverLat)
@@ -298,7 +328,7 @@ export default function HomePage() {
 
   function useCurrentLocation() {
     if (!navigator.geolocation) {
-      setErrorMessage('Trinh duyet khong ho tro lay vi tri')
+      setErrorMessage('Trình duyệt không hỗ trợ lấy vị trí')
       return
     }
 
@@ -322,7 +352,7 @@ export default function HomePage() {
         setIsLocating(false)
       },
       (error) => {
-        setErrorMessage(error.message || 'Khong the lay vi tri hien tai')
+        setErrorMessage(error.message || 'Không thể lấy vị trí hiện tại')
         setIsLocating(false)
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
@@ -331,27 +361,27 @@ export default function HomePage() {
 
   function validateCheckout() {
     if (!activeRestaurant) {
-      return 'Vui long chon nha hang'
+      return 'Vui lòng chọn nhà hàng'
     }
 
     if (cartItems.length === 0) {
-      return 'Gio hang dang trong'
+      return 'Giỏ hàng đang trống'
     }
 
     if (!checkout.receiverAddress.trim()) {
-      return 'Vui long nhap dia chi giao hang'
+      return 'Vui lòng nhập địa chỉ giao hàng'
     }
 
     if (!isAuthenticated || user?.role !== 'CUSTOMER') {
-      return 'Vui long dang nhap tai khoan khach hang de dat mon'
+      return 'Vui lòng đăng nhập tài khoản khách hàng để đặt món'
     }
 
     if (!Number.isFinite(Number(checkout.receiverLat)) || !Number.isFinite(Number(checkout.receiverLng))) {
-      return 'Toa do giao hang khong hop le'
+      return 'Tọa độ giao hàng không hợp lệ'
     }
 
     if (!Number.isFinite(Number(checkout.distanceKm)) || Number(checkout.distanceKm) <= 0) {
-      return 'Khoang cach giao hang khong hop le'
+      return 'Khoảng cách giao hàng không hợp lệ'
     }
 
     return null
@@ -396,60 +426,71 @@ export default function HomePage() {
       setCart({})
       setFoods(await getFoods())
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the tao don hang')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể tạo đơn hàng')
     } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
-    <section className="order-page">
-      <div className="market-hero">
-        <div className="hero-copy">
-          <span className="hero-badge">GrabFood</span>
-          <h1>Dat mon ngon quanh ban</h1>
-          <p>Giao toi {checkout.receiverAddress}</p>
+    <section className="order-page bg-slate-50 min-h-screen">
+      {/* Premium Search Hero Banner */}
+      <div className="market-hero rounded-2xl overflow-hidden mb-6 shadow-sm">
+        <div className="hero-copy p-8 md:p-12">
+          <span className="hero-badge bg-white/20 border border-white/30 text-white rounded-full text-xs px-3 py-1 font-bold">GrabFood</span>
+          <h1 className="text-4xl md:text-5xl font-black text-white mt-4 leading-tight">Đặt món ngon quanh bạn</h1>
+          <p className="text-white/80 font-medium mt-2">Giao tới: {checkout.receiverAddress}</p>
 
-          <div className="market-search" role="search">
+          <div className="flex h-[58px] items-center gap-2.5 bg-white rounded-full px-4 shadow-[0_14px_30px_rgba(6,33,19,0.2)] mt-6 w-full max-w-[620px] md:hidden">
             <Icon name="search" />
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Tim ten quan, mon an, danh muc..."
-              aria-label="Tim ten quan, mon an hoac danh muc"
+              placeholder="Tìm tên quán, món ăn..."
+              className="w-full min-w-0 bg-transparent border-0 outline-none pl-1 text-sm text-gray-800 focus:ring-0 focus:outline-none"
+              aria-label="Tìm tên quán, món ăn"
             />
           </div>
 
-          <div className="quick-row" aria-label="Danh muc nhanh">
+          <div className="quick-row flex flex-wrap gap-2 mt-4" aria-label="Danh mục nhanh">
             {quickFilters.map((filter) => (
-              <button key={filter} type="button" onClick={() => setSearchTerm(filter)}>
+              <button
+                key={filter}
+                type="button"
+                className="px-4 py-1.5 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer"
+                onClick={() => setSearchTerm(filter)}
+              >
                 {filter}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="hero-plate" aria-hidden="true">
-          <div className="plate-photo" />
-          <div className="floating-ticket">
-            <strong>{cartCount}</strong>
-            <span>mon trong gio</span>
+        <div className="hero-plate hidden md:grid place-items-center p-8" aria-hidden="true">
+          <div className="plate-photo w-[280px] h-[280px] rounded-full border-8 border-white/80 shadow-2xl" />
+          <div className="floating-ticket absolute bottom-8 right-8 bg-white p-4 rounded-xl shadow-lg flex flex-col min-w-[120px]">
+            <strong className="text-2xl font-black text-[#00b14f]">{cartCount}</strong>
+            <span className="text-xs text-gray-500 font-bold">món trong giỏ</span>
           </div>
         </div>
       </div>
 
-      {errorMessage ? <p className="app-feedback error">{errorMessage}</p> : null}
-
-      <PartnerSection />
+      {errorMessage ? <p className="app-feedback error bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 mb-4">{errorMessage}</p> : null}
 
       <div className="order-layout">
-        <aside className="restaurant-rail" aria-label="Nha hang">
-          <div className="rail-head">
-            <Icon name="store" />
-            <span>{isLoading ? 'Dang tai...' : `${visibleRestaurants.length} nha hang phu hop`}</span>
+        {/* Left: Restaurant Rail */}
+        <aside className="tw-restaurant-rail bg-white border-0 rounded-2xl shadow-sm p-4 sticky top-20" aria-label="Nhà hàng">
+          <div className="tw-rail-head flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
+            <div className="flex items-center gap-2 text-gray-800 font-extrabold text-sm">
+              <Icon name="store" />
+              <span>{isLoading ? 'Đang tải...' : 'Nhà hàng gần bạn'}</span>
+            </div>
+            <span className="text-[11px] bg-gray-100 text-gray-600 rounded-full px-2 py-0.5 font-bold">
+              {visibleRestaurants.length} quán
+            </span>
           </div>
 
-          <div className="restaurant-stack">
+          <div className="tw-restaurant-stack flex flex-col gap-2.5 max-h-[60vh] overflow-y-auto px-1 pt-[20px]">
             {visibleRestaurants.map((restaurant) => {
               const isActive = activeRestaurant?.id === restaurant.id
               const thumbStyle = restaurantThumbStyle(restaurant.imageUrl)
@@ -458,61 +499,83 @@ export default function HomePage() {
                 <button
                   key={restaurant.id}
                   type="button"
-                  className={`restaurant-pick ${isActive ? 'active' : ''}`}
+                  className={`w-full flex items-center gap-3 p-3 border-0 bg-white hover:bg-gray-50 rounded-xl transition-all duration-200 text-left focus:outline-none ${
+                    isActive ? 'ring-2 ring-[#00b14f] bg-green-50/20' : 'shadow-sm'
+                  }`}
                   onClick={() => handleRestaurantSelect(restaurant.id)}
                 >
                   <span
-                    className={`restaurant-thumb ${thumbStyle ? '' : 'restaurant-thumb--placeholder'}`}
+                    className={`w-[60px] h-[60px] rounded-xl shrink-0 bg-cover bg-center ${thumbStyle ? '' : 'restaurant-thumb--placeholder'}`}
                     style={thumbStyle}
                     aria-hidden="true"
                   />
-                  <span className="restaurant-info">
-                    <strong>{restaurant.name}</strong>
-                    <small>{toCuisine(categories, restaurant.id)}</small>
-                    <span>
-                      <Icon name="star" />
-                      {restaurant.ratingAvg.toFixed(1)} · {toEta(restaurant.id)}
+                  <span className="tw-restaurant-info flex-1 min-w-0 flex flex-col gap-1">
+                    <strong className="font-bold text-gray-900 text-sm truncate">{restaurant.name}</strong>
+                    <small className="text-[11px] text-gray-500 truncate">{toCuisine(categories, restaurant.id)}</small>
+                    <span className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold mt-0.5">
+                      <span className="flex items-center gap-0.5 text-yellow-500">
+                        ★ {restaurant.ratingAvg.toFixed(1)}
+                      </span>
+                      <span>·</span>
+                      <span>{toEta(restaurant.id)}</span>
                     </span>
                   </span>
                 </button>
               )
             })}
-            {!isLoading && visibleRestaurants.length === 0 ? <p className="restaurant-search-empty">Khong tim thay quan phu hop.</p> : null}
+            {!isLoading && visibleRestaurants.length === 0 ? <p className="text-gray-400 text-xs text-center py-6 font-medium">Không tìm thấy quán phù hợp.</p> : null}
           </div>
         </aside>
 
-        <main className="menu-panel">
+        {/* Center: Menu Panel */}
+        <main className="tw-menu-panel bg-white border-0 rounded-2xl shadow-sm p-5">
           {activeRestaurant ? (
-            <div className="restaurant-cover" style={restaurantCoverStyle(activeRestaurant.imageUrl)}>
-              <div>
-                <span className={`open-badge ${activeRestaurant.isOpen ? 'open' : 'closed'}`}>
-                  {activeRestaurant.isOpen ? 'Dang mo cua' : 'Tam dong cua'}
-                </span>
-                <h2>{activeRestaurant.name}</h2>
-                <p>
-                  <Icon name="location" />
-                  {activeRestaurant.address || 'Dia chi dang cap nhat'}
-                </p>
-              </div>
-              <div className="cover-meta">
-                <span>
-                  <Icon name="clock" />
-                  {toEta(activeRestaurant.id)}
-                </span>
-                <strong>{toPromotion(activeRestaurant.id)}</strong>
+            <div className="tw-restaurant-cover rounded-xl overflow-hidden relative min-h-[160px] flex items-end p-6 mb-6 shadow-sm" style={restaurantCoverStyle(activeRestaurant.imageUrl)}>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+              <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 w-full">
+                <div className="flex-1">
+                  <span className={`inline-flex items-center text-[10px] font-black rounded-full px-2.5 py-0.5 mb-2 ${
+                    activeRestaurant.isOpen ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                  }`}>
+                    {activeRestaurant.isOpen ? 'ĐANG MỞ CỬA' : 'TẠM ĐÓNG CỬA'}
+                  </span>
+                  <h2 className="text-2xl font-bold text-white leading-tight m-0">{activeRestaurant.name}</h2>
+                  <p className="flex items-center gap-1.5 text-xs text-white/80 font-medium mt-1.5">
+                    <Icon name="location" />
+                    {activeRestaurant.address || 'Địa chỉ đang cập nhật'}
+                  </p>
+                </div>
+                <div className="cover-meta shrink-0 flex flex-col items-start md:items-end gap-1.5">
+                  <span className="flex items-center gap-1 text-xs text-white/90 font-bold bg-black/40 rounded-full px-3 py-1">
+                    <Icon name="clock" />
+                    {toEta(activeRestaurant.id)}
+                  </span>
+                  <strong className="bg-[#ffb000] text-gray-900 rounded-full text-xs font-extrabold px-3 py-1.5 shadow-sm">
+                    {toPromotion(activeRestaurant.id)}
+                  </strong>
+                </div>
               </div>
             </div>
           ) : null}
 
-          <div className="category-tabs" aria-label="Danh muc mon">
-            <button type="button" className={activeCategoryId === 'all' ? 'active' : ''} onClick={() => setActiveCategoryId('all')}>
-              Tat ca
+          {/* Category Navigation Tabs */}
+          <div className="tw-category-tabs flex gap-2 overflow-x-auto pb-2 border-b border-gray-100 mb-6" aria-label="Danh mục món">
+            <button
+              type="button"
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all border-0 ${
+                activeCategoryId === 'all' ? 'bg-[#00b14f] text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              onClick={() => setActiveCategoryId('all')}
+            >
+              Tất cả
             </button>
             {activeCategories.map((category) => (
               <button
                 key={category.id}
                 type="button"
-                className={activeCategoryId === category.id ? 'active' : ''}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all border-0 whitespace-nowrap ${
+                  activeCategoryId === category.id ? 'bg-[#00b14f] text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
                 onClick={() => setActiveCategoryId(category.id)}
               >
                 {category.name}
@@ -520,181 +583,224 @@ export default function HomePage() {
             ))}
           </div>
 
-          <div className="menu-grid">
+          {/* Responsive Food Grid (No border, rounded-2xl, shadow-sm, hover:shadow-md) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {visibleFoods.map((food) => {
               const quantity = cart[food.id] || 0
               const remaining = Number(food.currentQuantity || 0)
               const isSoldOut = !food.isAvailable || remaining <= 0
 
               return (
-                <article key={food.id} className={`food-card ${isSoldOut ? 'sold-out' : ''}`}>
-                  <div
-                    className={`food-photo ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
-                    style={foodPhotoStyle(food.imageUrl)}
-                  >
-                    <span>{categoryNameById.get(food.categoryId ?? 0) || 'Mon ngon'}</span>
-                  </div>
-                  <div className="food-body">
-                    <div>
-                      <h3>{food.name}</h3>
-                      <p>{formatPrice(Number(food.price))} VND</p>
+                <article key={food.id} className={`tw-food-card bg-white border-0 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col justify-between ${isSoldOut ? 'opacity-60' : ''}`}>
+                  <div>
+                    <div
+                      className={`tw-food-photo h-[150px] relative bg-cover bg-center ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
+                      style={foodPhotoStyle(food.imageUrl)}
+                    >
+                      <span className="absolute left-3 bottom-3 bg-black/60 text-white rounded-full text-[10px] px-2.5 py-1 font-semibold z-10">
+                        {categoryNameById.get(food.categoryId ?? 0) || 'Món ngon'}
+                      </span>
                     </div>
-                    <div className="food-stock">
-                      <span>{isSoldOut ? 'Het mon' : `Con ${remaining}`}</span>
+                    <div className="tw-food-body p-4 flex flex-col gap-1">
+                      <h3 className="font-bold text-gray-900 text-sm line-clamp-1 m-0">{food.name}</h3>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="font-extrabold text-[#EE4D2D] text-sm">{formatPrice(Number(food.price))} đ</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isSoldOut ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+                          {isSoldOut ? 'Hết món' : `Còn ${remaining}`}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="quantity-row">
+                  <div className="tw-quantity-row p-4 pt-0 flex items-center justify-between gap-2 mt-auto">
                     {quantity > 0 ? (
-                      <>
-                        <button type="button" className="icon-button" onClick={() => updateFoodQuantity(food, quantity - 1)} aria-label="Giam so luong">
+                      <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-full px-2 py-1">
+                        <button
+                          type="button"
+                          className="w-6 h-6 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center cursor-pointer text-gray-600 border border-gray-200 transition-colors"
+                          onClick={() => updateFoodQuantity(food, quantity - 1)}
+                          aria-label="Giảm"
+                        >
                           <Icon name="minus" />
                         </button>
-                        <strong>{quantity}</strong>
-                      </>
+                        <strong className="text-xs font-bold text-gray-800 w-4 text-center">{quantity}</strong>
+                      </div>
                     ) : (
                       <span />
                     )}
                     <button
                       type="button"
-                      className="add-button"
+                      className="inline-flex items-center gap-1 px-4 py-1.5 bg-[#00b14f] hover:bg-[#00883d] disabled:bg-gray-100 disabled:text-gray-400 text-white rounded-full text-xs font-bold transition-all cursor-pointer border-0 shadow-sm"
                       onClick={() => updateFoodQuantity(food, quantity + 1)}
                       disabled={isSoldOut || quantity >= remaining}
                     >
                       <Icon name="plus" />
-                      Them
+                      Thêm
                     </button>
                   </div>
                 </article>
               )
             })}
 
-            {!isLoading && visibleFoods.length === 0 ? <p className="empty-state">Chua co mon phu hop.</p> : null}
+            {!isLoading && visibleFoods.length === 0 ? <p className="text-gray-400 text-center py-10 col-span-full font-medium">Chưa có món phù hợp.</p> : null}
           </div>
         </main>
 
-        <aside className="checkout-panel" id="checkout" aria-label="Gio hang">
-          <div className="checkout-head">
+        {/* Right: Checkout Panel */}
+        <aside className="tw-checkout-panel bg-white border-0 rounded-2xl shadow-sm p-4 sticky top-20" id="checkout" aria-label="Giỏ hàng">
+          <div className="tw-checkout-head flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
             <div>
-              <span>Gio hang</span>
-              <h2>{cartCount} mon</h2>
+              <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider">Giỏ hàng của bạn</span>
+              <h2 className="text-base font-extrabold text-gray-800 m-0">{cartCount} món</h2>
             </div>
-            <Icon name="cart" />
+            <div className="p-2 bg-green-50 text-[#00b14f] rounded-full">
+              <Icon name="cart" />
+            </div>
           </div>
 
-          <div className="cart-list">
+          <div className="tw-cart-list flex flex-col gap-3 max-h-[30vh] overflow-y-auto mb-4 pr-1">
             {cartItems.map((item) => (
-              <div key={item.food.id} className="cart-item">
-                <div>
-                  <strong>{item.food.name}</strong>
-                  <span>
-                    {item.quantity} x {formatPrice(Number(item.food.price))} VND
+              <div key={item.food.id} className="tw-cart-item flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <div className="min-w-0 flex-1">
+                  <strong className="block text-xs font-bold text-gray-800 truncate">{item.food.name}</strong>
+                  <span className="text-[11px] text-gray-500 font-semibold mt-0.5 block">
+                    {item.quantity} x {formatPrice(Number(item.food.price))}
                   </span>
                 </div>
-                <button type="button" className="icon-button subtle" onClick={() => updateFoodQuantity(item.food, 0)} aria-label="Xoa mon">
+                <button
+                  type="button"
+                  className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors border-0 bg-transparent cursor-pointer"
+                  onClick={() => updateFoodQuantity(item.food, 0)}
+                  aria-label="Xóa món"
+                >
                   <Icon name="trash" />
                 </button>
               </div>
             ))}
 
-            {cartItems.length === 0 ? <p className="cart-empty">Chon mon de bat dau dat hang.</p> : null}
+            {cartItems.length === 0 ? <p className="text-gray-400 text-xs text-center py-8 font-medium">Chọn món để bắt đầu đặt hàng.</p> : null}
           </div>
 
-          <form className="checkout-form" onSubmit={handleSubmitOrder}>
+          <form className="tw-checkout-form flex flex-col gap-4 border-t border-gray-100 pt-4" onSubmit={handleSubmitOrder}>
             {!isAuthenticated ? (
-              <p className="login-account-note">
-                Vui long <Link to="/login">dang nhap khach hang</Link> de dat mon.
+              <p className="bg-orange-50 text-orange-700 text-xs p-3 rounded-xl border border-orange-100 font-semibold leading-relaxed">
+                Vui lòng <Link to="/login" className="underline font-bold hover:text-orange-950">đăng nhập khách hàng</Link> để đặt món.
               </p>
             ) : null}
-            <label>
-              <span>Dia chi giao hang</span>
-              <input
-                value={checkout.receiverAddress}
-                onChange={(event) => setCheckout((current) => ({ ...current, receiverAddress: event.target.value }))}
-              />
-            </label>
+            
+            {/* Delivery Address Panel Card */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-start gap-3">
+              <div className="text-rose-500 mt-1 shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-bold text-gray-800 mb-2">Thông tin giao hàng</h3>
+                <div className="text-[11px] text-gray-600 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 font-semibold">Người nhận:</span>
+                    <span className="text-gray-900 font-bold">{user?.fullName || 'Khách hàng'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 font-semibold">Số điện thoại:</span>
+                    <span className="text-gray-900 font-bold">{user?.phone || 'Chưa cung cấp'}</span>
+                  </div>
+                  <div className="mt-2 flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-gray-400">Địa chỉ giao hàng</label>
+                    <textarea
+                      rows={2}
+                      value={checkout.receiverAddress}
+                      onChange={(event) => setCheckout((current) => ({ ...current, receiverAddress: event.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#00b14f] focus:border-transparent font-medium bg-gray-50 resize-none"
+                      placeholder="Nhập địa chỉ giao hàng..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
 
-            <button type="button" className="button-secondary" onClick={useCurrentLocation} disabled={isLocating}>
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              onClick={useCurrentLocation}
+              disabled={isLocating}
+            >
               <Icon name="location" />
-              {isLocating ? 'Dang lay vi tri...' : 'Dung vi tri hien tai'}
+              {isLocating ? 'Đang lấy vị trí...' : 'Dùng vị trí hiện tại'}
             </button>
 
-            <div className="checkout-grid">
-              <label>
-                <span>Lat</span>
-                <input
-                  value={checkout.receiverLat}
-                  onChange={(event) => setCheckout((current) => ({ ...current, receiverLat: event.target.value }))}
-                />
-              </label>
-              <label>
-                <span>Lng</span>
-                <input
-                  value={checkout.receiverLng}
-                  onChange={(event) => setCheckout((current) => ({ ...current, receiverLng: event.target.value }))}
-                />
-              </label>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-bold text-gray-500">Hình thức giao hàng</span>
+              <select
+                value={checkout.shippingType}
+                onChange={(event) =>
+                  setCheckout((current) => ({
+                    ...current,
+                    shippingType: event.target.value as CheckoutState['shippingType'],
+                  }))
+                }
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#00b14f] focus:border-transparent font-medium bg-gray-50 cursor-pointer"
+              >
+                <option value="STANDARD">Tiêu chuẩn (Standard)</option>
+                <option value="FAST">Giao nhanh (Fast)</option>
+                <option value="ECO">Tiết kiệm (Eco)</option>
+              </select>
             </div>
 
-            <div className="checkout-grid">
-              <label>
-                <span>Km</span>
-                <input
-                  value={checkout.distanceKm}
-                  onChange={(event) => setCheckout((current) => ({ ...current, distanceKm: event.target.value }))}
-                />
-              </label>
-              <label>
-                <span>Giao hang</span>
-                <select
-                  value={checkout.shippingType}
-                  onChange={(event) =>
-                    setCheckout((current) => ({
-                      ...current,
-                      shippingType: event.target.value as CheckoutState['shippingType'],
-                    }))
-                  }
-                >
-                  <option value="STANDARD">Standard</option>
-                  <option value="FAST">Fast</option>
-                  <option value="ECO">Eco</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="bill-box">
-              <div>
-                <span>Tam tinh</span>
-                <strong>{formatPrice(subtotal)} VND</strong>
+            {/* Pricing block with standard GrabFood layout */}
+            <div className="tw-bill-box bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col gap-2.5 mt-2">
+              <div className="flex justify-between items-center text-xs text-gray-500 font-semibold">
+                <span>Tạm tính</span>
+                <span className="text-gray-800">{formatPrice(subtotal)}</span>
               </div>
-              <div>
-                <span>Phi giao hang</span>
-                <strong>{formatPrice(shippingFee)} VND</strong>
+              <div className="flex justify-between items-center text-xs text-gray-500 font-semibold">
+                <div className="flex flex-col text-left">
+                  <span>Phí giao hàng</span>
+                  {distanceKm > 0 && (
+                    <span className="text-[10px] text-gray-400 font-medium">Khoảng cách: {roundedDistance} km</span>
+                  )}
+                </div>
+                <span className="text-gray-800">{formatPrice(shippingFee)}</span>
               </div>
-              <div>
-                <span>Uu dai</span>
-                <strong>-{formatPrice(discountAmount)} VND</strong>
-              </div>
-              <div className="bill-total">
-                <span>Tong cong</span>
-                <strong>{formatPrice(totalAmount)} VND</strong>
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center text-xs text-green-600 font-bold">
+                  <span>Ưu đãi</span>
+                  <span>-{formatPrice(discountAmount)}</span>
+                </div>
+              )}
+              <div className="border-t border-gray-200/60 my-1" />
+              <div className="tw-bill-total flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-700">Tổng thanh toán</span>
+                <strong className="text-xl font-bold text-rose-600">{formatPrice(totalAmount)}</strong>
               </div>
             </div>
 
-            <button type="submit" className="checkout-button" disabled={isSubmitting || cartItems.length === 0}>
+            <button
+              type="submit"
+              className="tw-checkout-button w-full flex items-center justify-center gap-2 py-4 bg-rose-500 hover:bg-rose-600 disabled:bg-gray-100 disabled:text-gray-400 text-white border-0 rounded-xl text-sm font-bold transition-colors cursor-pointer shadow-md mt-1"
+              disabled={isSubmitting || cartItems.length === 0}
+            >
               <Icon name="receipt" />
-              {isSubmitting ? 'Dang dat hang...' : 'Dat hang'}
+              {isSubmitting ? 'Đang đặt hàng...' : 'Đặt đơn hàng'}
             </button>
           </form>
 
           {successOrder ? (
-            <div className="order-success">
-              <Icon name="check" />
-              <div>
-                <strong>{successOrder.orderCode}</strong>
-                <span>{formatPrice(successOrder.totalAmount)} VND · {successOrder.statusLabel || successOrder.statusCode}</span>
+            <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-150 flex items-center gap-3 mt-4">
+              <div className="p-2 bg-green-500 text-white rounded-full">
+                <Icon name="check" />
               </div>
-              <Link to={`/tracking?orderId=${successOrder.id}`}>Theo doi</Link>
+              <div className="flex-1 min-w-0">
+                <strong className="block text-xs font-bold">{successOrder.orderCode}</strong>
+                <span className="text-[11px] block mt-0.5 text-green-600 font-semibold">
+                  {formatPrice(successOrder.totalAmount)} · {successOrder.statusLabel || successOrder.statusCode}
+                </span>
+              </div>
+              <Link to={`/tracking?orderId=${successOrder.id}`} className="text-xs font-black text-[#00b14f] hover:underline whitespace-nowrap">
+                Theo dõi
+              </Link>
             </div>
           ) : null}
         </aside>

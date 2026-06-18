@@ -47,3 +47,8 @@ export async function rejectOrder(id: number, reason: string, expectedVersion?: 
   const response = await httpPatch<ApiResponse<Order>>(`/api/orders/${id}/reject`, { reason, expectedVersion })
   return response.data
 }
+
+export async function cancelOrder(id: number, reason?: string) {
+  const response = await httpPost<ApiResponse<Order>>(`/api/orders/${id}/cancel`, { reason })
+  return response.data
+}

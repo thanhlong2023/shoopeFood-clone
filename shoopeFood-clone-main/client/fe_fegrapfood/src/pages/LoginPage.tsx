@@ -1,9 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import LoginPortalLinks from '../components/auth/LoginPortalLinks'
+import FormInput from '../components/common/FormInput'
+import { PhoneIcon, LockIcon } from '../components/common/Icons'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useLoginForm } from '../hooks/useLoginForm'
 import { getDefaultRedirect } from '../utils/loginPaths'
 import type { UserRole } from '../types'
 
@@ -30,7 +33,6 @@ const LOGIN_CONFIG: Record<UserRole, LoginPageConfig> = {
     title: 'Dang nhap chu quan',
     subtitle: 'Quan ly don hang va thuc don cua quan.',
     demoPhone: '0900000003',
-    accountNote: 'Chua co quan? Dang ky mo nha hang tai trang chu va cho Admin duyet.',
   },
   DRIVER: {
     title: 'Dang nhap tai xe',
@@ -57,8 +59,8 @@ export default function LoginPage({ role }: LoginPageProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const { login, isAuthenticated, user } = useAuth()
-  const [phone, setPhone] = useState(config.demoPhone)
-  const [password, setPassword] = useState('123456')
+  
+  const { phone, setPhone, password, setPassword, errors, isValid, handleBlur } = useLoginForm(config.demoPhone)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -70,13 +72,14 @@ export default function LoginPage({ role }: LoginPageProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!isValid) return
 
     try {
       setIsSubmitting(true)
       setErrorMessage(null)
-      const user = await login({ phone, password, role })
+      const loggedUser = await login({ phone, password, role })
       const state = location.state as LocationState | null
-      navigate(state?.from || getDefaultRedirect(user.role), { replace: true })
+      navigate(state?.from || getDefaultRedirect(loggedUser.role), { replace: true })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Khong the dang nhap')
     } finally {
@@ -99,18 +102,32 @@ export default function LoginPage({ role }: LoginPageProps) {
         {errorMessage ? <p className="app-feedback error">{errorMessage}</p> : null}
 
         <div className="login-form-grid">
-          <label>
-            <span>So dien thoai</span>
-            <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="0900000001" />
-          </label>
+          <FormInput
+            label="So dien thoai"
+            icon={<PhoneIcon />}
+            placeholder="0900000001"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            onBlur={() => handleBlur('phone')}
+            error={errors.phone}
+            className="full-width"
+            inputMode="tel"
+          />
 
-          <label>
-            <span>Mat khau</span>
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-          </label>
+          <FormInput
+            label="Mat khau"
+            icon={<LockIcon />}
+            type="password"
+            placeholder="Nhap mat khau cua ban"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => handleBlur('password')}
+            error={errors.password}
+            className="full-width"
+          />
         </div>
 
-        <button type="submit" className="checkout-button" disabled={isSubmitting}>
+        <button type="submit" className={`checkout-button ${!isValid ? 'disabled' : ''}`} disabled={isSubmitting || !isValid}>
           {isSubmitting ? 'Dang dang nhap...' : 'Dang nhap'}
         </button>
 

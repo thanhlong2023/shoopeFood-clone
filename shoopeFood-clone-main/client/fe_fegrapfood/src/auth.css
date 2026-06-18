@@ -1,0 +1,170 @@
+/* --- AUTH CSS FOR LOGIN & REGISTER PAGES --- */
+:root {
+  --auth-primary: #ee4d2d;
+  --auth-primary-hover: #d73a1e;
+  --auth-surface: #ffffff;
+  --auth-line: #e5e5e5;
+  --auth-text: #222222;
+  --auth-text-soft: #757575;
+  --auth-error: #ff424f;
+  --auth-error-bg: #fff0f1;
+}
+
+/* Hero Section */
+.login-hero {
+  background: linear-gradient(135deg, rgba(238, 77, 45, 0.95), rgba(255, 115, 55, 0.85)),
+              url('https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=1400&q=80') center/cover;
+}
+
+.login-hero .hero-badge {
+  background: #ffffff;
+  color: var(--auth-primary);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+/* Form Layout */
+.login-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+/* Form Input Wrapper */
+.form-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-input-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--auth-text);
+}
+
+.form-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--auth-line);
+  border-radius: 8px;
+  background: var(--auth-surface);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+}
+
+.form-input-container:focus-within {
+  border-color: var(--auth-primary);
+  box-shadow: 0 0 0 3px rgba(238, 77, 45, 0.15);
+}
+
+.form-input-container.has-error {
+  border-color: var(--auth-error);
+  background: var(--auth-error-bg);
+}
+
+.form-input-container.has-error:focus-within {
+  box-shadow: 0 0 0 3px rgba(255, 66, 79, 0.15);
+}
+
+.form-input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--auth-text-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.form-input-field {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  color: var(--auth-text);
+  outline: none;
+}
+
+.form-input-field.with-icon {
+  padding-left: 40px;
+}
+
+.form-input-field.with-toggle {
+  padding-right: 44px;
+}
+
+.form-input-toggle {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--auth-text-soft);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: color 0.2s, background 0.2s;
+}
+
+.form-input-toggle:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--auth-text);
+}
+
+.form-input-error {
+  margin: 0;
+  color: var(--auth-error);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Submit Button */
+.checkout-button {
+  background: var(--auth-primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s, opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.checkout-button:hover:not(:disabled) {
+  background: var(--auth-primary-hover);
+}
+
+.checkout-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.checkout-button:disabled,
+.checkout-button.disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* Additional layout fixes */
+.login-register-hint a {
+  color: var(--auth-primary);
+}

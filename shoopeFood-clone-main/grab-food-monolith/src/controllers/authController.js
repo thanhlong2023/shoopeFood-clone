@@ -41,7 +41,7 @@ exports.login = async (req, res) => {
 
     const user = await findUserByPhone(phone);
     if (!user || String(user.password) !== password) {
-      return res.status(401).json({ message: "Invalid phone or password" });
+      return res.status(401).json({ message: "Sai tai khoan hoac mat khau" });
     }
 
     const roleNames = (user.roles || []).map((role) => role.name);
@@ -52,8 +52,8 @@ exports.login = async (req, res) => {
     }
 
     if (requestedRole !== accountRole) {
-      return res.status(403).json({
-        message: `Tai khoan nay chi dang nhap duoc voi role ${accountRole}`,
+      return res.status(401).json({
+        message: "Sai tai khoan hoac mat khau",
       });
     }
 

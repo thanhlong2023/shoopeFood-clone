@@ -1,6 +1,3 @@
-const FAST_PER_KM_FEE = 5000;
-const FAST_FLAT_FEE = 8000;
-
 class FastShippingStrategy {
   constructor() {
     this.code = "FAST";
@@ -8,7 +5,9 @@ class FastShippingStrategy {
 
   calculate(distanceKm) {
     const validDistance = Number.isFinite(Number(distanceKm)) ? Number(distanceKm) : 0;
-    return FAST_FLAT_FEE + validDistance * FAST_PER_KM_FEE;
+    const roundedDistance = Math.ceil(validDistance * 10) / 10;
+    const standardFee = roundedDistance <= 2 ? 16000 : 16000 + (roundedDistance - 2) * 5000;
+    return standardFee + 5000;
   }
 }
 

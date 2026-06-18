@@ -2,7 +2,12 @@ import type { CSSProperties } from 'react'
 
 export function getRestaurantImageUrl(imageUrl?: string | null) {
   const trimmed = imageUrl?.trim()
-  return trimmed || null
+  if (!trimmed) return null
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+    return trimmed
+  }
+  const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
+  return `${apiBase.replace(/\/$/, '')}/${trimmed.replace(/^\//, '')}`
 }
 
 export function restaurantCoverStyle(imageUrl?: string | null): CSSProperties {

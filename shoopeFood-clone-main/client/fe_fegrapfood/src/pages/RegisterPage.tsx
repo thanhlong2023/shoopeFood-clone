@@ -1,74 +1,41 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import LoginPortalLinks from '../components/auth/LoginPortalLinks'
+import FormInput from '../components/common/FormInput'
+import { PhoneIcon, LockIcon, UserIcon } from '../components/common/Icons'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { registerCustomer } from '../services/api/auth'
 import { getDefaultRedirect } from '../utils/loginPaths'
-
-type RegisterErrors = Partial<Record<'fullName' | 'phone' | 'password' | 'confirmPassword', string>>
-
-const PHONE_REGEX = /^0\d{9,14}$/
+import { useRegisterForm } from '../hooks/useRegisterForm'
 
 export default function RegisterPage() {
   useDocumentTitle(`${APP_NAME} | Dang ky khach hang`)
 
   const navigate = useNavigate()
   const { login } = useAuth()
-  const [fullName, setFullName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [errors, setErrors] = useState<RegisterErrors>({})
+  
+  const {
+    fullName, setFullName,
+    phone, setPhone,
+    password, setPassword,
+    confirmPassword, setConfirmPassword,
+    errors, isValid, handleBlur
+  } = useRegisterForm()
+  
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!isValid) return
 
-    const trimmedName = fullName.trim()
-    const trimmedPhone = phone.trim()
-    const nextErrors: RegisterErrors = {}
-
-    if (!trimmedName) {
-      nextErrors.fullName = 'Ho ten la bat buoc'
-    } else if (trimmedName.length < 2) {
-      nextErrors.fullName = 'Ho ten phai co it nhat 2 ky tu'
-    } else if (trimmedName.length > 100) {
-      nextErrors.fullName = 'Ho ten khong duoc qua 100 ky tu'
-    }
-
-    if (!trimmedPhone) {
-      nextErrors.phone = 'So dien thoai la bat buoc'
-    } else if (!PHONE_REGEX.test(trimmedPhone)) {
-      nextErrors.phone = 'So dien thoai khong hop le'
-    }
-
-    if (!password || password.length < 6) {
-      nextErrors.password = 'Mat khau phai co it nhat 6 ky tu'
-    } else if (password.length > 72) {
-      nextErrors.password = 'Mat khau khong duoc qua 72 ky tu'
-    } else if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
-      nextErrors.password = 'Mat khau phai gom chu va so'
-    }
-
-    if (password !== confirmPassword) {
-      nextErrors.confirmPassword = 'Mat khau xac nhan khong khop'
-    }
-
-    if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors)
-      return
-    }
-
-    setErrors({})
     setFormError(null)
-
     try {
       setIsSubmitting(true)
-      await registerCustomer({ fullName: trimmedName, phone: trimmedPhone, password })
-      await login({ phone: trimmedPhone, password, role: 'CUSTOMER' })
+      await registerCustomer({ fullName: fullName.trim(), phone: phone.trim(), password })
+      await login({ phone: phone.trim(), password, role: 'CUSTOMER' })
       navigate(getDefaultRedirect('CUSTOMER'), { replace: true })
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Khong the dang ky')
@@ -91,64 +58,58 @@ export default function RegisterPage() {
         {formError ? <p className="app-feedback error">{formError}</p> : null}
 
         <div className="login-form-grid">
-          <label>
-            <span>Ho ten</span>
-            <input
-              maxLength={100}
-              value={fullName}
-              onChange={(event) => {
-                setFullName(event.target.value)
-                setErrors((current) => ({ ...current, fullName: undefined }))
-              }}
-              placeholder="Nguyen Van A"
-            />
-            {errors.fullName ? <p className="field-error">{errors.fullName}</p> : null}
-          </label>
+          <FormInput
+            label="Ho ten"
+            icon={<UserIcon />}
+            maxLength={100}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            onBlur={() => handleBlur('fullName')}
+            error={errors.fullName}
+            placeholder="Nguyen Van A"
+            className="full-width"
+          />
 
-          <label>
-            <span>So dien thoai</span>
-            <input
-              inputMode="tel"
-              maxLength={15}
-              value={phone}
-              onChange={(event) => {
-                setPhone(event.target.value)
-                setErrors((current) => ({ ...current, phone: undefined }))
-              }}
-              placeholder="0901234567"
-            />
-            {errors.phone ? <p className="field-error">{errors.phone}</p> : null}
-          </label>
+          <FormInput
+            label="So dien thoai"
+            icon={<PhoneIcon />}
+            inputMode="tel"
+            maxLength={15}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            onBlur={() => handleBlur('phone')}
+            error={errors.phone}
+            placeholder="0901234567"
+            className="full-width"
+          />
 
-          <label>
-            <span>Mat khau</span>
-            <input
-              type="password"
-              maxLength={72}
-              value={password}
-              onChange={(event) => {
-                setPassword(event.target.value)
-                setErrors((current) => ({ ...current, password: undefined }))
-              }}
-            />
-            {errors.password ? <p className="field-error">{errors.password}</p> : null}
-          </label>
+          <FormInput
+            label="Mat khau"
+            icon={<LockIcon />}
+            type="password"
+            maxLength={72}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => handleBlur('password')}
+            error={errors.password}
+            placeholder="Tao mat khau moi"
+            className="full-width"
+          />
 
-          <label>
-            <span>Xac nhan mat khau</span>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(event) => {
-                setConfirmPassword(event.target.value)
-                setErrors((current) => ({ ...current, confirmPassword: undefined }))
-              }}
-            />
-            {errors.confirmPassword ? <p className="field-error">{errors.confirmPassword}</p> : null}
-          </label>
+          <FormInput
+            label="Xac nhan mat khau"
+            icon={<LockIcon />}
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            onBlur={() => handleBlur('confirmPassword')}
+            error={errors.confirmPassword}
+            placeholder="Nhap lai mat khau tren"
+            className="full-width"
+          />
         </div>
 
-        <button type="submit" className="checkout-button" disabled={isSubmitting}>
+        <button type="submit" className={`checkout-button ${!isValid ? 'disabled' : ''}`} disabled={isSubmitting || !isValid}>
           {isSubmitting ? 'Dang xu ly...' : 'Dang ky'}
         </button>
 

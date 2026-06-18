@@ -7,6 +7,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { changePassword, updateProfile } from '../services/api/auth'
 import { getMyRestaurants, updateRestaurant } from '../services/api/restaurants'
 import { getRestaurantImageUrl, restaurantThumbStyle } from '../utils/restaurantImage'
+import { getRoleName } from '../utils/formatters'
 import type { Restaurant } from '../types'
 
 export default function ProfilePage() {
@@ -167,15 +168,16 @@ export default function ProfilePage() {
       <div className="restaurant-form-card">
         {user ? (
           <div className="profile-summary">
-            <p>
-              <strong>ID:</strong> #{user.id}
-            </p>
-            <p>
-              <strong>Vai tro dang nhap:</strong> {user.role}
-            </p>
-            <p>
-              <strong>Danh gia:</strong> {user.ratingAvg.toFixed(2)}
-            </p>
+            <div className="profile-avatar-circle">
+              {(user.fullName || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div className="profile-info">
+              <p className="profile-info-name">{user.fullName}</p>
+              <span className="profile-info-role">{getRoleName(user.role)}</span>
+              <span className="profile-info-rating">
+                <span className="star">⭐</span> {user.ratingAvg.toFixed(1)} / 5.0
+              </span>
+            </div>
           </div>
         ) : null}
 
@@ -287,7 +289,7 @@ export default function ProfilePage() {
                   />
                   <div>
                     <h3>{restaurant.name}</h3>
-                    <p>#{restaurant.id} · {restaurant.address || 'Chua co dia chi'}</p>
+                    <p>{restaurant.address || 'Chua co dia chi'}</p>
                   </div>
                 </div>
 

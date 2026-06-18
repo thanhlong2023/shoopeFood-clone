@@ -2,15 +2,6 @@ import { useEffect, useState } from 'react'
 import { getDriverProfile } from '../../services/api/drivers'
 import type { DriverPublicProfile } from '../../types'
 
-function formatPrice(value: number) {
-  return new Intl.NumberFormat('vi-VN').format(Math.round(value))
-}
-
-function formatOrderTime(value?: string) {
-  if (!value) return '-'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('vi-VN')
-}
 
 function vehicleLabel(vehicleType?: string) {
   if (!vehicleType) return 'Chua cap nhat'
@@ -115,28 +106,6 @@ export default function DriverProfilePanel({ driverId }: DriverProfilePanelProps
                 <strong>{driver.licensePlate || '-'}</strong>
               </div>
             </div>
-          </div>
-
-          <div className="driver-deliveries-card">
-            <h3>Don da giao gan day</h3>
-            {profile.completedDeliveries.length === 0 ? (
-              <p className="driver-profile-panel__hint">Chua co don hoan thanh.</p>
-            ) : (
-              <ul className="driver-deliveries-list">
-                {profile.completedDeliveries.map((delivery) => (
-                  <li key={delivery.id} className="driver-delivery-item">
-                    <div>
-                      <strong>{delivery.orderCode}</strong>
-                      <span>{delivery.restaurantName}</span>
-                    </div>
-                    <div>
-                      <span>{formatOrderTime(delivery.completedAt)}</span>
-                      <strong>{formatPrice(delivery.totalAmount)} VND</strong>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         </>
       ) : null}
