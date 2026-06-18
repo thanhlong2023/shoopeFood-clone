@@ -25,7 +25,7 @@ type CheckoutState = {
 
 type IconName = 'search' | 'location' | 'cart' | 'plus' | 'minus' | 'trash' | 'store' | 'clock' | 'star' | 'receipt' | 'check'
 
-const quickFilters = ['Com trua', 'Bun pho', 'Do uong', 'An vat', 'Chay', 'Giam gia']
+const quickFilters = ['Cơm trưa', 'Bún phở', 'Đồ uống', 'Ăn vặt', 'Chay', 'Giảm giá']
 const initialCheckoutState: CheckoutState = {
   receiverAddress: '12 Nguyen Hue, Quan 1',
   receiverLat: '10.7769',

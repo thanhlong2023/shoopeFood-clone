@@ -328,7 +328,7 @@ export default function RestaurantDetailPage() {
 
   function validateOrder() {
     if (!restaurant) return 'Khong tim thay nha hang'
-    if (!canOrder) return 'Nha hang hien chua nhan don'
+    if (!canOrder) return 'Nhà hàng hien chua nhan don'
     if (!isAuthenticated || user?.role !== 'CUSTOMER') return 'Vui long dang nhap tai khoan khach hang de dat mon'
     if (cartItems.length === 0) return 'Gio hang dang trong'
     if (!checkout.receiverAddress.trim()) return 'Vui long nhap dia chi giao hang'
@@ -540,7 +540,7 @@ export default function RestaurantDetailPage() {
         </Link>
         {isMerchantOwner ? (
           <Link to="/merchant/orders" className="button-secondary">
-            Don hang
+            Đơn hàng
           </Link>
         ) : null}
       </div>

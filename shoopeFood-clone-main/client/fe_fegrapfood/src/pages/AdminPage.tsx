@@ -85,9 +85,9 @@ const emptyCategoryForm: MenuCategoryForm = {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  CUSTOMER: 'CUSTOMER - Khach hang',
-  DRIVER: 'DRIVER - Tai xe',
-  MERCHANT: 'MERCHANT - Chu quan',
+  CUSTOMER: 'CUSTOMER - Khách hàng',
+  DRIVER: 'DRIVER - Tài xế',
+  MERCHANT: 'MERCHANT - Chủ quán',
   ADMIN: 'ADMIN - Quan tri',
 }
 
@@ -95,7 +95,7 @@ const resourceConfigs: ResourceConfig[] = [
   {
     name: 'menu-manager',
     title: 'Menu',
-    description: 'Quan ly menu theo nha hang, loc danh muc va mon an.',
+    description: 'Quản lý menu theo nhà hàng, lọc danh mục và món ăn.',
     columns: [],
     fields: [],
     canCreate: false,
@@ -103,21 +103,21 @@ const resourceConfigs: ResourceConfig[] = [
   },
   {
     name: 'orders',
-    title: 'Don hang',
+    title: 'Đơn hàng',
     description: 'Theo doi va cap nhat trang thai don hang.',
     columns: ['id', 'orderCode', 'customerId', 'restaurantId', 'driverId', 'statusCode', 'totalAmount', 'createdAt'],
     fields: [
       { key: 'statusCode', label: 'Trang thai', type: 'select', options: ['PENDING', 'CONFIRMED', 'PICKING_UP', 'DELIVERING', 'COMPLETED', 'CANCELLED'] },
       { key: 'receiverAddress', label: 'Dia chi giao', type: 'text' },
       { key: 'distanceKm', label: 'Khoang cach km', type: 'number' },
-      { key: 'discountAmount', label: 'Giam gia', type: 'number', defaultValue: 0 },
+      { key: 'discountAmount', label: 'Giảm giá', type: 'number', defaultValue: 0 },
       { key: 'taxAmount', label: 'Thue', type: 'number', defaultValue: 0 },
     ],
     canCreate: false,
   },
   {
     name: 'restaurant-manager',
-    title: 'Nha hang',
+    title: 'Nhà hàng',
     description: 'Tao quan cho chu quan, duyet va quan ly danh sach.',
     columns: [],
     fields: [],
@@ -127,7 +127,7 @@ const resourceConfigs: ResourceConfig[] = [
   {
     name: 'foods',
     title: 'Mon an',
-    description: 'Quan ly menu, gia va so luong mon moi ngay.',
+    description: 'Quản lý menu, giá và số lượng món mỗi ngày.',
     columns: ['id', 'name', 'categoryId', 'price', 'isAvailable', 'currentQuantity', 'defaultQuantity'],
     fields: [
       { key: 'categoryId', label: 'Category ID', type: 'number', nullable: true },
@@ -158,13 +158,13 @@ const resourceConfigs: ResourceConfig[] = [
   },
   {
     name: 'drivers',
-    title: 'Tai xe',
-    description: 'Quan ly tai xe, bien so va trang thai online.',
+    title: 'Tài xế',
+    description: 'Quản lý tài xế, biển số và trạng thái online.',
     columns: ['id', 'fullName', 'phone', 'vehicleType', 'licensePlate', 'isOnline', 'ratingAvg'],
     fields: [
-      { key: 'fullName', label: 'Ho ten', type: 'text' },
-      { key: 'phone', label: 'So dien thoai', type: 'text' },
-      { key: 'password', label: 'Mat khau', type: 'text', defaultValue: '123456' },
+      { key: 'fullName', label: 'Họ tên', type: 'text' },
+      { key: 'phone', label: 'Số điện thoại', type: 'text' },
+      { key: 'password', label: 'Mật khẩu', type: 'text', defaultValue: '123456' },
       { key: 'vehicleType', label: 'Loai xe', type: 'text', defaultValue: 'Motorbike' },
       { key: 'licensePlate', label: 'Bien so', type: 'text' },
       { key: 'ratingAvg', label: 'Rating', type: 'number', defaultValue: 5 },
@@ -173,12 +173,12 @@ const resourceConfigs: ResourceConfig[] = [
   },
   {
     name: 'users',
-    title: 'Nguoi dung',
-    description: 'Quan ly tai khoan khach hang va nhan su.',
+    title: 'Người dùng',
+    description: 'Quản lý tài khoản khách hàng và nhân sự.',
     columns: ['id', 'fullName', 'phone', 'roles', 'ratingAvg', 'createdAt'],
     fields: [
-      { key: 'fullName', label: 'Ho ten', type: 'text' },
-      { key: 'phone', label: 'So dien thoai', type: 'text' },
+      { key: 'fullName', label: 'Họ tên', type: 'text' },
+      { key: 'phone', label: 'Số điện thoại', type: 'text' },
       {
         key: 'role',
         label: 'Vai tro',
@@ -186,7 +186,7 @@ const resourceConfigs: ResourceConfig[] = [
         options: ['CUSTOMER', 'DRIVER', 'MERCHANT', 'ADMIN'],
         defaultValue: 'CUSTOMER',
       },
-      { key: 'password', label: 'Mat khau', type: 'text', defaultValue: '123456' },
+      { key: 'password', label: 'Mật khẩu', type: 'text', defaultValue: '123456' },
       { key: 'ratingAvg', label: 'Rating', type: 'number', defaultValue: 5 },
     ],
   },
@@ -378,7 +378,7 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
           </table>
 
           {query.isLoading ? <p className="empty-state">Dang tai du lieu...</p> : null}
-          {!query.isLoading && records.length === 0 ? <p className="empty-state">Chua co du lieu.</p> : null}
+          {!query.isLoading && records.length === 0 ? <p className="empty-state">Chưa có dữ liệu.</p> : null}
         </div>
       </section>
 
@@ -736,7 +736,7 @@ function MenuManagerPanel() {
       <section className="menu-manager-hero">
         <div>
           <span className="hero-badge">Nguoi 4</span>
-          <h2>Quan ly menu theo nha hang</h2>
+          <h2>Quản lý menu theo nhà hàng</h2>
           <p>CRUD danh muc, CRUD mon an va kiem tra API loc menu theo restaurant, category, ten mon, trang thai ban.</p>
         </div>
         <div className="menu-stat-grid">
@@ -763,7 +763,7 @@ function MenuManagerPanel() {
 
       <form className="menu-filter-bar" onSubmit={(event) => void applyFilters(event)}>
         <label>
-          <span>Nha hang</span>
+          <span>Nhà hàng</span>
           <select value={restaurantFilter} onChange={(event) => setRestaurantFilter(event.target.value)}>
             <option value="">Tat ca nha hang</option>
             {restaurants.map((restaurant) => (
@@ -834,7 +834,7 @@ function MenuManagerPanel() {
                   </div>
                   <div className="menu-admin-meta">
                     <span>{restaurant ? restaurant.name : 'Chua gan nha hang'}</span>
-                    <span>{category ? category.name : 'Chua co danh muc'}</span>
+                    <span>{category ? category.name : 'Chưa có danh mục'}</span>
                     <span>{food.isAvailable ? 'Dang ban' : 'Tam dung'}</span>
                     <span>
                       {food.currentQuantity}/{food.defaultQuantity} mon
@@ -902,7 +902,7 @@ function MenuManagerPanel() {
                 {foodFormErrors.price ? <p className="field-error">{foodFormErrors.price}</p> : null}
               </label>
               <label className="restaurant-field">
-                <span>Nha hang</span>
+                <span>Nhà hàng</span>
                 <select
                   value={foodForm.restaurantId}
                   onChange={(event) => {
@@ -985,7 +985,7 @@ function MenuManagerPanel() {
             </div>
             <form className="admin-form" noValidate onSubmit={(event) => void handleCategorySubmit(event)}>
               <label className="restaurant-field">
-                <span>Nha hang</span>
+                <span>Nhà hàng</span>
                 <select
                   value={categoryForm.restaurantId}
                   onChange={(event) => {
@@ -1166,7 +1166,7 @@ export default function AdminPage() {
         <div>
           <span className="hero-badge">Admin</span>
           <h1>Quan tri he thong GrabFood</h1>
-          <p>{user ? `${user.fullName || user.phone} dang dang nhap voi role ${user.role}` : 'Quan ly du lieu he thong.'}</p>
+          <p>{user ? `${user.fullName || user.phone} đang đăng nhập với role ${user.role}` : 'Quản lý dữ liệu hệ thống.'}</p>
         </div>
         <div className="admin-kpis">
           <div>

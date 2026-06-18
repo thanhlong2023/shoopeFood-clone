@@ -29,13 +29,13 @@ export default function PartnerSection() {
         <div className="partner-section-head">
           <span className="hero-badge">Hop tac</span>
           <h2>Ban muon gia nhap GrabFood?</h2>
-          <p>Dang ky lam tai xe hoac mo nha hang. Don se duoc Admin xet duyet truoc khi kich hoat.</p>
+          <p>Đăng ký lam tai xe hoac mo nha hang. Don se duoc Admin xet duyet truoc khi kich hoat.</p>
         </div>
 
         <div className="partner-card-grid">
           <article className="partner-card partner-card--driver">
             <div className="partner-card-icon">🛵</div>
-            <h3>Dang ky tai xe</h3>
+            <h3>Đăng ký tai xe</h3>
             <p>Nhan don giao hang linh hoat. Can bien so xe va so CCCD.</p>
             <ul>
               <li>Thu nhap theo don</li>
@@ -43,27 +43,27 @@ export default function PartnerSection() {
               <li>Duyet trong 24h</li>
             </ul>
             <button type="button" className="button-primary" onClick={() => requireLogin(() => setDriverOpen(true))}>
-              Dang ky tai xe
+              Đăng ký tai xe
             </button>
             <Link to="/driver/login" className="partner-card-link">
-              Da duoc duyet? Dang nhap tai xe
+              Da duoc duyet? Đăng nhập tai xe
             </Link>
           </article>
 
           <article className="partner-card partner-card--merchant">
             <div className="partner-card-icon">🏪</div>
             <h3>Mo nha hang</h3>
-            <p>Dang ky quan an, tiep can khach hang moi tren ung dung.</p>
+            <p>Đăng ký quan an, tiep can khach hang moi tren ung dung.</p>
             <ul>
-              <li>Quan ly thuc don online</li>
+              <li>Quản lý thực đơn online</li>
               <li>Nhan don tu khach</li>
               <li>Admin ho tro duyet quan</li>
             </ul>
             <button type="button" className="button-primary" onClick={() => requireLogin(() => setMerchantOpen(true))}>
-              Dang ky mo quan
+              Đăng ký mo quan
             </button>
             <Link to="/merchant/login" className="partner-card-link">
-              Da duoc duyet? Dang nhap chu quan
+              Da duoc duyet? Đăng nhập chủ quán
             </Link>
           </article>
         </div>

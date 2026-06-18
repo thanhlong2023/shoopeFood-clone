@@ -24,24 +24,24 @@ type LoginPageConfig = {
 
 const LOGIN_CONFIG: Record<UserRole, LoginPageConfig> = {
   CUSTOMER: {
-    title: 'Dang nhap khach hang',
-    subtitle: 'Dat mon, theo doi don hang va quan ly ho so.',
+    title: 'Đăng nhập khách hàng',
+    subtitle: 'Đặt món, theo dõi đơn hàng và quản lý hồ sơ.',
     demoPhone: '0900000001',
     showRegisterLink: true,
   },
   MERCHANT: {
-    title: 'Dang nhap chu quan',
-    subtitle: 'Quan ly don hang va thuc don cua quan.',
+    title: 'Đăng nhập chủ quán',
+    subtitle: 'Quản lý đơn hàng và thực đơn của quán.',
     demoPhone: '0900000003',
   },
   DRIVER: {
-    title: 'Dang nhap tai xe',
+    title: 'Đăng nhập tai xe',
     subtitle: 'Nhan don giao hang va cap nhat vi tri.',
     demoPhone: '0900000002',
-    accountNote: 'Chua la tai xe? Dang ky tai trang chu (can bien so + CCCD) va cho Admin duyet.',
+    accountNote: 'Chua la tai xe? Đăng ký tai trang chu (can bien so + CCCD) va cho Admin duyet.',
   },
   ADMIN: {
-    title: 'Dang nhap Admin',
+    title: 'Đăng nhập Admin',
     subtitle: 'Quan tri he thong, nha hang, menu va nguoi dung.',
     demoPhone: '0900000005',
     accountNote: 'Chi danh cho quan tri vien he thong.',
@@ -81,7 +81,7 @@ export default function LoginPage({ role }: LoginPageProps) {
       const state = location.state as LocationState | null
       navigate(state?.from || getDefaultRedirect(loggedUser.role), { replace: true })
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the dang nhap')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể đăng nhập')
     } finally {
       setIsSubmitting(false)
     }
@@ -103,7 +103,7 @@ export default function LoginPage({ role }: LoginPageProps) {
 
         <div className="login-form-grid">
           <FormInput
-            label="So dien thoai"
+            label="Số điện thoại"
             icon={<PhoneIcon />}
             placeholder="0900000001"
             value={phone}
@@ -115,10 +115,10 @@ export default function LoginPage({ role }: LoginPageProps) {
           />
 
           <FormInput
-            label="Mat khau"
+            label="Mật khẩu"
             icon={<LockIcon />}
             type="password"
-            placeholder="Nhap mat khau cua ban"
+            placeholder="Nhập mật khẩu của bạn"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onBlur={() => handleBlur('password')}
@@ -128,12 +128,12 @@ export default function LoginPage({ role }: LoginPageProps) {
         </div>
 
         <button type="submit" className={`checkout-button ${!isValid ? 'disabled' : ''}`} disabled={isSubmitting || !isValid}>
-          {isSubmitting ? 'Dang dang nhap...' : 'Dang nhap'}
+          {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
 
         {config.showRegisterLink ? (
           <p className="login-register-hint">
-            Chua co tai khoan? <Link to="/register">Dang ky khach hang</Link>
+            Chưa có tài khoản? <Link to="/register">Đăng ký khách hàng</Link>
           </p>
         ) : null}
 

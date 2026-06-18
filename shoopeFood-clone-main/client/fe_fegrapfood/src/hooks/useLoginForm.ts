@@ -14,7 +14,7 @@ export function useLoginForm(initialPhone = '') {
       if (!phone.trim()) {
         nextErrors.phone = 'Vui long nhap so dien thoai'
       } else if (!PHONE_REGEX.test(phone.trim())) {
-        nextErrors.phone = 'So dien thoai khong hop le'
+        nextErrors.phone = 'Số điện thoại khong hop le'
       }
     }
 
@@ -22,7 +22,7 @@ export function useLoginForm(initialPhone = '') {
       if (!password) {
         nextErrors.password = 'Vui long nhap mat khau'
       } else if (password.length < 6) {
-        nextErrors.password = 'Mat khau phai co it nhat 6 ky tu'
+        nextErrors.password = 'Mật khẩu phai co it nhat 6 ky tu'
       }
     }
 

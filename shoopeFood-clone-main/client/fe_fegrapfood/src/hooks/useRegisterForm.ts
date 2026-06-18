@@ -27,7 +27,7 @@ export function useRegisterForm() {
       if (!fullName.trim()) {
         nextErrors.fullName = 'Vui long nhap ho ten'
       } else if (fullName.trim().length < 2) {
-        nextErrors.fullName = 'Ho ten phai co it nhat 2 ky tu'
+        nextErrors.fullName = 'Họ tên phai co it nhat 2 ky tu'
       }
     }
 
@@ -35,7 +35,7 @@ export function useRegisterForm() {
       if (!phone.trim()) {
         nextErrors.phone = 'Vui long nhap so dien thoai'
       } else if (!PHONE_REGEX.test(phone.trim())) {
-        nextErrors.phone = 'So dien thoai khong hop le'
+        nextErrors.phone = 'Số điện thoại khong hop le'
       }
     }
 
@@ -43,13 +43,13 @@ export function useRegisterForm() {
       if (!password) {
         nextErrors.password = 'Vui long nhap mat khau'
       } else if (!PASSWORD_REGEX.test(password)) {
-        nextErrors.password = 'Mat khau gom it nhat 8 ky tu, 1 chu in hoa, 1 chu thuong, 1 so va 1 ky tu dac biet'
+        nextErrors.password = 'Mật khẩu gom it nhat 8 ky tu, 1 chu in hoa, 1 chu thuong, 1 so va 1 ky tu dac biet'
       }
     }
 
     if (touched.confirmPassword || touched.password) {
       if (confirmPassword && confirmPassword !== password) {
-        nextErrors.confirmPassword = 'Mat khau xac nhan khong khop'
+        nextErrors.confirmPassword = 'Mật khẩu xac nhan khong khop'
       }
     }
 

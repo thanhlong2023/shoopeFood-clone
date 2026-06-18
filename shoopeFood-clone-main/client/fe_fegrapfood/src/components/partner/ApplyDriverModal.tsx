@@ -64,7 +64,7 @@ export default function ApplyDriverModal({ isOpen, onClose }: ApplyDriverModalPr
 
   return (
     <Modal
-      title="Dang ky tro thanh tai xe"
+      title="Đăng ký tro thanh tai xe"
       subtitle="Dien thong tin that. Admin se xet duyet trong 1-2 ngay lam viec."
       isOpen={isOpen}
       onClose={handleClose}

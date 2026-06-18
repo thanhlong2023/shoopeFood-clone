@@ -138,7 +138,7 @@ export default function AdminCategoryPanel() {
         <div className="admin-panel-head">
           <div>
             <h2>Danh muc mon an</h2>
-            <p>Tao danh muc theo dung nha hang. Chu quan se thay ngay tai trang quan ly mon.</p>
+            <p>Tao danh muc theo dung nha hang. Chủ quán se thay ngay tai trang quan ly mon.</p>
           </div>
           <button type="button" className="button-secondary" onClick={() => void loadData()} disabled={isLoading}>
             Reload
@@ -168,7 +168,7 @@ export default function AdminCategoryPanel() {
               <tr>
                 <th>ID</th>
                 <th>Ten</th>
-                <th>Nha hang</th>
+                <th>Nhà hàng</th>
                 <th>Restaurant ID</th>
                 <th>Actions</th>
               </tr>
@@ -210,7 +210,7 @@ export default function AdminCategoryPanel() {
 
           {isLoading ? <p className="empty-state">Dang tai...</p> : null}
           {!isLoading && visibleCategories.length === 0 ? (
-            <p className="empty-state">Chua co danh muc phu hop.</p>
+            <p className="empty-state">Chưa có danh mục phu hop.</p>
           ) : null}
         </div>
       </section>
@@ -224,7 +224,7 @@ export default function AdminCategoryPanel() {
 
         <form className="admin-form" noValidate onSubmit={handleSubmit}>
           <label className="restaurant-field">
-            <span>Nha hang</span>
+            <span>Nhà hàng</span>
             <select
               value={form.restaurantId}
               onChange={(event) => {
@@ -250,7 +250,7 @@ export default function AdminCategoryPanel() {
                 setForm((current) => ({ ...current, name: event.target.value }))
                 setFormErrors((current) => ({ ...current, name: undefined }))
               }}
-              placeholder="vd: Mon chinh, Do uong"
+              placeholder="vd: Mon chinh, Đồ uống"
             />
             {formErrors.name ? <p className="field-error">{formErrors.name}</p> : null}
           </label>

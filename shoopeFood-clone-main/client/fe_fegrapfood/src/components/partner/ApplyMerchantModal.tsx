@@ -84,7 +84,7 @@ export default function ApplyMerchantModal({ isOpen, onClose }: ApplyMerchantMod
 
   return (
     <Modal
-      title="Dang ky mo nha hang"
+      title="Đăng ký mo nha hang"
       subtitle="Mo quan tren GrabFood. Don se duoc Admin kiem tra truoc khi hien thi."
       isOpen={isOpen}
       onClose={handleClose}

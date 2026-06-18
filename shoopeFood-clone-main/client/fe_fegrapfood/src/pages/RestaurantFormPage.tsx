@@ -269,7 +269,7 @@ export default function RestaurantFormPage() {
             <div className="restaurant-form-grid">
               {/* Owner */}
               <div className="restaurant-field">
-                <label htmlFor="ownerId">Chu quan (MERCHANT)</label>
+                <label htmlFor="ownerId">Chủ quán (MERCHANT)</label>
                 {isAdmin ? (
                   <select
                     id="ownerId"
@@ -297,7 +297,7 @@ export default function RestaurantFormPage() {
                   />
                 )}
                 {isAdmin && merchants.length === 0 ? (
-                  <p className="field-hint">Chua co chu quan. Tao tai Admin &gt; Nguoi dung (vai tro MERCHANT).</p>
+                  <p className="field-hint">Chưa có chủ quán. Tạo tại Admin &gt; Người dùng (vai tro MERCHANT).</p>
                 ) : null}
                 {errors.ownerId ? <p className="field-error">{errors.ownerId}</p> : null}
               </div>
