@@ -13,6 +13,7 @@ import AdminTabRedirect from '../components/common/AdminTabRedirect'
 import RestaurantDetailPage from '../pages/RestaurantDetailPage'
 import ProfilePage from '../pages/ProfilePage'
 import TrackingPage from '../pages/TrackingPage'
+import BrowseRestaurantsPage from '../pages/BrowseRestaurantsPage'
 
 export default function AppRouter() {
   return (
@@ -64,14 +65,7 @@ export default function AppRouter() {
             </RequireAuth>
           }
         />
-        <Route
-          path="/restaurants"
-          element={
-            <RequireAuth allowedRoles={['ADMIN']}>
-              <AdminTabRedirect tab="restaurants" />
-            </RequireAuth>
-          }
-        />
+        <Route path="/restaurants" element={<BrowseRestaurantsPage />} />
         <Route
           path="/restaurants/new"
           element={
@@ -82,11 +76,7 @@ export default function AppRouter() {
         />
         <Route
           path="/restaurants/:id"
-          element={
-            <RequireAuth allowedRoles={['MERCHANT', 'ADMIN', 'CUSTOMER']}>
-              <RestaurantDetailPage />
-            </RequireAuth>
-          }
+          element={<RestaurantDetailPage />}
         />
         <Route
           path="/restaurants/:id/edit"

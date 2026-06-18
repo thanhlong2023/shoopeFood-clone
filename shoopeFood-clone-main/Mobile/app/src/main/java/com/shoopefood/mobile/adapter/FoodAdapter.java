@@ -3,15 +3,18 @@ package com.shoopefood.mobile.adapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.google.android.material.button.MaterialButton;
 import com.shoopefood.mobile.R;
 import com.shoopefood.mobile.model.Food;
 import com.shoopefood.mobile.util.CurrencyUtils;
+import com.shoopefood.mobile.util.ImageUrlUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,10 +62,12 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
         private final TextView nameText;
         private final TextView priceText;
         private final TextView statusText;
+        private final ImageView foodImage;
         private final MaterialButton addButton;
 
         FoodViewHolder(@NonNull View itemView) {
             super(itemView);
+            foodImage = itemView.findViewById(R.id.imageFood);
             nameText = itemView.findViewById(R.id.textFoodName);
             priceText = itemView.findViewById(R.id.textFoodPrice);
             statusText = itemView.findViewById(R.id.textFoodStatus);
@@ -75,6 +80,13 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
             statusText.setText(food.isAvailable ? "Con hang" : "Het hang");
             addButton.setEnabled(food.isAvailable);
             addButton.setOnClickListener(v -> listener.onAddFood(food));
+
+            Glide.with(itemView.getContext())
+                    .load(ImageUrlUtils.resolve(food.imageUrl))
+                    .placeholder(R.drawable.ic_app_logo)
+                    .error(R.drawable.ic_app_logo)
+                    .centerCrop()
+                    .into(foodImage);
         }
     }
 }

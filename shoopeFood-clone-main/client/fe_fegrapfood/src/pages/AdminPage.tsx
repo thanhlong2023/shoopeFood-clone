@@ -8,12 +8,14 @@ import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { createCategory, deleteCategory, getCategories, updateCategory } from '../services/api/categories'
 import { createFood, deleteFood, getFoods, updateFood } from '../services/api/foods'
+import { getDrivers } from '../services/api/drivers'
+import { getOrders } from '../services/api/orders'
 import AdminCategoryPanel from '../components/admin/AdminCategoryPanel'
 import AdminDriverApplicationsPanel from '../components/admin/AdminDriverApplicationsPanel'
 import ImageUrlField from '../components/common/ImageUrlField'
 import { getAllRestaurantsForAdmin } from '../services/api/restaurants'
 import { foodPhotoStyle } from '../utils/foodImage'
-import type { Category, Food, Restaurant } from '../types'
+import type { Category, Driver, Food, Order, Restaurant } from '../types'
 
 type AdminRecord = Record<string, unknown> & {
   id: number | string
@@ -441,6 +443,16 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(value))
+}
+
+function isSameLocalDate(value: string, target = new Date()) {
+  const date = new Date(value)
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.getFullYear() === target.getFullYear() &&
+    date.getMonth() === target.getMonth() &&
+    date.getDate() === target.getDate()
+  )
 }
 
 function MenuManagerPanel() {
@@ -1063,6 +1075,10 @@ export default function AdminPage() {
   useDocumentTitle(`${APP_NAME} | Admin`)
 
   const { user } = useAuth()
+  const [dashboardRestaurants, setDashboardRestaurants] = useState<Restaurant[]>([])
+  const [dashboardOrders, setDashboardOrders] = useState<Order[]>([])
+  const [dashboardDrivers, setDashboardDrivers] = useState<Driver[]>([])
+  const [dashboardError, setDashboardError] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const tabFromUrl = searchParams.get(TAB_QUERY_KEY)
   const [activeResource, setActiveResource] = useState(
@@ -1080,6 +1096,56 @@ export default function AdminPage() {
       setActiveResource(nextResource)
     }
   }, [tabFromUrl])
+
+  useEffect(() => {
+    let ignore = false
+
+    async function loadDashboardStats() {
+      try {
+        setDashboardError(null)
+        const [restaurantData, orderData, driverData] = await Promise.all([
+          getAllRestaurantsForAdmin(),
+          getOrders(),
+          getDrivers(),
+        ])
+
+        if (!ignore) {
+          setDashboardRestaurants(restaurantData)
+          setDashboardOrders(orderData)
+          setDashboardDrivers(driverData)
+        }
+      } catch (error) {
+        if (!ignore) {
+          setDashboardError(error instanceof Error ? error.message : 'Khong the tai thong ke dashboard')
+        }
+      }
+    }
+
+    void loadDashboardStats()
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  const dashboardStats = useMemo(() => {
+    const todayOrders = dashboardOrders.filter((order) => isSameLocalDate(order.createdAt))
+    const todayRevenue = todayOrders
+      .filter((order) => order.statusCode !== 'CANCELLED' && order.statusCode !== 'TIMEOUT')
+      .reduce((total, order) => total + Number(order.totalAmount || 0), 0)
+    const waitingOrders = dashboardOrders.filter((order) =>
+      ['PENDING', 'DRIVER_ACCEPTED', 'CONFIRMED'].includes(order.statusCode || ''),
+    ).length
+    const onlineDrivers = dashboardDrivers.filter((driver) => driver.isOnline).length
+
+    return {
+      restaurants: dashboardRestaurants.filter((restaurant) => !restaurant.deletedAt).length,
+      todayOrders: todayOrders.length,
+      todayRevenue,
+      waitingOrders,
+      onlineDrivers,
+    }
+  }, [dashboardDrivers, dashboardOrders, dashboardRestaurants])
 
   function selectResource(name: string) {
     setActiveResource(name)
@@ -1104,15 +1170,29 @@ export default function AdminPage() {
         </div>
         <div className="admin-kpis">
           <div>
-            <span>API</span>
-            <strong>/api</strong>
+            <span>Tong nha hang</span>
+            <strong>{dashboardStats.restaurants}</strong>
           </div>
           <div>
-            <span>Provider</span>
-            <strong>simple-rest</strong>
+            <span>Don hom nay</span>
+            <strong>{dashboardStats.todayOrders}</strong>
+          </div>
+          <div>
+            <span>Doanh thu hom nay</span>
+            <strong>{formatMoney(dashboardStats.todayRevenue)}</strong>
+          </div>
+          <div>
+            <span>Don cho xu ly</span>
+            <strong>{dashboardStats.waitingOrders}</strong>
+          </div>
+          <div>
+            <span>Driver online</span>
+            <strong>{dashboardStats.onlineDrivers}</strong>
           </div>
         </div>
       </div>
+
+      {dashboardError ? <p className="restaurant-feedback error">{dashboardError}</p> : null}
 
       <div className="admin-tabs" aria-label="Admin resources">
         {resourceConfigs.map((resource) => (

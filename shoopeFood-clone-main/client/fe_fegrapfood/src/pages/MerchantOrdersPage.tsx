@@ -4,9 +4,11 @@ import { APP_NAME } from '../constants/app'
 import Modal from '../components/common/Modal'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { getCategories } from '../services/api/categories'
+import { getFoods } from '../services/api/foods'
 import { getOrders, rejectOrder, updateOrderStatus } from '../services/api/orders'
 import { getMyRestaurants } from '../services/api/restaurants'
-import type { Order, Restaurant } from '../types'
+import type { Food, Order, Restaurant } from '../types'
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(value))
@@ -26,6 +28,16 @@ function formatOrderTime(value: string) {
     month: '2-digit',
     year: 'numeric',
   }).format(date)
+}
+
+function isSameLocalDate(value: string, target = new Date()) {
+  const date = new Date(value)
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.getFullYear() === target.getFullYear() &&
+    date.getMonth() === target.getMonth() &&
+    date.getDate() === target.getDate()
+  )
 }
 
 const ORDER_STATUS_GROUPS = {
@@ -51,6 +63,7 @@ export default function MerchantOrdersPage() {
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [orders, setOrders] = useState<Order[]>([])
+  const [foods, setFoods] = useState<Food[]>([])
   const [restaurantFilter, setRestaurantFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('')
   const [isLoading, setIsLoading] = useState(true)
@@ -70,6 +83,14 @@ export default function MerchantOrdersPage() {
       const targets = restaurantFilter
         ? mine.filter((item) => item.id === Number(restaurantFilter))
         : mine
+
+      const [categoryData, foodData] = await Promise.all([getCategories(), getFoods()])
+      const ownedRestaurantIds = new Set(mine.map((restaurant) => restaurant.id))
+      const ownedCategoryIds = new Set(
+        categoryData.filter((category) => ownedRestaurantIds.has(category.restaurantId)).map((category) => category.id),
+      )
+
+      setFoods(foodData.filter((food) => food.categoryId !== null && ownedCategoryIds.has(food.categoryId)))
 
       const batches = await Promise.all(
         targets.map((restaurant) => getOrders({ restaurantId: restaurant.id })),
@@ -158,6 +179,31 @@ export default function MerchantOrdersPage() {
       ) as Record<keyof typeof ORDER_STATUS_GROUPS, number>,
     [orders],
   )
+  const merchantStats = useMemo(() => {
+    const todayOrders = orders.filter((order) => isSameLocalDate(order.createdAt))
+    const todayRevenue = todayOrders
+      .filter((order) => order.statusCode !== 'CANCELLED' && order.statusCode !== 'TIMEOUT')
+      .reduce((total, order) => total + Number(order.totalAmount || 0), 0)
+    const lowStockFoods = foods.filter((food) => food.isAvailable && Number(food.currentQuantity || 0) <= 5).length
+    const soldMap = new Map<string, number>()
+
+    orders.forEach((order) => {
+      order.items.forEach((item) => {
+        const name = item.foodName || `Mon #${item.foodId}`
+        soldMap.set(name, (soldMap.get(name) || 0) + Number(item.quantity || 0))
+      })
+    })
+
+    const bestSeller = Array.from(soldMap.entries()).sort((left, right) => right[1] - left[1])[0]
+
+    return {
+      todayOrders: todayOrders.length,
+      todayRevenue,
+      bestSellerName: bestSeller?.[0] || 'Chua co du lieu',
+      bestSellerQuantity: bestSeller?.[1] || 0,
+      lowStockFoods,
+    }
+  }, [foods, orders])
   const visibleOrders = useMemo(() => {
     if (!statusFilter) {
       return orders
@@ -190,6 +236,24 @@ export default function MerchantOrdersPage() {
       ) : (
         <>
           <div className="merchant-order-stats" aria-label="Thong ke don hang">
+            <button type="button" className="merchant-order-stat" onClick={() => setStatusFilter('')}>
+              <span>Don hom nay</span>
+              <strong>{merchantStats.todayOrders}</strong>
+            </button>
+            <button type="button" className="merchant-order-stat" onClick={() => setStatusFilter('completed')}>
+              <span>Doanh thu hom nay</span>
+              <strong>{formatMoney(merchantStats.todayRevenue)}</strong>
+            </button>
+            <button type="button" className="merchant-order-stat">
+              <span>Mon ban chay</span>
+              <strong title={merchantStats.bestSellerName}>
+                {merchantStats.bestSellerQuantity > 0 ? `${merchantStats.bestSellerName} (${merchantStats.bestSellerQuantity})` : '0'}
+              </strong>
+            </button>
+            <Link to="/merchant/menu" className="merchant-order-stat">
+              <span>Mon sap het</span>
+              <strong>{merchantStats.lowStockFoods}</strong>
+            </Link>
             <button
               type="button"
               className={`merchant-order-stat ${statusFilter === '' ? 'active' : ''}`}

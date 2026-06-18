@@ -8,6 +8,16 @@
     android:orientation="horizontal"
     android:padding="16dp">
 
+    <ImageView
+        android:id="@+id/imageFood"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/bg_card"
+        android:contentDescription="@string/add_food"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_app_logo" />
+
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
