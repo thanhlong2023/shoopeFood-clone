@@ -200,7 +200,7 @@ export default function BrowseRestaurantsPage() {
           <p className="text-sm font-bold text-gray-500">
             {isLoading ? 'Đang tải...' : `${filteredRestaurants.length} nhà hàng phù hợp`}
           </p>
-          <Link to="/" className="rounded-full bg-white px-4 py-2 text-xs font-black text-[#00b14f] shadow-sm">
+          <Link to="/food" className="rounded-full bg-white px-4 py-2 text-xs font-black text-[#00b14f] shadow-sm">
             Về trang đặt món
           </Link>
         </div>
@@ -213,8 +213,8 @@ export default function BrowseRestaurantsPage() {
               className="group overflow-hidden rounded-3xl bg-white text-gray-900 no-underline shadow-sm transition hover:-translate-y-1 hover:shadow-md"
             >
               <div
-                className={`h-44 bg-cover bg-center ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-thumb--placeholder'}`}
-                style={restaurantThumbStyle(restaurant.imageUrl)}
+                className={`h-44 bg-cover bg-center ${restaurantThumbStyle(restaurant.imageUrl, restaurant.id) ? '' : 'restaurant-thumb--placeholder'}`}
+                style={restaurantThumbStyle(restaurant.imageUrl, restaurant.id)}
               />
               <div className="flex flex-col gap-3 p-5">
                 <div className="flex items-start justify-between gap-3">

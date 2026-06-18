@@ -11,7 +11,7 @@ import { getDefaultRedirect } from '../utils/loginPaths'
 import { useRegisterForm } from '../hooks/useRegisterForm'
 
 export default function RegisterPage() {
-  useDocumentTitle(`${APP_NAME} | �ang k� kh�ch h�ng`)
+  useDocumentTitle(`${APP_NAME} | Đăng ký khách hàng`)
 
   const navigate = useNavigate()
   const { login } = useAuth()
@@ -38,7 +38,7 @@ export default function RegisterPage() {
       await login({ phone: phone.trim(), password, role: 'CUSTOMER' })
       navigate(getDefaultRedirect('CUSTOMER'), { replace: true })
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Kh�ng th? dang k�')
+      setFormError(error instanceof Error ? error.message : 'Không thể đăng ký')
     } finally {
       setIsSubmitting(false)
     }
@@ -49,8 +49,8 @@ export default function RegisterPage() {
       <div className="login-hero">
         <div>
           <span className="hero-badge">GrabFood</span>
-          <h1>�ang k� kh�ch h�ng</h1>
-          <p>T?o t�i kho?n d? d?t m�n ngay. Mu?n l�m t�i x? ho?c m? qu�n? �ang k� t?i trang ch? sau khi dang nh?p.</p>
+          <h1>Đăng ký khách hàng</h1>
+          <p>Tạo tài khoản để đặt món ngay. Muốn làm tài xế hoặc mở quán? Đăng ký tại trang chủ sau khi đăng nhập.</p>
         </div>
       </div>
 
@@ -59,7 +59,7 @@ export default function RegisterPage() {
 
         <div className="login-form-grid">
           <FormInput
-            label="H? t�n"
+            label="Họ tên"
             icon={<UserIcon />}
             maxLength={100}
             value={fullName}
@@ -71,7 +71,7 @@ export default function RegisterPage() {
           />
 
           <FormInput
-            label="S? di?n tho?i"
+            label="Số điện thoại"
             icon={<PhoneIcon />}
             inputMode="tel"
             maxLength={15}
@@ -84,7 +84,7 @@ export default function RegisterPage() {
           />
 
           <FormInput
-            label="M?t kh?u"
+            label="Mật khẩu"
             icon={<LockIcon />}
             type="password"
             maxLength={72}
@@ -92,29 +92,29 @@ export default function RegisterPage() {
             onChange={(e) => setPassword(e.target.value)}
             onBlur={() => handleBlur('password')}
             error={errors.password}
-            placeholder="T?o m?t kh?u m?i"
+            placeholder="Tạo mật khẩu mới"
             className="full-width"
           />
 
           <FormInput
-            label="X�c nh?n m?t kh?u"
+            label="Xác nhận mật khẩu"
             icon={<LockIcon />}
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             onBlur={() => handleBlur('confirmPassword')}
             error={errors.confirmPassword}
-            placeholder="Nh?p l?i m?t kh?u tr�n"
+            placeholder="Nhập lại mật khẩu trên"
             className="full-width"
           />
         </div>
 
         <button type="submit" className={`checkout-button ${!isValid ? 'disabled' : ''}`} disabled={isSubmitting || !isValid}>
-          {isSubmitting ? 'Dang xu ly...' : '�ang k�'}
+          {isSubmitting ? 'Dang xu ly...' : 'Đăng ký'}
         </button>
 
         <p className="login-register-hint">
-          �� c� t�i kho?n? <Link to="/login">�ang nh?p kh�ch h�ng</Link>
+          Đã có tài khoản? <Link to="/login">Đăng nhập khách hàng</Link>
         </p>
 
         <LoginPortalLinks activeRole="CUSTOMER" />

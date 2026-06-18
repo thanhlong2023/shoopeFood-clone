@@ -11,7 +11,7 @@ import { getRoleName } from '../utils/formatters'
 import type { Restaurant } from '../types'
 
 export default function ProfilePage() {
-  useDocumentTitle(`${APP_NAME} | Ho so`)
+  useDocumentTitle(`${APP_NAME} | Hồ sơ`)
   const { user, refreshUser } = useAuth()
   const isMerchant = user?.role === 'MERCHANT'
 
@@ -75,7 +75,7 @@ export default function ProfilePage() {
     const trimmedPhone = phone.trim()
 
     if (!trimmedName || !trimmedPhone) {
-      setErrorMessage('Ho ten va so dien thoai la bat buoc')
+      setErrorMessage('Họ tên va so dien thoai la bat buoc')
       return
     }
 
@@ -124,22 +124,22 @@ export default function ProfilePage() {
     }
 
     if (newPassword.length < 6 || newPassword.length > 72) {
-      setPasswordError('Mat khau moi phai co tu 6 den 72 ky tu')
+      setPasswordError('Mật khẩu moi phai co tu 6 den 72 ky tu')
       return
     }
 
     if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
-      setPasswordError('Mat khau moi phai gom chu va so')
+      setPasswordError('Mật khẩu moi phai gom chu va so')
       return
     }
 
     if (newPassword === currentPassword) {
-      setPasswordError('Mat khau moi phai khac mat khau hien tai')
+      setPasswordError('Mật khẩu moi phai khac mat khau hien tai')
       return
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError('Xac nhan mat khau moi khong khop')
+      setPasswordError('Xác nhận mật khẩu moi khong khop')
       return
     }
 
@@ -160,7 +160,7 @@ export default function ProfilePage() {
   return (
     <section className="restaurant-page">
       <div className="restaurant-form-card">
-        <span className="hero-badge">T�i kho?n</span>
+        <span className="hero-badge">Tài khoản</span>
         <h1>Thong tin ca nhan</h1>
         <p>Cap nhat thong tin ca nhan va bao mat tai khoan.</p>
       </div>
@@ -187,7 +187,7 @@ export default function ProfilePage() {
         <form className="restaurant-form" onSubmit={handleSubmit}>
           <div className="restaurant-form-grid">
             <div className="restaurant-field full">
-              <label htmlFor="profileFullName">Ho ten</label>
+              <label htmlFor="profileFullName">Họ tên</label>
               <input
                 id="profileFullName"
                 value={fullName}
@@ -197,7 +197,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="restaurant-field full">
-              <label htmlFor="profilePhone">So dien thoai</label>
+              <label htmlFor="profilePhone">Số điện thoại</label>
               <input
                 id="profilePhone"
                 value={phone}
@@ -218,7 +218,7 @@ export default function ProfilePage() {
       <div className="restaurant-form-card profile-security-card">
         <span className="hero-badge">Bao mat</span>
         <h2>Doi mat khau</h2>
-        <p>Mat khau moi phai co tu 6 den 72 ky tu, gom chu va so.</p>
+        <p>Mật khẩu moi phai co tu 6 den 72 ky tu, gom chu va so.</p>
 
         {passwordFeedback ? <p className="restaurant-feedback success">{passwordFeedback}</p> : null}
         {passwordError ? <p className="restaurant-feedback error">{passwordError}</p> : null}
@@ -226,7 +226,7 @@ export default function ProfilePage() {
         <form className="restaurant-form" onSubmit={handleChangePassword}>
           <div className="restaurant-form-grid profile-password-grid">
             <div className="restaurant-field full">
-              <label htmlFor="currentPassword">Mat khau hien tai</label>
+              <label htmlFor="currentPassword">Mật khẩu hien tai</label>
               <input
                 id="currentPassword"
                 type="password"
@@ -236,7 +236,7 @@ export default function ProfilePage() {
               />
             </div>
             <div className="restaurant-field">
-              <label htmlFor="newPassword">Mat khau moi</label>
+              <label htmlFor="newPassword">Mật khẩu moi</label>
               <input
                 id="newPassword"
                 type="password"
@@ -246,7 +246,7 @@ export default function ProfilePage() {
               />
             </div>
             <div className="restaurant-field">
-              <label htmlFor="confirmPassword">Xac nhan mat khau moi</label>
+              <label htmlFor="confirmPassword">Xác nhận mật khẩu moi</label>
               <input
                 id="confirmPassword"
                 type="password"
@@ -267,7 +267,7 @@ export default function ProfilePage() {
 
       {isMerchant ? (
         <div className="restaurant-form-card">
-          <span className="hero-badge">Chu quan</span>
+          <span className="hero-badge">Chủ quán</span>
           <h2>Hinh anh quan cua toi</h2>
           <p>Dan link URL hinh anh cho tung quan. Anh hien tren trang dat mon sau khi luu.</p>
 
@@ -276,7 +276,7 @@ export default function ProfilePage() {
           {isLoadingRestaurants ? <p className="empty-state">Dang tai quan...</p> : null}
 
           {!isLoadingRestaurants && restaurants.length === 0 ? (
-            <p className="empty-state">Chua c� qu�n n�o du?c g�n. Li�n h? admin d? du?c t?o qu�n.</p>
+            <p className="empty-state">Chưa có quán nào được gán. Liên hệ admin để được tạo quán.</p>
           ) : null}
 
           <div className="profile-restaurant-list">
@@ -284,12 +284,12 @@ export default function ProfilePage() {
               <article key={restaurant.id} className="profile-restaurant-card">
                 <div className="profile-restaurant-card-head">
                   <div
-                    className={`profile-restaurant-thumb ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-thumb--placeholder'}`}
-                    style={restaurantThumbStyle(getRestaurantImageUrl(imageUrls[restaurant.id]) ?? restaurant.imageUrl)}
+                    className={`profile-restaurant-thumb ${restaurantThumbStyle(restaurant.imageUrl, restaurant.id) ? '' : 'restaurant-thumb--placeholder'}`}
+                    style={restaurantThumbStyle(getRestaurantImageUrl(imageUrls[restaurant.id]) ?? restaurant.imageUrl, restaurant.id)}
                   />
                   <div>
                     <h3>{restaurant.name}</h3>
-                    <p>{restaurant.address || 'Chua c� d?a ch?'}</p>
+                    <p>{restaurant.address || 'Chưa có địa chỉ'}</p>
                   </div>
                 </div>
 

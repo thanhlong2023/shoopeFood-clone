@@ -40,11 +40,11 @@ export function toOrderCode(id: number, orderCode?: string | null): string {
 export function getRoleName(role?: string | null): string {
   switch (role) {
     case 'CUSTOMER':
-      return 'Khach hang'
+      return 'Khách hàng'
     case 'DRIVER':
-      return 'Tai xe'
+      return 'Tài xế'
     case 'MERCHANT':
-      return 'Chu quan'
+      return 'Chủ quán'
     case 'ADMIN':
       return 'Quan tri vien'
     default:

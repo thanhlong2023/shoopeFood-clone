@@ -26,6 +26,20 @@ const quoteIdentifier = (identifier) => {
 
 const hasColumn = (columns, columnName) => Object.prototype.hasOwnProperty.call(columns, columnName);
 
+const tableNameMatches = (table, tableName) => {
+  if (typeof table === "string") {
+    return table === tableName;
+  }
+
+  return Object.values(table || {}).some((value) => value === tableName);
+};
+
+const tableExists = async (tableName) => {
+  const queryInterface = sequelize.getQueryInterface();
+  const tables = await queryInterface.showAllTables();
+  return tables.some((table) => tableNameMatches(table, tableName));
+};
+
 const ensureIndex = async (tableName, indexName, fields) => {
   const queryInterface = sequelize.getQueryInterface();
   const indexes = await queryInterface.showIndex(tableName);
@@ -147,6 +161,14 @@ const ensureDriverLocationTrackingColumns = async () => {
   }
 
   await ensureIndex("driver_locations", "idx_driver_locations_geohash", ["geohash"]);
+};
+
+const ensureDriverLocationTrackingColumnsBeforeSync = async () => {
+  if (!(await tableExists("driver_locations"))) {
+    return;
+  }
+
+  await ensureDriverLocationTrackingColumns();
 };
 
 const backfillDriverLocationGeohashes = async () => {
@@ -383,6 +405,7 @@ const ensureDemoRoleAssignments = async () => {
 const initializeDatabase = async () => {
   await ensureDatabaseExists();
   await sequelize.authenticate();
+  await ensureDriverLocationTrackingColumnsBeforeSync();
   await sequelize.sync();
   await ensureFoodQuantityColumns();
   await ensureFoodImageUrlColumn();

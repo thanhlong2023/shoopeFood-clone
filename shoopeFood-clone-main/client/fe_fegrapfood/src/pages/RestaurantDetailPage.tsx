@@ -328,7 +328,7 @@ export default function RestaurantDetailPage() {
 
   function validateOrder() {
     if (!restaurant) return 'Khong tim thay nha hang'
-    if (!canOrder) return 'Nh� h�ng hien chua nhan don'
+    if (!canOrder) return 'Nhà hàng hien chua nhan don'
     if (!isAuthenticated || user?.role !== 'CUSTOMER') return 'Vui long dang nhap tai khoan khach hang de dat mon'
     if (cartItems.length === 0) return 'Gio hang dang trong'
     if (!checkout.receiverAddress.trim()) return 'Vui long nhap dia chi giao hang'
@@ -540,13 +540,13 @@ export default function RestaurantDetailPage() {
         </Link>
         {isMerchantOwner ? (
           <Link to="/merchant/orders" className="button-secondary">
-            �on h�ng
+            Đơn hàng
           </Link>
         ) : null}
       </div>
 
       <div className="restaurant-detail-card">
-        <div className="restaurant-detail-hero" style={restaurantCoverStyle(restaurant.imageUrl)}>
+        <div className="restaurant-detail-hero" style={restaurantCoverStyle(restaurant.imageUrl, restaurant.id)}>
           <div className="restaurant-detail-info">
             <h1>{restaurant.name}</h1>
 
@@ -887,8 +887,8 @@ export default function RestaurantDetailPage() {
                         {categoryFoods.map((food) => (
                           <div key={food.id} className="restaurant-food-card">
                             <div
-                              className={`food-card-photo ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
-                              style={foodPhotoStyle(food.imageUrl)}
+                              className={`food-card-photo ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
+                              style={foodPhotoStyle(food.imageUrl, food.id)}
                             />
                             <div className="food-card-header">
                               <h4>{food.name}</h4>
@@ -948,8 +948,8 @@ export default function RestaurantDetailPage() {
                     {(foodsByCategory[0] || []).map((food) => (
                       <div key={food.id} className="restaurant-food-card">
                         <div
-                          className={`food-card-photo ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
-                          style={foodPhotoStyle(food.imageUrl)}
+                          className={`food-card-photo ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
+                          style={foodPhotoStyle(food.imageUrl, food.id)}
                         />
                         <div className="food-card-header">
                           <h4>{food.name}</h4>

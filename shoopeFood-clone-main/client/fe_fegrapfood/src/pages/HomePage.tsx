@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useTrackableOrder } from '../hooks/useTrackableOrder'
 import { getCategories } from '../services/api/categories'
 import { getFoods } from '../services/api/foods'
+import { createOrder } from '../services/api/orders'
 import { getRestaurants } from '../services/api/restaurants'
-import { getCheckoutDraft, saveCheckoutDraft, type CheckoutDraft } from '../utils/checkoutDraft'
 import { foodPhotoStyle } from '../utils/foodImage'
+import { setLastOrderId } from '../utils/orderStorage'
 import { restaurantCoverStyle, restaurantThumbStyle } from '../utils/restaurantImage'
-import type { Category, CreateOrderPayload, Food, Restaurant } from '../types'
+import type { Category, CreateOrderPayload, Food, Order, Restaurant } from '../types'
 
 type CartState = Record<number, number>
 
@@ -24,37 +25,13 @@ type CheckoutState = {
 
 type IconName = 'search' | 'location' | 'cart' | 'plus' | 'minus' | 'trash' | 'store' | 'clock' | 'star' | 'receipt' | 'check'
 
+const quickFilters = ['Cơm trưa', 'Bún phở', 'Đồ uống', 'Ăn vặt', 'Chay', 'Giảm giá']
 const initialCheckoutState: CheckoutState = {
   receiverAddress: '12 Nguyen Hue, Quan 1',
   receiverLat: '10.7769',
   receiverLng: '106.7009',
   distanceKm: '3.2',
   shippingType: 'STANDARD',
-}
-
-function checkoutStateFromDraft(draft: CheckoutDraft | null): CheckoutState {
-  if (!draft) {
-    return initialCheckoutState
-  }
-
-  return {
-    receiverAddress: draft.receiver.address,
-    receiverLat: String(draft.receiver.lat),
-    receiverLng: String(draft.receiver.lng),
-    distanceKm: String(draft.receiver.distanceKm),
-    shippingType: draft.shippingType,
-  }
-}
-
-function cartStateFromDraft(draft: CheckoutDraft | null): CartState {
-  if (!draft) {
-    return {}
-  }
-
-  return draft.items.reduce<CartState>((nextCart, item) => {
-    nextCart[item.foodId] = item.quantity
-    return nextCart
-  }, {})
 }
 
 function Icon({ name }: { name: IconName }) {
@@ -138,20 +115,21 @@ export default function HomePage() {
   useDocumentTitle(`${APP_NAME} | Đặt món`)
   const { isAuthenticated, user } = useAuth()
   const { hasTrackableOrder, lastOrderId } = useTrackableOrder()
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [restoredCheckoutDraft] = useState(() => getCheckoutDraft())
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [foods, setFoods] = useState<Food[]>([])
-  const [activeRestaurantId, setActiveRestaurantId] = useState<number | null>(() => restoredCheckoutDraft?.restaurant.id ?? null)
+  const [activeRestaurantId, setActiveRestaurantId] = useState<number | null>(null)
   const [activeCategoryId, setActiveCategoryId] = useState<number | 'all'>('all')
-  const [cart, setCart] = useState<CartState>(() => cartStateFromDraft(restoredCheckoutDraft))
-  const [checkout, setCheckout] = useState<CheckoutState>(() => checkoutStateFromDraft(restoredCheckoutDraft))
+  const [cart, setCart] = useState<CartState>({})
+  const [checkout, setCheckout] = useState<CheckoutState>(initialCheckoutState)
   const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successOrder, setSuccessOrder] = useState<Order | null>(null)
+  const submitKeyRef = useRef<string | null>(null)
 
   // Search term synced with URL
   const searchTerm = searchParams.get('q') || ''
@@ -180,10 +158,7 @@ export default function HomePage() {
           setRestaurants(restaurantData)
           setCategories(categoryData)
           setFoods(foodData)
-          setActiveRestaurantId((current) => {
-            const candidate = current ?? restoredCheckoutDraft?.restaurant.id ?? restaurantData[0]?.id ?? null
-            return restaurantData.some((restaurant) => restaurant.id === candidate) ? candidate : restaurantData[0]?.id ?? null
-          })
+          setActiveRestaurantId((current) => current ?? restaurantData[0]?.id ?? null)
         }
       } catch (error) {
         if (!ignore) {
@@ -314,6 +289,7 @@ export default function HomePage() {
     setActiveRestaurantId(restaurantId)
     setActiveCategoryId(food.categoryId ?? 'all')
     setSearchTerm('')
+    setSuccessOrder(null)
   }
 
   const cartItems = useMemo(
@@ -379,6 +355,7 @@ export default function HomePage() {
     setActiveCategoryId('all')
     setSearchTerm('')
     setCart({})
+    setSuccessOrder(null)
   }
 
   function updateFoodQuantity(food: Food, nextQuantity: number) {
@@ -459,12 +436,7 @@ export default function HomePage() {
     return null
   }
 
-  function buildCheckoutIdempotencyKey() {
-    const randomPart = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)
-    return `WEB-${Date.now()}-${randomPart}`
-  }
-
-  function handleSubmitOrder(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const checkoutError = validateCheckout()
 
@@ -473,42 +445,40 @@ export default function HomePage() {
       return
     }
 
-    setErrorMessage(null)
-    saveCheckoutDraft({
-      id: `CHECKOUT-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      idempotencyKey: buildCheckoutIdempotencyKey(),
-      restaurant: {
-        id: activeRestaurant.id,
-        name: activeRestaurant.name,
-        address: activeRestaurant.address,
-        imageUrl: activeRestaurant.imageUrl,
-        ratingAvg: activeRestaurant.ratingAvg,
-      },
-      receiver: {
-        address: checkout.receiverAddress.trim(),
-        lat: Number(checkout.receiverLat),
-        lng: Number(checkout.receiverLng),
+    try {
+      setIsSubmitting(true)
+      setErrorMessage(null)
+      setSuccessOrder(null)
+      if (!submitKeyRef.current) {
+        submitKeyRef.current = `WEB-${Date.now()}-${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`
+      }
+
+      const createdOrder = await createOrder({
+        restaurantId: activeRestaurant.id,
+        receiverAddress: checkout.receiverAddress.trim(),
+        receiverLat: Number(checkout.receiverLat),
+        receiverLng: Number(checkout.receiverLng),
         distanceKm: Number(checkout.distanceKm),
-      },
-      shippingType: checkout.shippingType,
-      pricing: {
-        subtotalAmount: subtotal,
-        shippingFee,
+        shippingType: checkout.shippingType,
         discountAmount,
         taxAmount: 0,
-        totalAmount,
-      },
-      items: cartItems.map((item) => ({
-        foodId: item.food.id,
-        name: item.food.name,
-        imageUrl: item.food.imageUrl,
-        price: Number(item.food.price || 0),
-        quantity: item.quantity,
-        lineTotal: Number(item.food.price || 0) * item.quantity,
-      })),
-    })
-    navigate('/payment')
+        idempotencyKey: submitKeyRef.current,
+        items: cartItems.map((item) => ({
+          foodId: item.food.id,
+          quantity: item.quantity,
+        })),
+      })
+
+      setSuccessOrder(createdOrder)
+      setLastOrderId(createdOrder.id)
+      submitKeyRef.current = null
+      setCart({})
+      setFoods(await getFoods())
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể tạo đơn hàng')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -531,19 +501,18 @@ export default function HomePage() {
             />
           </div>
 
-          <div className="flex flex-wrap gap-2 animate-fade-in-up mt-6" style={{ animationDelay: '0.4s' }}>
-            {['Cơm trưa', 'Bún phở', 'Đồ uống', 'Ăn vặt', 'Chay', 'Giảm giá'].map((tag) => (
+          <div className="quick-row flex flex-wrap gap-2 mt-4" aria-label="Danh mục nhanh">
+            {quickFilters.map((filter) => (
               <button
-                key={tag}
+                key={filter}
                 type="button"
-                onClick={() => setSearchTerm(tag)}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full text-white text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-sm hover:shadow-md"
+                className="px-4 py-1.5 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer"
+                onClick={() => setSearchTerm(filter)}
               >
-                {tag}
+                {filter}
               </button>
             ))}
           </div>
-
         </div>
 
         <div className="hero-plate hidden md:grid place-items-center p-8" aria-hidden="true">
@@ -586,7 +555,7 @@ export default function HomePage() {
           <div className="tw-restaurant-stack flex flex-col gap-2.5 max-h-[60vh] overflow-y-auto px-1 pt-[20px]">
             {previewRestaurants.map((restaurant) => {
               const isActive = activeRestaurant?.id === restaurant.id
-              const thumbStyle = restaurantThumbStyle(restaurant.imageUrl)
+              const thumbStyle = restaurantThumbStyle(restaurant.imageUrl, restaurant.id)
 
               return (
                 <button
@@ -630,7 +599,7 @@ export default function HomePage() {
         {/* Center: Menu Panel */}
         <main className="tw-menu-panel bg-white border-0 rounded-2xl shadow-sm p-5">
           {activeRestaurant ? (
-            <div className="tw-restaurant-cover rounded-xl overflow-hidden relative min-h-[160px] flex items-end p-6 mb-6 shadow-sm" style={restaurantCoverStyle(activeRestaurant.imageUrl)}>
+            <div className="tw-restaurant-cover rounded-xl overflow-hidden relative min-h-[160px] flex items-end p-6 mb-6 shadow-sm" style={restaurantCoverStyle(activeRestaurant.imageUrl, activeRestaurant.id)}>
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
               <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 w-full">
                 <div className="flex-1">
@@ -682,8 +651,8 @@ export default function HomePage() {
                     className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <span
-                      className={`h-14 w-14 shrink-0 rounded-xl bg-cover bg-center ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-thumb--placeholder'}`}
-                      style={restaurantThumbStyle(restaurant.imageUrl)}
+                      className={`h-14 w-14 shrink-0 rounded-xl bg-cover bg-center ${restaurantThumbStyle(restaurant.imageUrl, restaurant.id) ? '' : 'restaurant-thumb--placeholder'}`}
+                      style={restaurantThumbStyle(restaurant.imageUrl, restaurant.id)}
                       aria-hidden="true"
                     />
                     <span className="min-w-0">
@@ -724,8 +693,8 @@ export default function HomePage() {
                       className="w-[180px] shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
                       <span
-                        className={`block h-24 bg-cover bg-center ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
-                        style={foodPhotoStyle(food.imageUrl)}
+                        className={`block h-24 bg-cover bg-center ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
+                        style={foodPhotoStyle(food.imageUrl, food.id)}
                         aria-hidden="true"
                       />
                       <span className="block p-3">
@@ -776,8 +745,8 @@ export default function HomePage() {
                 <article key={food.id} className={`tw-food-card bg-white border-0 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col justify-between ${isSoldOut ? 'opacity-60' : ''}`}>
                   <div>
                     <div
-                      className={`tw-food-photo h-[150px] relative bg-cover bg-center ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
-                      style={foodPhotoStyle(food.imageUrl)}
+                      className={`tw-food-photo h-[150px] relative bg-cover bg-center ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
+                      style={foodPhotoStyle(food.imageUrl, food.id)}
                     >
                       <span className="absolute left-3 bottom-3 bg-black/60 text-white rounded-full text-[10px] px-2.5 py-1 font-semibold z-10">
                         {categoryNameById.get(food.categoryId ?? 0) || 'Món ngon'}
@@ -977,12 +946,29 @@ export default function HomePage() {
             <button
               type="submit"
               className="tw-checkout-button w-full flex items-center justify-center gap-2 py-4 bg-rose-500 hover:bg-rose-600 disabled:bg-gray-100 disabled:text-gray-400 text-white border-0 rounded-xl text-sm font-bold transition-colors cursor-pointer shadow-md mt-1"
-              disabled={cartItems.length === 0}
+              disabled={isSubmitting || cartItems.length === 0}
             >
               <Icon name="receipt" />
-              Đặt đơn hàng
+              {isSubmitting ? 'Đang đặt hàng...' : 'Đặt đơn hàng'}
             </button>
           </form>
+
+          {successOrder ? (
+            <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-150 flex items-center gap-3 mt-4">
+              <div className="p-2 bg-green-500 text-white rounded-full">
+                <Icon name="check" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <strong className="block text-xs font-bold">{successOrder.orderCode}</strong>
+                <span className="text-[11px] block mt-0.5 text-green-600 font-semibold">
+                  {formatPrice(successOrder.totalAmount)} · {successOrder.statusLabel || successOrder.statusCode}
+                </span>
+              </div>
+              <Link to={`/tracking?orderId=${successOrder.id}`} className="text-xs font-black text-[#00b14f] hover:underline whitespace-nowrap">
+                Theo dõi
+              </Link>
+            </div>
+          ) : null}
         </aside>
       </div>
     </section>

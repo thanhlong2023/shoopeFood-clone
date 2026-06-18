@@ -85,7 +85,7 @@ export default function DriverProfilePanel({ driverId }: DriverProfilePanelProps
               {initial}
             </span>
             <div className="driver-profile-card__body">
-              <strong>{driver.fullName || 'Tai xe'}</strong>
+              <strong>{driver.fullName || 'Tài xế'}</strong>
               <span>SDT: {driver.phone || '-'}</span>
               <span>Danh gia: {(driver.ratingAvg ?? 0).toFixed(1)} / 5</span>
               <span className={`driver-profile-status ${driver.isOnline ? 'online' : 'offline'}`}>

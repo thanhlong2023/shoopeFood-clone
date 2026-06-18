@@ -1,4 +1,4 @@
-import { NavLink, useNavigate, useSearchParams } from 'react-router-dom'
+import { NavLink, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { APP_NAME } from '../../constants/app'
 import { useAuth } from '../../contexts/AuthContext'
@@ -8,18 +8,20 @@ import ApplyMerchantModal from '../partner/ApplyMerchantModal'
 export default function Navbar() {
   const { isAuthenticated, user, logout, hasRole } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const isMerchant = hasRole(['MERCHANT'])
   const isAdmin = hasRole(['ADMIN'])
   const isDriver = hasRole(['DRIVER'])
   const showCustomerNav = !isAuthenticated || hasRole(['CUSTOMER'])
+  const isPortal = location.pathname === '/'
 
   // Search logic synced with URL search parameter
   const searchTerm = searchParams.get('q') || ''
   const handleSearchChange = (val: string) => {
-    if (window.location.pathname !== '/') {
-      navigate(`/?q=${encodeURIComponent(val)}`)
+    if (window.location.pathname !== '/food') {
+      navigate(`/food?q=${encodeURIComponent(val)}`)
     } else {
       setSearchParams((prev) => {
         if (!val) {
@@ -47,21 +49,13 @@ export default function Navbar() {
   const [driverOpen, setDriverOpen] = useState(false)
   const [merchantOpen, setMerchantOpen] = useState(false)
 
-  const requireLogin = (openModal: () => void) => {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: '/' } })
-      return
-    }
-    openModal()
-  }
-
   // Scroll to checkout or home
   const handleCartClick = () => {
     const checkoutEl = document.getElementById('checkout')
     if (checkoutEl) {
       checkoutEl.scrollIntoView({ behavior: 'smooth' })
     } else {
-      navigate('/')
+      navigate('/food')
     }
   }
 
@@ -69,17 +63,30 @@ export default function Navbar() {
     <header className="topbar-wrap border-b border-gray-100 bg-white/96 sticky top-0 z-[1010] backdrop-blur-md">
       <nav className="max-w-[1440px] mx-auto min-height-[68px] flex items-center justify-between gap-4 px-4 py-3" aria-label="Global navigation">
         {/* Left: Brand Logo + Integrated Search Bar */}
-        <div className="flex items-center gap-6 flex-1 min-w-0">
-          <NavLink to="/" className="flex items-center gap-2 text-gray-900 no-underline font-bold shrink-0">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <NavLink to="/" className="flex items-center gap-2 text-gray-900 no-underline font-bold shrink-0 hover:opacity-80 transition-opacity">
             <span className="w-[34px] h-[34px] inline-grid place-items-center rounded-lg bg-[#00b14f] text-white font-black" aria-hidden="true">
               G
             </span>
             <strong className="text-lg tracking-tight hidden sm:inline">{APP_NAME}</strong>
           </NavLink>
 
+          {/* App Switcher Button (Go back to Portal) */}
+          {!isPortal && (
+            <NavLink 
+              to="/" 
+              className="p-2 text-gray-400 hover:text-[#00b14f] hover:bg-green-50 rounded-lg transition-colors border-0 bg-transparent flex items-center justify-center cursor-pointer ml-2"
+              title="Chọn ứng dụng khác"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </NavLink>
+          )}
+
           {/* Integrated Search Input for Customer Role */}
-          {showCustomerNav && (
-            <div className="relative flex-1 max-w-md hidden md:block">
+          {showCustomerNav && !isPortal && (
+            <div className="relative flex-1 max-w-md hidden md:block ml-4">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -96,76 +103,57 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Center/Right: B2B Partner Links */}
-        {showCustomerNav && (
-          <div className="flex items-center gap-3 text-sm text-gray-500 shrink-0 font-medium">
-            <button
-              type="button"
-              onClick={() => requireLogin(() => setDriverOpen(true))}
-              className="hover:text-gray-900 transition-colors duration-200 bg-transparent border-0 p-0 cursor-pointer"
-            >
-              Trở thành Tài xế
-            </button>
-            <span className="text-gray-300 font-light">|</span>
-            <button
-              type="button"
-              onClick={() => requireLogin(() => setMerchantOpen(true))}
-              className="hover:text-gray-900 transition-colors duration-200 bg-transparent border-0 p-0 cursor-pointer"
-            >
-              Mở quán bán hàng
-            </button>
-          </div>
-        )}
-
         {/* Right: Cart, Navlinks & User profile */}
         <div className="flex items-center gap-4 shrink-0">
-          <ul className="list-none m-0 p-1 flex gap-1 border border-gray-200 rounded-full bg-gray-50">
-            {isMerchant && (
-              <>
-                <li>
-                  <NavLink to="/merchant/orders" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Đơn hàng</NavLink>
-                </li>
-                <li>
-                  <NavLink to="/merchant/menu" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Thực đơn</NavLink>
-                </li>
-              </>
-            )}
-
-            {showCustomerNav && !isMerchant && (
-              <>
-                <li>
-                  <NavLink to="/" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Đặt món</NavLink>
-                </li>
-                <li>
-                  <NavLink to="/restaurants" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Nhà hàng</NavLink>
-                </li>
-                {isAuthenticated ? (
+          {!isPortal && (
+            <ul className="list-none m-0 p-1 flex gap-1 border border-gray-200 rounded-full bg-gray-50">
+              {isMerchant && (
+                <>
                   <li>
-                    <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Đơn hàng</NavLink>
+                    <NavLink to="/merchant/orders" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-500'}`}>Đơn hàng</NavLink>
                   </li>
-                ) : null}
-              </>
-            )}
+                  <li>
+                    <NavLink to="/merchant/menu" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-500'}`}>Thực đơn</NavLink>
+                  </li>
+                </>
+              )}
 
-            {(isDriver || isAdmin) && (
-              <li>
-                <NavLink to="/driver" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Tài xế</NavLink>
-              </li>
-            )}
+              {showCustomerNav && !isMerchant && (
+                <>
+                  <li>
+                    <NavLink to="/food" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00b14f] shadow-sm' : 'text-gray-500'}`}>Đặt món</NavLink>
+                  </li>
+                  <li>
+                    <NavLink to="/restaurants" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00b14f] shadow-sm' : 'text-gray-500'}`}>Nhà hàng</NavLink>
+                  </li>
+                  {isAuthenticated ? (
+                    <li>
+                      <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00b14f] shadow-sm' : 'text-gray-500'}`}>Theo dõi</NavLink>
+                    </li>
+                  ) : null}
+                </>
+              )}
 
-            {isAdmin && (
-              <li>
-                <NavLink to="/admin" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Admin</NavLink>
-              </li>
-            )}
-          </ul>
+              {(isDriver || isAdmin) && (
+                <li>
+                  <NavLink to="/driver" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-500'}`}>Tài xế</NavLink>
+                </li>
+              )}
+
+              {isAdmin && (
+                <li>
+                  <NavLink to="/admin" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-500'}`}>Admin</NavLink>
+                </li>
+              )}
+            </ul>
+          )}
 
           {/* Cart Icon with badge for Customer Role */}
-          {showCustomerNav && (
+          {showCustomerNav && !isPortal && (
             <button
               type="button"
               onClick={handleCartClick}
-              className="relative p-2 text-gray-600 hover:text-gray-900 bg-transparent border-0 cursor-pointer"
+              className="relative p-2 text-gray-600 hover:text-[#00b14f] bg-transparent border-0 cursor-pointer transition-colors"
               aria-label="Xem giỏ hàng"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -184,7 +172,7 @@ export default function Navbar() {
             {isAuthenticated ? (
               <>
                 <NavLink to="/profile" className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:bg-gray-50 transition-all no-underline text-gray-700">
-                  <span className="w-8 h-8 rounded-full bg-[#00b14f] text-white flex items-center justify-center font-black">
+                  <span className="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-black">
                     {(user?.fullName || user?.phone || 'U').charAt(0).toUpperCase()}
                   </span>
                   <span className="hidden lg:flex flex-col text-left leading-tight">
@@ -194,8 +182,11 @@ export default function Navbar() {
                 </NavLink>
                 <button
                   type="button"
-                  onClick={logout}
-                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border-0 rounded-full text-xs font-bold transition-all"
+                  onClick={() => {
+                    logout();
+                    navigate('/');
+                  }}
+                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border-0 rounded-full text-xs font-bold transition-all cursor-pointer"
                 >
                   Đăng xuất
                 </button>

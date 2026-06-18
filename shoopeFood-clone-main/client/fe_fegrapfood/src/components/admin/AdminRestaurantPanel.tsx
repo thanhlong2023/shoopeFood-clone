@@ -107,7 +107,7 @@ export default function AdminRestaurantPanel() {
       const merchantError =
         merchantResult.reason instanceof Error ? merchantResult.reason.message : 'Khong the tai chu quan'
       setErrorMessage((current) =>
-        current ? `${current}. ${merchantError}` : `${merchantError}. Dang nhap lai voi role ADMIN (0900000005).`,
+        current ? `${current}. ${merchantError}` : `${merchantError}. Đăng nhập lai voi role ADMIN (0900000005).`,
       )
     }
 
@@ -293,7 +293,7 @@ export default function AdminRestaurantPanel() {
       <section className="admin-panel">
         <div className="admin-panel-head">
           <div>
-            <h2>Nh� h�ng</h2>
+            <h2>Nhà hàng</h2>
             <p>Tao quan cho chu quan, duyet quan cho, sua hoac xoa. Mot form duy nhat ben phai.</p>
           </div>
           <div className="admin-actions">
@@ -316,7 +316,7 @@ export default function AdminRestaurantPanel() {
                 <th>ID</th>
                 <th>Anh</th>
                 <th>Ten</th>
-                <th>Chu quan</th>
+                <th>Chủ quán</th>
                 <th>Trang thai</th>
                 <th>Dia chi</th>
                 <th>Mo cua</th>
@@ -393,7 +393,7 @@ export default function AdminRestaurantPanel() {
           </table>
 
           {isLoading ? <p className="empty-state">Dang tai du lieu...</p> : null}
-          {!isLoading && restaurants.length === 0 ? <p className="empty-state">Chua c� qu�n n�o.</p> : null}
+          {!isLoading && restaurants.length === 0 ? <p className="empty-state">Chưa có quán nào.</p> : null}
         </div>
 
         {rejectTargetId !== null ? (
@@ -428,7 +428,7 @@ export default function AdminRestaurantPanel() {
 
         <form className="admin-form" onSubmit={handleSubmit}>
           <label className="restaurant-field">
-            <span>Chu quan (MERCHANT)</span>
+            <span>Chủ quán (MERCHANT)</span>
             <select
               value={formData.ownerId}
               onChange={(event) => handleFieldChange('ownerId', event.target.value)}
@@ -443,7 +443,7 @@ export default function AdminRestaurantPanel() {
             </select>
             {merchants.length === 0 ? (
               <p className="field-hint">
-                Chua c� ch? qu�n. T?o t?i tab <strong>Ngu?i d�ng</strong> (vai tro MERCHANT) ho?c dang nh?p l?i
+                Chưa có chủ quán. Tạo tại tab <strong>Người dùng</strong> (vai tro MERCHANT) hoặc đăng nhập lại
                 ADMIN: <strong>0900000005</strong> / 123456.
               </p>
             ) : null}

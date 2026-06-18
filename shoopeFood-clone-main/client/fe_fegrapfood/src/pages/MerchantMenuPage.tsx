@@ -7,7 +7,7 @@ import { restaurantThumbStyle } from '../utils/restaurantImage'
 import type { Restaurant } from '../types'
 
 export default function MerchantMenuPage() {
-  useDocumentTitle(`${APP_NAME} | Th?c don`)
+  useDocumentTitle(`${APP_NAME} | Thực đơn`)
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -31,7 +31,7 @@ export default function MerchantMenuPage() {
     <section className="restaurant-page">
       <div className="restaurant-page-header">
         <div>
-          <span className="hero-badge">Chu quan</span>
+          <span className="hero-badge">Chủ quán</span>
           <h1>Quan cua toi & thuc don</h1>
           <p>Chon quan de them/sua mon. Tao quan moi do admin thuc hien.</p>
         </div>
@@ -45,15 +45,15 @@ export default function MerchantMenuPage() {
 
       {!isLoading && restaurants.length === 0 ? (
         <div className="empty-state">
-          <p>Chua c� qu�n n�o du?c g�n. Li�n h? admin d? du?c t?o qu�n.</p>
+          <p>Chưa có quán nào được gán. Liên hệ admin để được tạo quán.</p>
         </div>
       ) : (
         <div className="restaurant-grid">
           {restaurants.map((restaurant) => (
             <article key={restaurant.id} className="restaurant-manage-card">
               <div
-                className={`restaurant-manage-photo ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-manage-photo--placeholder'}`}
-                style={restaurantThumbStyle(restaurant.imageUrl)}
+                className={`restaurant-manage-photo ${restaurantThumbStyle(restaurant.imageUrl, restaurant.id) ? '' : 'restaurant-manage-photo--placeholder'}`}
+                style={restaurantThumbStyle(restaurant.imageUrl, restaurant.id)}
               />
               <div className="restaurant-manage-top">
                 <span className="restaurant-manage-id">#{restaurant.id}</span>
@@ -69,7 +69,7 @@ export default function MerchantMenuPage() {
               <p className="restaurant-manage-address">{restaurant.address}</p>
               <div className="restaurant-actions">
                 <Link to={`/restaurants/${restaurant.id}`} className="button-primary">
-                  Qu?n l� m�n an
+                  Quản lý món ăn
                 </Link>
               </div>
             </article>

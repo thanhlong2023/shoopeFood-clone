@@ -173,7 +173,7 @@ export default function RestaurantListPage() {
     <section className="restaurant-page">
       <div className="restaurant-page-header">
         <div>
-          <h1>Qu?n l� nh� h�ng</h1>
+          <h1>Quản lý nhà hàng</h1>
           <p>Admin tao quan cho chu quan. Quan tu dong duyet va hien cho khach dat mon.</p>
         </div>
 
@@ -231,8 +231,8 @@ export default function RestaurantListPage() {
               <article key={restaurant.id} className="restaurant-manage-card">
                 <Link
                   to={`/restaurants/${restaurant.id}`}
-                  className={`restaurant-manage-photo ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-manage-photo--placeholder'}`}
-                  style={restaurantThumbStyle(restaurant.imageUrl)}
+                  className={`restaurant-manage-photo ${restaurantThumbStyle(restaurant.imageUrl, restaurant.id) ? '' : 'restaurant-manage-photo--placeholder'}`}
+                  style={restaurantThumbStyle(restaurant.imageUrl, restaurant.id)}
                   aria-label={`Xem chi tiết ${restaurant.name}`}
                 />
 

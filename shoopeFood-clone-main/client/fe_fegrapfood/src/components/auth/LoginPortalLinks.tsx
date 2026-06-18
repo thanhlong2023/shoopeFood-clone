@@ -3,9 +3,9 @@ import { LOGIN_PATH_BY_ROLE } from '../../utils/loginPaths'
 import type { UserRole } from '../../types'
 
 const portals: Array<{ role: UserRole; label: string }> = [
-  { role: 'CUSTOMER', label: 'Khach hang' },
-  { role: 'MERCHANT', label: 'Chu quan' },
-  { role: 'DRIVER', label: 'Tai xe' },
+  { role: 'CUSTOMER', label: 'Khách hàng' },
+  { role: 'MERCHANT', label: 'Chủ quán' },
+  { role: 'DRIVER', label: 'Tài xế' },
 ]
 
 type LoginPortalLinksProps = {
@@ -15,7 +15,7 @@ type LoginPortalLinksProps = {
 export default function LoginPortalLinks({ activeRole }: LoginPortalLinksProps) {
   return (
     <div className="login-portal-links" aria-label="Cac cong dang nhap">
-      <span>Dang nhap khac:</span>
+      <span>Đăng nhập khac:</span>
       {portals.map((portal) => (
         <Link
           key={portal.role}
