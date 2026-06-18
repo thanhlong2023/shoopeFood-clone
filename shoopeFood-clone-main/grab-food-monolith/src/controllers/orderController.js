@@ -16,11 +16,16 @@ const {
 const orderRepository = require("../repositories/orderRepository");
 const orderFactory = require("../factories/orderFactory");
 const socketManager = require("../sockets");
+const dispatchService = require("../services/dispatchService");
+const driverService = require("../services/driverService");
+const locationStreamService = require("../services/locationStreamService");
+const orderWorkflowService = require("../services/orderWorkflowService");
 const { getBaseFeeFromOrder, normalizeOrder, normalizeRestaurantSummary } = require("../utils/orderNormalizer");
 
 const DEFAULT_SHIPPING_BASE_FEE = 20000;
 const DEFAULT_ORDER_STATUS_CODE = orderFactory.DEFAULT_ORDER_STATUS_CODE;
-const DRIVER_ACTIVE_STATUS_CODES = new Set(["DRIVER_ACCEPTED", "CONFIRMED", "PICKING_UP", "DELIVERING"]);
+const DRIVER_ACTIVE_STATUS_CODES = new Set(orderWorkflowService.DRIVER_ACTIVE_STATUS_CODES);
+const MAX_DRIVER_ACCEPT_RADIUS_KM = 10;
 
 const resolveStatusByCode = async (statusCode = DEFAULT_ORDER_STATUS_CODE, options = {}) => {
   const normalizedCode = orderFactory.resolveStatusCode(statusCode);
@@ -91,6 +96,7 @@ const normalizeDriverLocation = (item) => {
     orderId: item.orderId,
     latitude: Number(item.latitude || 0),
     longitude: Number(item.longitude || 0),
+    geohash: item.geohash || null,
     heading: Number(item.heading || 0),
     speedKmh: Number(item.speedKmh || 0),
     createdAt: item.createdAt,
@@ -209,9 +215,12 @@ const emitOrderUpdated = (eventName, orderData) => {
     const io = socketManager.getIO();
     io.emit(eventName, orderData);
     io.emit("order:updated", orderData);
-    io.emit(`order:${orderData.id}:updated`, orderData);
+    io.to(`order:${orderData.id}`).emit(`order:${orderData.id}:updated`, orderData);
+    if (orderData.driverId) {
+      io.to(`driver:${orderData.driverId}`).emit("driver:order-updated", orderData);
+    }
     if (eventName === "order:claimed" && orderData.customerId) {
-      io.emit(`customer:${orderData.customerId}:driver-assigned`, {
+      io.to(`customer:${orderData.customerId}`).emit(`customer:${orderData.customerId}:driver-assigned`, {
         orderId: orderData.id,
         orderCode: orderData.orderCode,
         statusCode: orderData.statusCode,
@@ -221,6 +230,49 @@ const emitOrderUpdated = (eventName, orderData) => {
   } catch (error) {
     console.log("Socket not ready or err", error.message);
   }
+};
+
+const emitDispatchOffers = async (orderData) => {
+  let dispatch;
+
+  try {
+    dispatch = await dispatchService.findDriverCandidatesForOrder(orderData);
+  } catch (error) {
+    console.log("Dispatch candidate search failed:", error.message);
+    return {
+      algorithm: dispatchService.DISPATCH_ALGORITHM,
+      searchRadiusKm: null,
+      candidates: [],
+      reason: "DISPATCH_SEARCH_FAILED",
+    };
+  }
+
+  try {
+    const io = socketManager.getIO();
+    io.to(`order:${orderData.id}`).emit(`order:${orderData.id}:dispatch`, {
+      orderId: orderData.id,
+      algorithm: dispatch.algorithm,
+      searchRadiusKm: dispatch.searchRadiusKm,
+      candidateCount: dispatch.candidates.length,
+    });
+
+    dispatch.candidates.forEach((candidate) => {
+      io.to(`driver:${candidate.driverId || candidate.id}`).emit("driver:order-offered", {
+        order: orderData,
+        dispatch: {
+          algorithm: dispatch.algorithm,
+          searchRadiusKm: dispatch.searchRadiusKm,
+          distanceKm: candidate.distanceKm,
+          pickupEtaMinutes: candidate.pickupEtaMinutes,
+          score: candidate.dispatchScore,
+        },
+      });
+    });
+  } catch (error) {
+    console.log("Socket not ready or err", error.message);
+  }
+
+  return dispatch;
 };
 
 const assertMerchantOwnsOrder = async (userId, restaurantId) => {
@@ -534,7 +586,13 @@ exports.getOrderTracking = async (req, res) => {
       latitude: Number(orderData.receiverLat || restaurantData?.latitude || 0),
       longitude: Number(orderData.receiverLng || restaurantData?.longitude || 0),
     };
-    const locationData = normalizeDriverLocation(orderLocation || latestAnyLocation);
+    const cachedOrderLocation = trackingDriverId && orderData.driverId
+      ? locationStreamService.getLatestLocation(trackingDriverId, orderData.id)
+      : null;
+    const cachedAnyLocation = trackingDriverId
+      ? locationStreamService.getLatestLocation(trackingDriverId)
+      : null;
+    const locationData = normalizeDriverLocation(cachedOrderLocation || cachedAnyLocation || orderLocation || latestAnyLocation);
     const route = await buildTrackingRoute({
       driverLocation: locationData,
       restaurant: restaurantData,
@@ -572,6 +630,10 @@ exports.acceptOrder = async (req, res) => {
       return res.status(403).json({ message: "Driver account is not approved" });
     }
 
+    if (!driver.isOnline) {
+      return res.status(409).json({ message: "Driver must be online before accepting orders" });
+    }
+
     let orderId = null;
 
     await sequelize.transaction(async (transaction) => {
@@ -606,6 +668,41 @@ exports.acceptOrder = async (req, res) => {
         throw createHttpError(409, "Only confirmed orders can be accepted");
       }
 
+      const [restaurant, persistedLocation] = await Promise.all([
+        Restaurant.findByPk(order.restaurantId, { transaction }),
+        DriverLocation.findOne({
+          where: { driverId },
+          order: [["created_at", "DESC"]],
+          transaction,
+        }),
+      ]);
+      const latestLocation = locationStreamService.getLatestLocation(driverId) || persistedLocation;
+
+      if (!restaurant || !driverService.hasValidPoint(restaurant)) {
+        throw createHttpError(409, "Order pickup location is not available");
+      }
+
+      if (!driverService.hasValidPoint(latestLocation)) {
+        throw createHttpError(409, "Driver location is required before accepting an order");
+      }
+
+      const nearbyDriver = driverService.findNearestDriver(
+        [
+          {
+            id: driverId,
+            latitude: latestLocation.latitude,
+            longitude: latestLocation.longitude,
+            geohash: latestLocation.geohash,
+          },
+        ],
+        restaurant,
+        { radiusKm: MAX_DRIVER_ACCEPT_RADIUS_KM }
+      );
+
+      if (!nearbyDriver || Number(nearbyDriver.distanceKm) > MAX_DRIVER_ACCEPT_RADIUS_KM) {
+        throw createHttpError(409, `Driver must be within ${MAX_DRIVER_ACCEPT_RADIUS_KM}km of the restaurant`);
+      }
+
       const activeStatuses = await OrderStatus.findAll({
         where: { code: { [Op.in]: Array.from(DRIVER_ACTIVE_STATUS_CODES) } },
         transaction,
@@ -635,6 +732,7 @@ exports.acceptOrder = async (req, res) => {
         {
           driverId,
           statusId: acceptedStatus.id,
+          statusChangedAt: new Date(),
           version: Number(order.version || 0) + 1,
         },
         { transaction }
@@ -744,6 +842,7 @@ exports.updateOrder = async (req, res) => {
         return res.status(400).json({ message: "Invalid statusCode" });
       }
       item.statusId = resolvedStatus.id;
+      item.statusChangedAt = new Date();
     }
 
     if (baseFee !== undefined && !Number.isFinite(Number(baseFee))) {
@@ -785,41 +884,75 @@ exports.updateOrderStatus = async (req, res) => {
     const id = Number(req.params.id);
     const { status, statusCode, expectedVersion } = req.body;
 
-    const [item, resolvedStatus] = await Promise.all([
-      orderRepository.findEntityById(id),
-      resolveStatusByCode(statusCode !== undefined ? statusCode : status),
-    ]);
-
-    if (!item) {
-      return res.status(404).json({ message: "Order not found" });
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ message: "Invalid order id" });
     }
 
+    const resolvedStatus = await resolveStatusByCode(statusCode !== undefined ? statusCode : status);
     if (!resolvedStatus) {
       return res.status(400).json({ message: "Invalid statusCode" });
     }
 
-    if (!(await canUpdateOrderStatus(req, item))) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
+    let orderId = null;
+    let didChangeStatus = false;
 
-    if (req.user?.role === "DRIVER" && !DRIVER_ACTIVE_STATUS_CODES.has(resolvedStatus.code) && resolvedStatus.code !== "COMPLETED" && resolvedStatus.code !== "CANCELLED") {
-      return res.status(400).json({ message: "Driver cannot set this status" });
-    }
+    await sequelize.transaction(async (transaction) => {
+      const item = await Order.findByPk(id, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
 
-    if (expectedVersion !== undefined && Number(expectedVersion) !== Number(item.version)) {
-      return res.status(409).json({ message: "Version conflict" });
-    }
+      if (!item) {
+        throw createHttpError(404, "Order not found");
+      }
 
-    const latest = await orderRepository.update(item, {
-      statusId: resolvedStatus.id,
-      version: Number(item.version || 0) + 1,
+      if (!(await canUpdateOrderStatus(req, item))) {
+        throw createHttpError(403, "Forbidden");
+      }
+
+      const currentStatus = await OrderStatus.findByPk(item.statusId, { transaction });
+      const transition = orderWorkflowService.validateTransition({
+        role: req.user?.role,
+        fromStatusCode: currentStatus?.code,
+        toStatusCode: resolvedStatus.code,
+        order: item,
+      });
+      if (!transition.ok) {
+        throw createHttpError(transition.statusCode || 409, transition.message);
+      }
+
+      if (expectedVersion !== undefined && Number(expectedVersion) !== Number(item.version)) {
+        throw createHttpError(409, "Version conflict");
+      }
+
+      orderId = item.id;
+      if (Number(item.statusId) === Number(resolvedStatus.id)) {
+        return;
+      }
+
+      await item.update(
+        {
+          statusId: resolvedStatus.id,
+          statusChangedAt: new Date(),
+          version: Number(item.version || 0) + 1,
+        },
+        { transaction }
+      );
+      didChangeStatus = true;
     });
+
+    const latest = await orderRepository.findById(orderId);
     const orderData = normalizeOrder(latest);
-    emitOrderUpdated("order:updated", orderData);
+    if (didChangeStatus) {
+      emitOrderUpdated("order:updated", orderData);
+    }
+    const dispatch = didChangeStatus && resolvedStatus.code === "CONFIRMED"
+      ? await emitDispatchOffers(orderData)
+      : null;
 
     if (resolvedStatus.code === "DELIVERING" && orderData.customerId) {
       try {
-        socketManager.getIO().emit(`customer:${orderData.customerId}:driver-delivering`, {
+        socketManager.getIO().to(`customer:${orderData.customerId}`).emit(`customer:${orderData.customerId}:driver-delivering`, {
           orderId: orderData.id,
           orderCode: orderData.orderCode,
           statusCode: orderData.statusCode,
@@ -834,7 +967,7 @@ exports.updateOrderStatus = async (req, res) => {
 
     if (resolvedStatus.code === "COMPLETED" && orderData.customerId) {
       try {
-        socketManager.getIO().emit(`customer:${orderData.customerId}:delivery-completed`, {
+        socketManager.getIO().to(`customer:${orderData.customerId}`).emit(`customer:${orderData.customerId}:delivery-completed`, {
           orderId: orderData.id,
           orderCode: orderData.orderCode,
           statusCode: orderData.statusCode,
@@ -849,6 +982,15 @@ exports.updateOrderStatus = async (req, res) => {
     return res.json({
       message: "Updated",
       data: orderData,
+      meta: dispatch
+        ? {
+            dispatch: {
+              algorithm: dispatch.algorithm,
+              searchRadiusKm: dispatch.searchRadiusKm,
+              candidateCount: dispatch.candidates.length,
+            },
+          }
+        : undefined,
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -897,8 +1039,12 @@ exports.rejectOrder = async (req, res) => {
       }
 
       const currentStatus = await OrderStatus.findByPk(order.statusId, { transaction });
-      if (!currentStatus || !["PENDING", "DRIVER_ACCEPTED"].includes(currentStatus.code)) {
-        throw createHttpError(409, "Only unconfirmed orders can be rejected");
+      if (!currentStatus || !["PENDING", "CONFIRMED"].includes(currentStatus.code)) {
+        throw createHttpError(409, "Only pending or unassigned confirmed orders can be rejected");
+      }
+
+      if (order.driverId) {
+        throw createHttpError(409, "Cannot reject an order after a driver has accepted it");
       }
 
       const cancelledStatus = await OrderStatus.findOne({
@@ -948,8 +1094,8 @@ exports.rejectOrder = async (req, res) => {
     const orderData = normalizeOrder(rejected);
 
     try {
-      socketManager.getIO().emit("order:updated", orderData);
-      socketManager.getIO().emit(`order:${orderData.id}:updated`, orderData);
+      emitOrderUpdated("order:updated", orderData);
+
     } catch (error) {
       console.log("Socket not ready or err", error.message);
     }
@@ -1039,8 +1185,8 @@ exports.cancelOrder = async (req, res) => {
     const orderData = normalizeOrder(cancelledOrder);
 
     try {
-      socketManager.getIO().emit("order:updated", orderData);
-      socketManager.getIO().emit(`order:${orderData.id}:updated`, orderData);
+      emitOrderUpdated("order:updated", orderData);
+
     } catch (error) {
       console.log("Socket not ready or err", error.message);
     }

@@ -129,7 +129,7 @@ function MapAutoFit({ points }: { points: RoutePoint[] }) {
 function StatusSteps({ order }: { order: Order | null }) {
   const steps = [
     { code: 'PENDING', label: 'Dat don' },
-    { code: 'DRIVER_ACCEPTED', label: 'Tai xe nhan' },
+    { code: 'DRIVER_ACCEPTED', label: 'T�i x? nhan' },
     { code: 'PICKING_UP', label: 'Lay mon' },
     { code: 'DELIVERING', label: 'Dang giao' },
     { code: 'COMPLETED', label: 'Hoan thanh' },
@@ -152,7 +152,7 @@ function StatusSteps({ order }: { order: Order | null }) {
 }
 
 export default function TrackingPage() {
-  useDocumentTitle(`${APP_NAME} | Theo doi don`)
+  useDocumentTitle(`${APP_NAME} | Theo d�i don`)
   const navigate = useNavigate()
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -233,7 +233,7 @@ export default function TrackingPage() {
 
       deliveryCompletedNoticeShownRef.current.add(payload.orderId)
       setDeliveryCompletedNotice({
-        driverName: payload.driver?.fullName || 'Tai xe',
+        driverName: payload.driver?.fullName || 'T�i x?',
         orderCode: payload.orderCode,
         totalAmount: Number(payload.totalAmount ?? 0),
       })
@@ -253,10 +253,10 @@ export default function TrackingPage() {
         rating: reviewRating,
         comment: reviewComment,
       })
-      setReviewFeedback('Da gui danh gia nha hang. Cam on ban!')
+      setReviewFeedback('�� g?i d�nh gi� nh� h�ng. C?m on b?n!')
       setReviewComment('')
     } catch (error) {
-      setReviewFeedback(error instanceof Error ? error.message : 'Khong the gui danh gia')
+      setReviewFeedback(error instanceof Error ? error.message : 'Kh�ng th? g?i d�nh gi�')
     } finally {
       setIsSubmittingReview(false)
     }
@@ -276,7 +276,7 @@ export default function TrackingPage() {
 
       driverDeliveringNoticeShownRef.current.add(payload.orderId)
       setDriverDeliveringNotice({
-        driverName: payload.driver?.fullName || 'Tai xe',
+        driverName: payload.driver?.fullName || 'T�i x?',
         orderCode: payload.orderCode,
         cashToCollect: Number(payload.cashToCollect ?? payload.totalAmount ?? 0),
       })
@@ -300,7 +300,7 @@ export default function TrackingPage() {
       )
       setCustomerOrders(sorted)
     } catch (error) {
-      setOrdersError(error instanceof Error ? error.message : 'Khong the tai danh sach don hang')
+      setOrdersError(error instanceof Error ? error.message : 'Kh�ng th? t?i danh s�ch don h�ng')
     } finally {
       if (!quiet) {
         setOrdersLoading(false)
@@ -327,7 +327,7 @@ export default function TrackingPage() {
       setDriverLocation(data.driverLocation)
 
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the tai tracking')
+      setErrorMessage(error instanceof Error ? error.message : 'Kh�ng th? t?i tracking')
     } finally {
       if (!quiet) {
         setIsLoading(false)
@@ -562,7 +562,10 @@ export default function TrackingPage() {
         }
 
         socket = createdSocket
-        socket.on('driver:location', handleLocation)
+        socket.emit('order:join', { orderId: selectedOrderId })
+        if (user?.id) {
+          socket.emit('customer:join', { customerId: user.id })
+        }
         socket.on(`order:${selectedOrderId}:driver-location`, handleLocation)
         socket.on(`order:${selectedOrderId}:updated`, handleOrderUpdated)
         socket.on('order:claimed', handleOrderClaimed)
@@ -580,7 +583,7 @@ export default function TrackingPage() {
     return () => {
       isMounted = false
       if (socket) {
-        socket.off('driver:location', handleLocation)
+        socket.emit('order:leave', { orderId: selectedOrderId })
         socket.off(`order:${selectedOrderId}:driver-location`, handleLocation)
         socket.off(`order:${selectedOrderId}:updated`, handleOrderUpdated)
         socket.off('order:claimed', handleOrderClaimed)
@@ -620,9 +623,6 @@ export default function TrackingPage() {
     return visibleCustomerOrders.slice(start, start + ORDERS_PER_PAGE)
   }, [visibleCustomerOrders, currentPage])
 
-  const isToMerchant = tracking?.order?.statusCode === 'DRIVER_ACCEPTED' || tracking?.order?.statusCode === 'PICKING_UP' || tracking?.order?.statusCode === 'CONFIRMED'
-  const isToCustomer = tracking?.order?.statusCode === 'SHIPPING' || tracking?.order?.statusCode === 'DELIVERING'
-  
   const simulatedDriverLocation = driverLocation
 
   const bounds = useMemo(() => {
@@ -649,11 +649,11 @@ export default function TrackingPage() {
     return (
       <section className="tracking-page">
         <div className="tracking-empty">
-          <span className="hero-badge">Theo doi don hang</span>
-          <h1>Chua co don hang de theo doi</h1>
-          <p>Dat mon xong ban se thay tien trinh giao hang va lo trinh tai xe tai day.</p>
+          <span className="hero-badge">Theo d�i don hang</span>
+          <h1>Chua c� don h�ng d? theo d�i</h1>
+          <p>�?t m�n xong b?n s? th?y ti?n tr�nh giao h�ng v� l? tr�nh t�i x? t?i d�y.</p>
           <Link className="button-primary" to="/">
-            Dat mon ngay
+            �?t m�n ngay
           </Link>
         </div>
       </section>
@@ -663,7 +663,7 @@ export default function TrackingPage() {
   if (isCustomer && ordersLoading && customerOrders.length === 0) {
     return (
       <section className="tracking-page">
-        <p className="empty-state">Dang tai don hang cua ban...</p>
+        <p className="empty-state">�ang t?i don hang cua ban...</p>
       </section>
     )
   }
@@ -672,11 +672,11 @@ export default function TrackingPage() {
     return (
       <section className="tracking-page">
         <div className="tracking-empty">
-          <span className="hero-badge">Don hang cua ban</span>
-          <h1>Chua co don hang nao</h1>
-          <p>Dat mon de xem lich su va theo doi giao hang tai day.</p>
+          <span className="hero-badge">�on hang cua ban</span>
+          <h1>Chua c� don h�ng n�o</h1>
+          <p>�?t m�n d? xem l?ch s? v� theo d�i giao h�ng t?i d�y.</p>
           <Link className="button-primary" to="/">
-            Dat mon ngay
+            �?t m�n ngay
           </Link>
         </div>
       </section>
@@ -686,66 +686,66 @@ export default function TrackingPage() {
   return (
     <section className="tracking-page">
       <Modal
-        title="Tai xe da nhan don"
-        subtitle={driverAssignedNotice ? `Don ${driverAssignedNotice.orderCode}` : undefined}
+        title="T�i x? d� nh?n don"
+        subtitle={driverAssignedNotice ? `�on ${driverAssignedNotice.orderCode}` : undefined}
         isOpen={driverAssignedNotice !== null}
         onClose={() => setDriverAssignedNotice(null)}
         footer={
           <button type="button" className="button-primary" onClick={() => setDriverAssignedNotice(null)}>
-            Da hieu
+            �� hi?u
           </button>
         }
       >
         {driverAssignedNotice ? (
           <p>
-            <strong>{driverAssignedNotice.driverName}</strong> da nhan don va dang di lay mon cho ban.
+            <strong>{driverAssignedNotice.driverName}</strong> d� nh?n don v� dang di l?y m�n cho b?n.
           </p>
         ) : null}
       </Modal>
 
       <Modal
-        title="Tai xe dang giao den ban"
-        subtitle={driverDeliveringNotice ? `Don ${driverDeliveringNotice.orderCode}` : undefined}
+        title="T�i x? dang giao d?n b?n"
+        subtitle={driverDeliveringNotice ? `�on ${driverDeliveringNotice.orderCode}` : undefined}
         isOpen={driverDeliveringNotice !== null}
         onClose={() => setDriverDeliveringNotice(null)}
         footer={
           <button type="button" className="button-primary" onClick={() => setDriverDeliveringNotice(null)}>
-            Da hieu
+            �� hi?u
           </button>
         }
       >
         {driverDeliveringNotice ? (
           <div className="tracking-delivering-notice">
             <p>
-              <strong>{driverDeliveringNotice.driverName}</strong> da lay mon xong va dang chuan bi giao den cho ban.
+              <strong>{driverDeliveringNotice.driverName}</strong> d� l?y m�n xong v� dang chu?n b? giao d?n cho b?n.
             </p>
             <p className="tracking-delivering-amount">
-              Vui long chuan bi tien mat: <strong>{formatPrice(driverDeliveringNotice.cashToCollect)} VND</strong>
+              Vui l�ng chu?n b? ti?n m?t: <strong>{formatPrice(driverDeliveringNotice.cashToCollect)} VND</strong>
             </p>
           </div>
         ) : null}
       </Modal>
 
       <Modal
-        title="Da giao hang thanh cong"
-        subtitle={deliveryCompletedNotice ? `Don ${deliveryCompletedNotice.orderCode}` : undefined}
+        title="�� giao h�ng th�nh c�ng"
+        subtitle={deliveryCompletedNotice ? `�on ${deliveryCompletedNotice.orderCode}` : undefined}
         isOpen={deliveryCompletedNotice !== null}
         onClose={() => setDeliveryCompletedNotice(null)}
         footer={
           <button type="button" className="button-primary" onClick={() => setDeliveryCompletedNotice(null)}>
-            Da hieu
+            �� hi?u
           </button>
         }
       >
         {deliveryCompletedNotice ? (
           <div className="tracking-completed-notice">
             <p>
-              <strong>{deliveryCompletedNotice.driverName}</strong> da giao don hang den cho ban thanh cong.
+              <strong>{deliveryCompletedNotice.driverName}</strong> d� giao don h�ng d?n cho b?n th�nh c�ng.
             </p>
             <p className="tracking-completed-amount">
-              Tong gia tri don: <strong>{formatPrice(deliveryCompletedNotice.totalAmount)} VND</strong>
+              T?ng gi� tr? don: <strong>{formatPrice(deliveryCompletedNotice.totalAmount)} VND</strong>
             </p>
-            <p>Cam on ban da su dung dich vu!</p>
+            <p>C?m on b?n d� s? d?ng d?ch v?!</p>
           </div>
         ) : null}
       </Modal>
@@ -795,12 +795,12 @@ export default function TrackingPage() {
 
       <div className="tracking-header">
         <div>
-          <span className="hero-badge">Theo doi truc tiep</span>
-          <h1>Don hang cua ban</h1>
+          <span className="hero-badge">Theo d�i tr?c ti?p</span>
+          <h1>�on hang cua ban</h1>
           <p>
             {isCustomer
-              ? `${customerOrders.length} don da dat · ${deliveringOrders.length} don dang xu ly`
-              : tracking?.order.orderCode || 'Dang tai thong tin don hang...'}
+              ? `${customerOrders.length} don da dat · ${deliveringOrders.length} don dang x? l�`
+              : tracking?.order.orderCode || '�ang t?i th�ng tin don h�ng...'}
           </p>
         </div>
       </div>
@@ -848,7 +848,7 @@ export default function TrackingPage() {
             {simulatedDriverLocation ? (
               <>
                 <Marker position={[simulatedDriverLocation.latitude, simulatedDriverLocation.longitude]} icon={makeMotoIcon(motoHeading)}>
-                  <Popup>{tracking?.driver?.fullName || 'Tai xe'}</Popup>
+                  <Popup>{tracking?.driver?.fullName || 'T�i x?'}</Popup>
                 </Marker>
                 <CircleMarker center={[simulatedDriverLocation.latitude, simulatedDriverLocation.longitude]} radius={16} pathOptions={{ color: '#00b14f', opacity: 0.2 }} />
               </>
@@ -858,7 +858,7 @@ export default function TrackingPage() {
 
         <aside className="tracking-card">
           <div className="tracking-card-head">
-            <span>{isLoading ? 'Dang tai' : tracking?.order.statusLabel || tracking?.order.statusCode || 'Cho tai xe'}</span>
+            <span>{isLoading ? '�ang t?i' : tracking?.order.statusLabel || tracking?.order.statusCode || 'Ch? t�i x?'}</span>
             <strong>{tracking ? `${tracking.routeProgress}%` : '0%'}</strong>
           </div>
 
@@ -866,23 +866,23 @@ export default function TrackingPage() {
 
           <div className="tracking-info-grid">
             <div>
-              <span>Nha hang</span>
-              <strong>{tracking?.restaurant?.name || 'Dang cap nhat'}</strong>
+              <span>Nh� h�ng</span>
+              <strong>{tracking?.restaurant?.name || '�ang c?p nh?t'}</strong>
             </div>
             <div>
-              <span>Tai xe</span>
-              <strong>{tracking?.driver?.fullName || 'Chua co tai xe'}</strong>
+              <span>T�i x?</span>
+              <strong>{tracking?.driver?.fullName || 'Chua c� t�i x?'}</strong>
             </div>
             <div>
-              <span>SDT khach</span>
+              <span>S�T kh�ch</span>
               <strong>{tracking?.order.customerPhone || '-'}</strong>
             </div>
             <div>
-              <span>Bien so</span>
+              <span>Bi?n s?</span>
               <strong>{tracking?.driver?.licensePlate || '-'}</strong>
             </div>
             <div>
-              <span>Tien can thu</span>
+              <span>Ti?n c?n thu</span>
               <strong>{tracking ? formatCurrency(tracking.order.cashToCollect) : '-'}</strong>
             </div>
             <div>
@@ -890,7 +890,7 @@ export default function TrackingPage() {
               <strong>{formatDuration(tracking?.route?.totalDurationMinutes)}</strong>
             </div>
             <div>
-              <span>Quang duong</span>
+              <span>Qu�ng du?ng</span>
               <strong>{formatDistance(tracking?.route?.totalDistanceKm)}</strong>
             </div>
           </div>
@@ -902,24 +902,24 @@ export default function TrackingPage() {
               <div key={leg.key} className="driver-route-leg">
                 <div>
                   <strong>{leg.label}</strong>
-                  <span>{leg.ok ? `${formatDistance(leg.distanceKm)} - ${formatDuration(leg.durationMinutes)}` : leg.error || 'Chua co lo trinh'}</span>
+                  <span>{leg.ok ? `${formatDistance(leg.distanceKm)} - ${formatDuration(leg.durationMinutes)}` : leg.error || 'Chua c� l? tr�nh'}</span>
                 </div>
               </div>
             ))}
           </div>
 
           <div className="tracking-items">
-            <h2>Mon da dat</h2>
+            <h2>M�n d� d?t</h2>
             {(tracking?.order.items || []).map((item) => (
               <div key={item.id} className="tracking-item">
                 <div
                   className={`tracking-item-thumb ${item.imageUrl ? '' : 'tracking-item-thumb--placeholder'}`}
                   style={foodPhotoStyle(item.imageUrl)}
                 >
-                  {!item.imageUrl ? <span>Chua anh</span> : null}
+                  {!item.imageUrl ? <span>Chua ?nh</span> : null}
                 </div>
                 <div className="tracking-item-body">
-                  <span>{item.quantity} x {item.foodName || `Mon #${item.foodId}`}</span>
+                  <span>{item.quantity} x {item.foodName || `M�n #${item.foodId}`}</span>
                   <strong>{formatCurrency(item.lineTotal)}</strong>
                 </div>
               </div>
@@ -929,35 +929,35 @@ export default function TrackingPage() {
           {tracking ? (
             <div className="order-price-section">
               <div className="order-price-row">
-                <span>Tam tinh</span>
+                <span>T?m t�nh</span>
                 <span>{formatCurrency(tracking.order.subtotalAmount)}</span>
               </div>
               <div className="order-price-row">
-                <span>Phi giao hang</span>
+                <span>Ph� giao h�ng</span>
                 <span>{formatCurrency(tracking.order.shippingFee)}</span>
               </div>
               {tracking.order.discountAmount > 0 ? (
                 <div className="order-price-row discount">
-                  <span>Giam gia</span>
+                  <span>Gi?m gi�</span>
                   <span>-{formatCurrency(tracking.order.discountAmount)}</span>
                 </div>
               ) : null}
               {tracking.order.taxAmount > 0 ? (
                 <div className="order-price-row">
-                  <span>Thue</span>
+                  <span>Thu?</span>
                   <span>{formatCurrency(tracking.order.taxAmount)}</span>
                 </div>
               ) : null}
               <div className="order-price-divider" />
               <div className="order-price-row total">
-                <span>Tong thanh toan</span>
+                <span>T?ng thanh to�n</span>
                 <span>{formatCurrency(tracking.order.totalAmount)}</span>
               </div>
             </div>
           ) : null}
 
           <Link className="button-secondary" to="/">
-            Dat them mon
+            �?t th�m m�n
           </Link>
 
           {isCustomer && tracking && (tracking.order.statusCode === 'PENDING' || tracking.order.statusCode === 'CONFIRMED') && !tracking.order.driverId && (
@@ -971,8 +971,8 @@ export default function TrackingPage() {
           )}
           {isCustomer && tracking?.order.statusCode === 'COMPLETED' ? (
             <div className="mt-4 rounded-2xl border border-yellow-100 bg-yellow-50 p-4">
-              <h3 className="text-sm font-black text-gray-900">Danh gia nha hang</h3>
-              <p className="mt-1 text-xs font-semibold text-gray-500">Don da hoan thanh, ban co the cham sao cho trai nghiem vua roi.</p>
+              <h3 className="text-sm font-black text-gray-900">��nh gi� nh� h�ng</h3>
+              <p className="mt-1 text-xs font-semibold text-gray-500">�on da hoan thanh, ban co the cham sao cho trai nghiem vua roi.</p>
               <div className="mt-3 flex gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -991,7 +991,7 @@ export default function TrackingPage() {
                 onChange={(event) => setReviewComment(event.target.value)}
                 rows={3}
                 className="mt-3 w-full rounded-xl border border-yellow-100 bg-white p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-yellow-300"
-                placeholder="Nhan xet ngan ve nha hang..."
+                placeholder="Nh?n x�t ng?n v? nh� h�ng..."
               />
               <button
                 type="button"
@@ -999,7 +999,7 @@ export default function TrackingPage() {
                 onClick={() => void handleSubmitRestaurantReview()}
                 disabled={isSubmittingReview}
               >
-                {isSubmittingReview ? 'Dang gui...' : 'Gui danh gia'}
+                {isSubmittingReview ? '�ang g?i...' : 'G?i d�nh gi�'}
               </button>
               {reviewFeedback ? <p className="mt-2 text-xs font-bold text-gray-600">{reviewFeedback}</p> : null}
             </div>
@@ -1013,7 +1013,7 @@ export default function TrackingPage() {
         <section className="customer-orders-panel" aria-label="Danh sach don hang">
           <div className="customer-orders-toolbar">
             <div className="customer-orders-head">
-              <h2>Don da dat</h2>
+              <h2>�on da dat</h2>
               <p>
                 {customerOrders.length} don · {deliveringOrders.length} dang xu ly
               </p>
@@ -1024,7 +1024,7 @@ export default function TrackingPage() {
               onClick={() => void loadCustomerOrders()}
               disabled={ordersLoading}
             >
-              {ordersLoading ? 'Dang tai...' : 'Tai lai'}
+              {ordersLoading ? '�ang t?i...' : 'Tai lai'}
             </button>
           </div>
 
@@ -1036,7 +1036,7 @@ export default function TrackingPage() {
               className={orderListFilter === 'all' ? 'active' : ''}
               onClick={() => setOrderListFilter('all')}
             >
-              Tat ca
+              T?t c?
               <span>{customerOrders.length}</span>
             </button>
             <button
@@ -1109,7 +1109,7 @@ export default function TrackingPage() {
                         {order.items.slice(0, 4).map((item) => (
                           <div key={item.id} className="order-card-item-row">
                             <span className="order-card-item-name">
-                              {item.quantity}x {item.foodName || `Mon #${item.foodId}`}
+                              {item.quantity}x {item.foodName || `M�n #${item.foodId}`}
                             </span>
                             <span className="order-card-item-price">{formatCurrency(item.lineTotal)}</span>
                           </div>
@@ -1125,13 +1125,13 @@ export default function TrackingPage() {
                       <div className="order-card-price-divider" />
                       {order.shippingFee > 0 ? (
                         <div className="order-card-price-line">
-                          <span>Phi giao hang</span>
+                          <span>Ph� giao h�ng</span>
                           <span>{formatCurrency(order.shippingFee)}</span>
                         </div>
                       ) : null}
                       {order.discountAmount > 0 ? (
                         <div className="order-card-price-line discount">
-                          <span>Giam gia</span>
+                          <span>Gi?m gi�</span>
                           <span>-{formatCurrency(order.discountAmount)}</span>
                         </div>
                       ) : null}
@@ -1159,11 +1159,11 @@ export default function TrackingPage() {
                       {delivering ? (
                         <span className="customer-order-live">
                           <span className="customer-order-live__dot" aria-hidden="true" />
-                          Theo doi
+                          Theo d�i
                         </span>
                       ) : (
                         <span className="order-card-hint">
-                          {isSelected ? 'Dang xem' : 'Xem chi tiet →'}
+                          {isSelected ? '�ang xem' : 'Xem chi ti?t →'}
                         </span>
                       )}
                     </div>
@@ -1172,7 +1172,7 @@ export default function TrackingPage() {
               )
             })}
             {!ordersLoading && paginatedOrders.length === 0 ? (
-              <p className="customer-orders-empty">Khong co don phu hop bo loc.</p>
+              <p className="customer-orders-empty">Kh�ng c� don ph� h?p b? l?c.</p>
             ) : null}
           </div>
 
@@ -1185,7 +1185,7 @@ export default function TrackingPage() {
                 disabled={currentPage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               >
-                ← Truoc
+                ← Tru?c
               </button>
               <div className="orders-pagination-pages">
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
@@ -1205,7 +1205,7 @@ export default function TrackingPage() {
                 disabled={currentPage >= totalPages}
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               >
-                Tiep →
+                Ti?p →
               </button>
             </div>
           ) : null}
@@ -1219,14 +1219,14 @@ export default function TrackingPage() {
                 className="partner-btn partner-btn-merchant"
                 onClick={() => window.open('/register?role=MERCHANT', '_blank')}
               >
-                🏢 Đăng ký làm Đối tác Quán ăn
+                Đăng ký làm đối tác Quán ăn
               </button>
               <button
                 type="button"
                 className="partner-btn partner-btn-driver"
                 onClick={() => window.open('/register?role=DRIVER', '_blank')}
               >
-                🛵 Đăng ký làm Tài xế
+                Đăng ký làm Tài xế
               </button>
             </div>
           </footer>
@@ -1234,7 +1234,7 @@ export default function TrackingPage() {
       ) : null}
 
       {!isCustomer && !selectedOrderId ? (
-        <p className="empty-state">Chon mot don hang de xem ban do theo doi.</p>
+        <p className="empty-state">Chọn một đơn hàng để xem bản đồ theo dõi.</p>
       ) : null}
     </section>
   )

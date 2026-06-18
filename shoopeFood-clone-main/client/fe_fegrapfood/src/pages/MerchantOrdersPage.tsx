@@ -42,15 +42,15 @@ function isSameLocalDate(value: string, target = new Date()) {
 
 const ORDER_STATUS_GROUPS = {
   waiting: {
-    label: 'Cho xac nhan',
-    codes: new Set<string>(['PENDING', 'DRIVER_ACCEPTED']),
+    label: 'Ch? x�c nh?n',
+    codes: new Set<string>(['PENDING']),
   },
   preparing: {
     label: 'Dang lam',
-    codes: new Set<string>(['CONFIRMED', 'PICKING_UP', 'DELIVERING']),
+    codes: new Set<string>(['CONFIRMED', 'DRIVER_ACCEPTED', 'PICKING_UP', 'DELIVERING']),
   },
   completed: {
-    label: 'Hoan thanh',
+    label: 'Ho�n th�nh',
     codes: new Set<string>(['COMPLETED']),
   },
 } as const
@@ -112,7 +112,7 @@ export default function MerchantOrdersPage() {
   }, [loadData])
 
   async function handleConfirm(order: Order) {
-    if (!order.statusCode || !['PENDING', 'DRIVER_ACCEPTED'].includes(order.statusCode)) {
+    if (order.statusCode !== 'PENDING') {
       return
     }
 
@@ -120,10 +120,10 @@ export default function MerchantOrdersPage() {
       setActioningId(order.id)
       setFeedback(null)
       await updateOrderStatus(order.id, 'CONFIRMED', order.version)
-      setFeedback(`Da xac nhan don ${order.orderCode}`)
+      setFeedback(`�� x�c nh?n don ${order.orderCode}`)
       await loadData()
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the xac nhan don')
+      setErrorMessage(error instanceof Error ? error.message : 'Kh�ng th? x�c nh?n don')
     } finally {
       setActioningId(null)
     }
@@ -327,7 +327,7 @@ export default function MerchantOrdersPage() {
                     <Link to={`/tracking?orderId=${order.id}`} className="button-secondary">
                       Theo doi
                     </Link>
-                    {order.statusCode === 'PENDING' || order.statusCode === 'DRIVER_ACCEPTED' ? (
+                    {order.statusCode === 'PENDING' ? (
                       <>
                         <button
                           type="button"
@@ -343,7 +343,7 @@ export default function MerchantOrdersPage() {
                           disabled={actioningId === order.id}
                           onClick={() => void handleConfirm(order)}
                         >
-                          {actioningId === order.id ? 'Dang xac nhan...' : 'Xac nhan don'}
+                          {actioningId === order.id ? 'Dang xac nhan...' : 'X�c nh?n don'}
                         </button>
                       </>
                     ) : null}
@@ -364,7 +364,7 @@ export default function MerchantOrdersPage() {
           rejectingOrder ? (
             <>
               <button type="button" className="button-secondary" onClick={closeRejectModal} disabled={actioningId !== null}>
-                Huy
+                H?y
               </button>
               <button
                 type="submit"
@@ -372,7 +372,7 @@ export default function MerchantOrdersPage() {
                 className="button-danger"
                 disabled={actioningId !== null || !rejectReason.trim()}
               >
-                {actioningId === rejectingOrder.id ? 'Dang xu ly...' : 'Xac nhan tu choi'}
+                {actioningId === rejectingOrder.id ? 'Dang xu ly...' : 'X�c nh?n tu choi'}
               </button>
             </>
           ) : null

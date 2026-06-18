@@ -20,7 +20,7 @@ export default function AdminDriverApplicationsPanel() {
       const data = await getPendingDriverApplications()
       setApplications(data)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the tai don tai xe')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể tải đơn tài xế')
     } finally {
       setIsLoading(false)
     }
@@ -35,27 +35,27 @@ export default function AdminDriverApplicationsPanel() {
       setActioningId(userId)
       setFeedback(null)
       await approveDriverApplication(userId)
-      setFeedback(`Da duyet tai xe #${userId}`)
+      setFeedback(`Đã duyệt tài xế #${userId}`)
       await loadData()
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the duyet')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể duyệt')
     } finally {
       setActioningId(null)
     }
   }
 
   async function handleReject(userId: number) {
-    const reason = window.prompt('Ly do tu choi (tu chon):') || undefined
+    const reason = window.prompt('Lý do từ chối (tùy chọn):') || undefined
     if (reason === undefined) return
 
     try {
       setActioningId(userId)
       setFeedback(null)
       await rejectDriverApplication(userId, reason || undefined)
-      setFeedback(`Da tu choi tai xe #${userId}`)
+      setFeedback(`Đã từ chối tài xế #${userId}`)
       await loadData()
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the tu choi')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể từ chối')
     } finally {
       setActioningId(null)
     }
@@ -66,11 +66,11 @@ export default function AdminDriverApplicationsPanel() {
       <section className="admin-panel">
         <div className="admin-panel-head">
           <div>
-            <h2>Don dang ky tai xe</h2>
-            <p>Duyet tai xe moi truoc khi cap quyen DRIVER.</p>
+            <h2>Đơn đăng ký tài xế</h2>
+            <p>Duyệt tài xế mới trước khi cấp quyền DRIVER.</p>
           </div>
           <button type="button" className="button-secondary" onClick={() => void loadData()} disabled={isLoading}>
-            Reload
+            Tải lại
           </button>
         </div>
 
@@ -82,11 +82,11 @@ export default function AdminDriverApplicationsPanel() {
             <thead>
               <tr>
                 <th>User</th>
-                <th>SDT</th>
-                <th>Bien so</th>
+                <th>SĐT</th>
+                <th>Biển số</th>
                 <th>CCCD</th>
-                <th>Loai xe</th>
-                <th>Actions</th>
+                <th>Loại xe</th>
+                <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -105,7 +105,7 @@ export default function AdminDriverApplicationsPanel() {
                         disabled={actioningId === item.userId}
                         onClick={() => void handleApprove(item.userId)}
                       >
-                        Duyet
+                        Duyệt
                       </button>
                       <button
                         type="button"
@@ -113,7 +113,7 @@ export default function AdminDriverApplicationsPanel() {
                         disabled={actioningId === item.userId}
                         onClick={() => void handleReject(item.userId)}
                       >
-                        Tu choi
+                        Từ chối
                       </button>
                     </div>
                   </td>
@@ -122,9 +122,9 @@ export default function AdminDriverApplicationsPanel() {
             </tbody>
           </table>
 
-          {isLoading ? <p className="empty-state">Dang tai...</p> : null}
+          {isLoading ? <p className="empty-state">Đang tải...</p> : null}
           {!isLoading && applications.length === 0 ? (
-            <p className="empty-state">Khong co don tai xe cho duyet.</p>
+            <p className="empty-state">Không có đơn tài xế chờ duyệt.</p>
           ) : null}
         </div>
       </section>

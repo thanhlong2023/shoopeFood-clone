@@ -1,7 +1,8 @@
 const mysql = require("mysql2/promise");
 const { DataTypes } = require("sequelize");
-const { sequelize, Food, User, Role, UserRole } = require("../models");
+const { sequelize, DriverLocation, Food, User, Role, UserRole } = require("../models");
 const { setUserRole } = require("../utils/roleAssignment");
+const { encodeGeohash } = require("../utils/geohash");
 const seedService = require("./seedService");
 
 const getEnv = (key, fallbackValue) =>
@@ -24,6 +25,21 @@ const quoteIdentifier = (identifier) => {
 };
 
 const hasColumn = (columns, columnName) => Object.prototype.hasOwnProperty.call(columns, columnName);
+
+const ensureIndex = async (tableName, indexName, fields) => {
+  const queryInterface = sequelize.getQueryInterface();
+  const indexes = await queryInterface.showIndex(tableName);
+
+  if (indexes.some((index) => index.name === indexName)) {
+    return;
+  }
+
+  try {
+    await queryInterface.addIndex(tableName, fields, { name: indexName });
+  } catch (error) {
+    console.warn(`Could not add index ${indexName}:`, error.message);
+  }
+};
 
 const ensureDatabaseExists = async () => {
   const config = getDatabaseConfig();
@@ -122,6 +138,34 @@ const ensureDriverLocationTrackingColumns = async () => {
       defaultValue: 24,
     });
   }
+
+  if (!hasColumn(columns, "geohash")) {
+    await queryInterface.addColumn("driver_locations", "geohash", {
+      type: DataTypes.STRING(12),
+      allowNull: true,
+    });
+  }
+
+  await ensureIndex("driver_locations", "idx_driver_locations_geohash", ["geohash"]);
+};
+
+const backfillDriverLocationGeohashes = async () => {
+  const locations = await DriverLocation.findAll({
+    where: { geohash: null },
+    attributes: ["id", "latitude", "longitude", "geohash"],
+    limit: 1000,
+  });
+
+  await Promise.all(
+    locations.map((location) => {
+      const geohash = encodeGeohash(location.latitude, location.longitude);
+      if (!geohash) {
+        return Promise.resolve();
+      }
+
+      return location.update({ geohash });
+    })
+  );
 };
 
 const ensureRestaurantApprovalColumns = async () => {
@@ -233,6 +277,25 @@ const ensureOrderCancellationColumns = async () => {
   }
 };
 
+const ensureOrderStatusChangedAtColumn = async () => {
+  const queryInterface = sequelize.getQueryInterface();
+  const columns = await queryInterface.describeTable("orders");
+
+  if (!hasColumn(columns, "status_changed_at")) {
+    await queryInterface.addColumn("orders", "status_changed_at", {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: sequelize.literal("CURRENT_TIMESTAMP"),
+    });
+  }
+
+  await sequelize.query(`
+    UPDATE orders
+    SET status_changed_at = COALESCE(status_changed_at, created_at, CURRENT_TIMESTAMP)
+    WHERE status_changed_at IS NULL
+  `);
+};
+
 const ensureDriverApprovalColumns = async () => {
   const queryInterface = sequelize.getQueryInterface();
   const columns = await queryInterface.describeTable("driver_details");
@@ -325,11 +388,13 @@ const initializeDatabase = async () => {
   await ensureFoodImageUrlColumn();
   await ensureUsersCreatedAtColumn();
   await ensureDriverLocationTrackingColumns();
+  await backfillDriverLocationGeohashes();
   await ensureDriverApprovalColumns();
   await ensureRestaurantApprovalColumns();
   await ensureOrderItemSnapshotColumns();
   await ensureOrderIdempotencyUniqueIndex();
   await ensureOrderCancellationColumns();
+  await ensureOrderStatusChangedAtColumn();
   await ensureSingleRolePerUser();
   await ensureDemoRoleAssignments();
   await Food.resetExpiredDailyQuantities();
@@ -342,6 +407,8 @@ module.exports = {
   ensureFoodQuantityColumns,
   ensureUsersCreatedAtColumn,
   ensureDriverLocationTrackingColumns,
+  backfillDriverLocationGeohashes,
   ensureOrderItemSnapshotColumns,
   ensureOrderCancellationColumns,
+  ensureOrderStatusChangedAtColumn,
 };

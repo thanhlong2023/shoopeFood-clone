@@ -36,14 +36,14 @@ const emitOrderTimedOut = (orderData) => {
   try {
     const io = socketManager.getIO();
     io.emit("order:updated", orderData);
-    io.emit(`order:${orderData.id}:updated`, orderData);
+    io.to(`order:${orderData.id}`).emit(`order:${orderData.id}:updated`, orderData);
     io.emit("order:timeout", orderData);
     if (orderData.customerId) {
-      io.emit(`customer:${orderData.customerId}:order-timeout`, {
+      io.to(`customer:${orderData.customerId}`).emit(`customer:${orderData.customerId}:order-timeout`, {
         orderId: orderData.id,
         orderCode: orderData.orderCode,
         statusCode: orderData.statusCode,
-        message: CANCEL_REASON,
+        message: orderData.statusCode === "PENDING" ? "Nha hang khong xac nhan don trong thoi gian cho" : "Khong co tai xe nhan don trong thoi gian cho",
       });
     }
   } catch (error) {
@@ -52,21 +52,22 @@ const emitOrderTimedOut = (orderData) => {
 };
 
 const cancelUnassignedPendingOrders = async () => {
-  const pendingStatus = await OrderStatus.findOne({ where: { code: "PENDING" } });
+  const assignableStatuses = await OrderStatus.findAll({ where: { code: { [Op.in]: ["PENDING", "CONFIRMED"] } } });
   const timeoutStatus =
     (await OrderStatus.findOne({ where: { code: "TIMEOUT" } })) ||
     (await OrderStatus.findOne({ where: { code: "CANCELLED" } }));
 
-  if (!pendingStatus || !timeoutStatus) {
+  const assignableStatusIds = assignableStatuses.map((status) => status.id).filter(Boolean);
+  if (assignableStatusIds.length === 0 || !timeoutStatus) {
     return 0;
   }
 
   const cutoff = new Date(Date.now() - TIMEOUT_MINUTES * 60 * 1000);
   const staleOrders = await Order.findAll({
     where: {
-      statusId: pendingStatus.id,
+      statusId: { [Op.in]: assignableStatusIds },
       driverId: null,
-      createdAt: { [Op.lt]: cutoff },
+      [Op.or]: [{ statusChangedAt: { [Op.lt]: cutoff } }, { statusChangedAt: null, createdAt: { [Op.lt]: cutoff } }],
     },
     attributes: ["id"],
   });
@@ -81,7 +82,7 @@ const cancelUnassignedPendingOrders = async () => {
           lock: transaction.LOCK.UPDATE,
         });
 
-        if (!order || order.driverId !== null || order.statusId !== pendingStatus.id) {
+        if (!order || order.driverId !== null || !assignableStatusIds.includes(Number(order.statusId))) {
           return;
         }
 
@@ -90,7 +91,7 @@ const cancelUnassignedPendingOrders = async () => {
         await order.update(
           {
             statusId: timeoutStatus.id,
-            cancelReason: CANCEL_REASON,
+            cancelReason: order.statusId === (assignableStatuses.find(s => s.code === "PENDING") || {}).id ? "Nha hang khong xac nhan don trong thoi gian cho" : "Khong co tai xe nhan don trong thoi gian cho",
             cancelledByRole: "SYSTEM",
             cancelledByUserId: null,
             cancelledAt: new Date(),

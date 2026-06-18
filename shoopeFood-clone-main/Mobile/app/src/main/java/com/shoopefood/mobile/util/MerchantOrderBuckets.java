@@ -15,10 +15,10 @@ public final class MerchantOrderBuckets {
     public static final int TAB_DONE = 2;
 
     private static final Set<String> WAITING_CODES = new HashSet<>(Arrays.asList(
-            "PENDING", "DRIVER_ACCEPTED"
+            "PENDING"
     ));
     private static final Set<String> COOKING_CODES = new HashSet<>(Arrays.asList(
-            "CONFIRMED", "PICKING_UP", "DELIVERING"
+            "CONFIRMED", "DRIVER_ACCEPTED", "PICKING_UP", "DELIVERING"
     ));
     private static final Set<String> DONE_CODES = new HashSet<>(Arrays.asList(
             "COMPLETED"
@@ -61,21 +61,18 @@ public final class MerchantOrderBuckets {
     }
 
     public static String getNextStatusForCookingAction(String currentStatusCode) {
-        if ("CONFIRMED".equals(currentStatusCode)) {
-            return "PICKING_UP";
-        }
         return null;
     }
 
     public static boolean canConfirm(String statusCode) {
-        return WAITING_CODES.contains(statusCode);
+        return "PENDING".equals(statusCode);
     }
 
     public static boolean canReject(String statusCode) {
-        return WAITING_CODES.contains(statusCode);
+        return "PENDING".equals(statusCode);
     }
 
     public static boolean canMarkReady(String statusCode) {
-        return "CONFIRMED".equals(statusCode);
+        return false;
     }
 }

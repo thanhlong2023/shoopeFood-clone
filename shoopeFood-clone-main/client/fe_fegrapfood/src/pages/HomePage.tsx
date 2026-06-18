@@ -829,7 +829,17 @@ export default function HomePage() {
               </div>
             ))}
 
-            {cartItems.length === 0 ? <p className="text-gray-400 text-xs text-center py-8 font-medium">Chọn món để bắt đầu đặt hàng.</p> : null}
+            {cartItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3">
+                  <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 text-xs font-bold">Giỏ hàng trống</p>
+                <p className="text-gray-400 text-[10px] mt-1">Hãy chọn món bạn yêu thích để đặt hàng nhé!</p>
+              </div>
+            ) : null}
           </div>
 
           <form className="tw-checkout-form flex flex-col gap-4 border-t border-gray-100 pt-4" onSubmit={handleSubmitOrder}>
@@ -882,22 +892,27 @@ export default function HomePage() {
               {isLocating ? 'Đang lấy vị trí...' : 'Dùng vị trí hiện tại'}
             </button>
 
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <span className="text-[11px] font-bold text-gray-500">Hình thức giao hàng</span>
-              <select
-                value={checkout.shippingType}
-                onChange={(event) =>
-                  setCheckout((current) => ({
-                    ...current,
-                    shippingType: event.target.value as CheckoutState['shippingType'],
-                  }))
-                }
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#00b14f] focus:border-transparent font-medium bg-gray-50 cursor-pointer"
-              >
-                <option value="STANDARD">Tiêu chuẩn (Standard)</option>
-                <option value="FAST">Giao nhanh (Fast)</option>
-                <option value="ECO">Tiết kiệm (Eco)</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={checkout.shippingType}
+                  onChange={(event) =>
+                    setCheckout((current) => ({
+                      ...current,
+                      shippingType: event.target.value as CheckoutState['shippingType'],
+                    }))
+                  }
+                  className="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#00b14f] focus:border-transparent font-bold text-gray-800 bg-gray-50 cursor-pointer shadow-sm transition-all hover:bg-white"
+                >
+                  <option value="STANDARD">🛵 Giao tiêu chuẩn (Standard)</option>
+                  <option value="FAST">🚀 Giao siêu tốc (Fast)</option>
+                  <option value="ECO">🐢 Tiết kiệm (Eco)</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                </div>
+              </div>
             </div>
 
             {/* Pricing block with standard GrabFood layout */}
