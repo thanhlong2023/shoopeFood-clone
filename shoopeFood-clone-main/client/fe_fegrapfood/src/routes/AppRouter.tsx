@@ -14,6 +14,8 @@ import RestaurantDetailPage from '../pages/RestaurantDetailPage'
 import ProfilePage from '../pages/ProfilePage'
 import TrackingPage from '../pages/TrackingPage'
 import BrowseRestaurantsPage from '../pages/BrowseRestaurantsPage'
+import PaymentPage from '../pages/PaymentPage'
+import QrPaymentPage from '../pages/QrPaymentPage'
 
 export default function AppRouter() {
   return (
@@ -45,6 +47,22 @@ export default function AppRouter() {
           element={
             <RequireAuth>
               <TrackingPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/payment"
+          element={
+            <RequireAuth allowedRoles={['CUSTOMER']}>
+              <PaymentPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/payment/qr"
+          element={
+            <RequireAuth allowedRoles={['CUSTOMER']}>
+              <QrPaymentPage />
             </RequireAuth>
           }
         />
