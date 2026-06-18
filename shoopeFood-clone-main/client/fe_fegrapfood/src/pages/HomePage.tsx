@@ -526,7 +526,7 @@ export default function HomePage() {
 
       {errorMessage ? <p className="app-feedback error bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 mb-4">{errorMessage}</p> : null}
 
-      {hasTrackableOrder ? (
+      {isAuthenticated && hasTrackableOrder ? (
         <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-green-100 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00b14f]">Đơn đang theo dõi</p>

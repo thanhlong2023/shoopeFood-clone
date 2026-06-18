@@ -620,9 +620,6 @@ export default function TrackingPage() {
     return visibleCustomerOrders.slice(start, start + ORDERS_PER_PAGE)
   }, [visibleCustomerOrders, currentPage])
 
-  const isToMerchant = tracking?.order?.statusCode === 'DRIVER_ACCEPTED' || tracking?.order?.statusCode === 'PICKING_UP' || tracking?.order?.statusCode === 'CONFIRMED'
-  const isToCustomer = tracking?.order?.statusCode === 'SHIPPING' || tracking?.order?.statusCode === 'DELIVERING'
-  
   const simulatedDriverLocation = driverLocation
 
   const bounds = useMemo(() => {
