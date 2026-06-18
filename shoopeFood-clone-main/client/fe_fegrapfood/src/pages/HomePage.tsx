@@ -501,6 +501,19 @@ export default function HomePage() {
             />
           </div>
 
+          <div className="flex flex-wrap gap-2 animate-fade-in-up mt-6" style={{ animationDelay: '0.4s' }}>
+            {['Cơm trưa', 'Bún phở', 'Đồ uống', 'Ăn vặt', 'Chay', 'Giảm giá'].map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setSearchTerm(tag)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full text-white text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-sm hover:shadow-md"
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+
           <div className="quick-row flex flex-wrap gap-2 mt-4" aria-label="Danh mục nhanh">
             {quickFilters.map((filter) => (
               <button

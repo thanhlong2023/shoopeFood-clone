@@ -24,24 +24,24 @@ type LoginPageConfig = {
 
 const LOGIN_CONFIG: Record<UserRole, LoginPageConfig> = {
   CUSTOMER: {
-    title: 'Dang nhap khach hang',
-    subtitle: 'Dat mon, theo doi don hang va quan ly ho so.',
+    title: '�ang nh?p kh�ch h�ng',
+    subtitle: '�?t m�n, theo d�i don h�ng v� qu?n l� h? so.',
     demoPhone: '0900000001',
     showRegisterLink: true,
   },
   MERCHANT: {
-    title: 'Dang nhap chu quan',
+    title: '�ang nh?p ch? qu�n',
     subtitle: 'Qu?n l� don h�ng v� th?c don c?a qu�n.',
     demoPhone: '0900000003',
   },
   DRIVER: {
-    title: 'Dang nhap tai xe',
+    title: '�ang nh?p tai xe',
     subtitle: 'Nhan don giao hang va cap nhat vi tri.',
     demoPhone: '0900000002',
-    accountNote: 'Chua la tai xe? Dang ky tai trang chu (can bien so + CCCD) va cho Admin duyet.',
+    accountNote: 'Chua la tai xe? �ang k� tai trang chu (can bien so + CCCD) va cho Admin duyet.',
   },
   ADMIN: {
-    title: 'Dang nhap Admin',
+    title: '�ang nh?p Admin',
     subtitle: 'Quan tri he thong, nha hang, menu va nguoi dung.',
     demoPhone: '0900000005',
     accountNote: 'Chi danh cho quan tri vien he thong.',
@@ -81,7 +81,7 @@ export default function LoginPage({ role }: LoginPageProps) {
       const state = location.state as LocationState | null
       navigate(state?.from || getDefaultRedirect(loggedUser.role), { replace: true })
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the dang nhap')
+      setErrorMessage(error instanceof Error ? error.message : 'Kh�ng th? dang nh?p')
     } finally {
       setIsSubmitting(false)
     }
@@ -103,7 +103,7 @@ export default function LoginPage({ role }: LoginPageProps) {
 
         <div className="login-form-grid">
           <FormInput
-            label="So dien thoai"
+            label="S? di?n tho?i"
             icon={<PhoneIcon />}
             placeholder="0900000001"
             value={phone}
@@ -115,10 +115,10 @@ export default function LoginPage({ role }: LoginPageProps) {
           />
 
           <FormInput
-            label="Mat khau"
+            label="M?t kh?u"
             icon={<LockIcon />}
             type="password"
-            placeholder="Nhap mat khau cua ban"
+            placeholder="Nh?p m?t kh?u c?a b?n"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onBlur={() => handleBlur('password')}
@@ -128,7 +128,7 @@ export default function LoginPage({ role }: LoginPageProps) {
         </div>
 
         <button type="submit" className={`checkout-button ${!isValid ? 'disabled' : ''}`} disabled={isSubmitting || !isValid}>
-          {isSubmitting ? 'Dang dang nhap...' : 'Dang nhap'}
+          {isSubmitting ? '�ang dang nh?p...' : '�ang nh?p'}
         </button>
 
         {config.showRegisterLink ? (

@@ -38,7 +38,7 @@ export default function RegisterPage() {
       await login({ phone: phone.trim(), password, role: 'CUSTOMER' })
       navigate(getDefaultRedirect('CUSTOMER'), { replace: true })
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Khong the dang ky')
+      setFormError(error instanceof Error ? error.message : 'Kh�ng th? dang k�')
     } finally {
       setIsSubmitting(false)
     }
@@ -50,7 +50,7 @@ export default function RegisterPage() {
         <div>
           <span className="hero-badge">GrabFood</span>
           <h1>�ang k� kh�ch h�ng</h1>
-          <p>Tao tai khoan de dat mon ngay. Muon lam tai xe hoac mo quan? Dang ky tai trang chu sau khi dang nhap.</p>
+          <p>T?o t�i kho?n d? d?t m�n ngay. Mu?n l�m t�i x? ho?c m? qu�n? �ang k� t?i trang ch? sau khi dang nh?p.</p>
         </div>
       </div>
 
@@ -59,7 +59,7 @@ export default function RegisterPage() {
 
         <div className="login-form-grid">
           <FormInput
-            label="Ho ten"
+            label="H? t�n"
             icon={<UserIcon />}
             maxLength={100}
             value={fullName}
@@ -71,7 +71,7 @@ export default function RegisterPage() {
           />
 
           <FormInput
-            label="So dien thoai"
+            label="S? di?n tho?i"
             icon={<PhoneIcon />}
             inputMode="tel"
             maxLength={15}
@@ -84,7 +84,7 @@ export default function RegisterPage() {
           />
 
           <FormInput
-            label="Mat khau"
+            label="M?t kh?u"
             icon={<LockIcon />}
             type="password"
             maxLength={72}
@@ -92,29 +92,29 @@ export default function RegisterPage() {
             onChange={(e) => setPassword(e.target.value)}
             onBlur={() => handleBlur('password')}
             error={errors.password}
-            placeholder="Tao mat khau moi"
+            placeholder="T?o m?t kh?u m?i"
             className="full-width"
           />
 
           <FormInput
-            label="Xac nhan mat khau"
+            label="X�c nh?n m?t kh?u"
             icon={<LockIcon />}
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             onBlur={() => handleBlur('confirmPassword')}
             error={errors.confirmPassword}
-            placeholder="Nhap lai mat khau tren"
+            placeholder="Nh?p l?i m?t kh?u tr�n"
             className="full-width"
           />
         </div>
 
         <button type="submit" className={`checkout-button ${!isValid ? 'disabled' : ''}`} disabled={isSubmitting || !isValid}>
-          {isSubmitting ? 'Dang xu ly...' : 'Dang ky'}
+          {isSubmitting ? 'Dang xu ly...' : '�ang k�'}
         </button>
 
         <p className="login-register-hint">
-          Da co tai khoan? <Link to="/login">Dang nhap khach hang</Link>
+          �� c� t�i kho?n? <Link to="/login">�ang nh?p kh�ch h�ng</Link>
         </p>
 
         <LoginPortalLinks activeRole="CUSTOMER" />

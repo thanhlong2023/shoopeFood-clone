@@ -123,10 +123,10 @@ export default function Navbar() {
             {isMerchant && (
               <>
                 <li>
-                  <NavLink to="/merchant/orders" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>�on h�ng</NavLink>
+                  <NavLink to="/merchant/orders" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Đơn hàng</NavLink>
                 </li>
                 <li>
-                  <NavLink to="/merchant/menu" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Th?c don</NavLink>
+                  <NavLink to="/merchant/menu" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Thực đơn</NavLink>
                 </li>
               </>
             )}
@@ -134,14 +134,14 @@ export default function Navbar() {
             {showCustomerNav && !isMerchant && (
               <>
                 <li>
-                  <NavLink to="/" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Dat mon</NavLink>
+                  <NavLink to="/" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Đặt món</NavLink>
                 </li>
                 <li>
-                  <NavLink to="/restaurants" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Nh� h�ng</NavLink>
+                  <NavLink to="/restaurants" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Nhà hàng</NavLink>
                 </li>
                 {isAuthenticated ? (
                   <li>
-                    <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>�on h�ng</NavLink>
+                    <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Đơn hàng</NavLink>
                   </li>
                 ) : null}
               </>
@@ -149,7 +149,7 @@ export default function Navbar() {
 
             {(isDriver || isAdmin) && (
               <li>
-                <NavLink to="/driver" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Tai xe</NavLink>
+                <NavLink to="/driver" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Tài xế</NavLink>
               </li>
             )}
 
@@ -188,7 +188,7 @@ export default function Navbar() {
                     {(user?.fullName || user?.phone || 'U').charAt(0).toUpperCase()}
                   </span>
                   <span className="hidden lg:flex flex-col text-left leading-tight">
-                    <strong className="text-xs font-bold text-gray-800">{user?.fullName || 'Ho so'}</strong>
+                    <strong className="text-xs font-bold text-gray-800">{user?.fullName || 'Hồ sơ'}</strong>
                     <small className="text-[10px] text-gray-400 font-medium">{user?.role}</small>
                   </span>
                 </NavLink>
@@ -197,16 +197,16 @@ export default function Navbar() {
                   onClick={logout}
                   className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border-0 rounded-full text-xs font-bold transition-all"
                 >
-                  Logout
+                  Đăng xuất
                 </button>
               </>
             ) : (
               <div className="flex gap-2">
                 <NavLink className="px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold no-underline hover:bg-gray-800 transition-all" to="/login">
-                  Dang nhap
+                  Đăng nhập
                 </NavLink>
                 <NavLink className="px-4 py-2 border border-gray-200 text-gray-700 rounded-full text-xs font-bold no-underline hover:bg-gray-50 transition-all" to="/register">
-                  Dang ky
+                  Đăng ký
                 </NavLink>
               </div>
             )}
