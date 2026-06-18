@@ -168,7 +168,7 @@ export default function AdminCategoryPanel() {
               <tr>
                 <th>ID</th>
                 <th>Ten</th>
-                <th>Nha hang</th>
+                <th>Nh� h�ng</th>
                 <th>Restaurant ID</th>
                 <th>Actions</th>
               </tr>
@@ -210,7 +210,7 @@ export default function AdminCategoryPanel() {
 
           {isLoading ? <p className="empty-state">Dang tai...</p> : null}
           {!isLoading && visibleCategories.length === 0 ? (
-            <p className="empty-state">Chua co danh muc phu hop.</p>
+            <p className="empty-state">Chua c� danh m?c phu hop.</p>
           ) : null}
         </div>
       </section>
@@ -224,7 +224,7 @@ export default function AdminCategoryPanel() {
 
         <form className="admin-form" noValidate onSubmit={handleSubmit}>
           <label className="restaurant-field">
-            <span>Nha hang</span>
+            <span>Nh� h�ng</span>
             <select
               value={form.restaurantId}
               onChange={(event) => {

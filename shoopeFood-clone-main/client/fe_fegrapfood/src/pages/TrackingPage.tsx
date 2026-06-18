@@ -132,7 +132,7 @@ function StatusSteps({ order }: { order: Order | null }) {
     { code: 'DRIVER_ACCEPTED', label: 'T�i x? nhan' },
     { code: 'PICKING_UP', label: 'Lay mon' },
     { code: 'DELIVERING', label: 'Dang giao' },
-    { code: 'COMPLETED', label: 'Hoan thanh' },
+    { code: 'COMPLETED', label: 'Ho�n th�nh' },
   ]
   const currentIndex = Math.max(
     0,

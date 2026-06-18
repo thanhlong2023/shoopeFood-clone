@@ -11,7 +11,7 @@ import { getDefaultRedirect } from '../utils/loginPaths'
 import { useRegisterForm } from '../hooks/useRegisterForm'
 
 export default function RegisterPage() {
-  useDocumentTitle(`${APP_NAME} | Dang ky khach hang`)
+  useDocumentTitle(`${APP_NAME} | �ang k� kh�ch h�ng`)
 
   const navigate = useNavigate()
   const { login } = useAuth()
@@ -49,7 +49,7 @@ export default function RegisterPage() {
       <div className="login-hero">
         <div>
           <span className="hero-badge">GrabFood</span>
-          <h1>Dang ky khach hang</h1>
+          <h1>�ang k� kh�ch h�ng</h1>
           <p>Tao tai khoan de dat mon ngay. Muon lam tai xe hoac mo quan? Dang ky tai trang chu sau khi dang nhap.</p>
         </div>
       </div>

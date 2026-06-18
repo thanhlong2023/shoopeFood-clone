@@ -31,7 +31,7 @@ const LOGIN_CONFIG: Record<UserRole, LoginPageConfig> = {
   },
   MERCHANT: {
     title: 'Dang nhap chu quan',
-    subtitle: 'Quan ly don hang va thuc don cua quan.',
+    subtitle: 'Qu?n l� don h�ng v� th?c don c?a qu�n.',
     demoPhone: '0900000003',
   },
   DRIVER: {
@@ -133,7 +133,7 @@ export default function LoginPage({ role }: LoginPageProps) {
 
         {config.showRegisterLink ? (
           <p className="login-register-hint">
-            Chua co tai khoan? <Link to="/register">Dang ky khach hang</Link>
+            Chua c� t�i kho?n? <Link to="/register">�ang k� kh�ch h�ng</Link>
           </p>
         ) : null}
 

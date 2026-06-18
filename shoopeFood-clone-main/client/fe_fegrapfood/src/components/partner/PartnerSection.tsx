@@ -55,7 +55,7 @@ export default function PartnerSection() {
             <h3>Mo nha hang</h3>
             <p>Dang ky quan an, tiep can khach hang moi tren ung dung.</p>
             <ul>
-              <li>Quan ly thuc don online</li>
+              <li>Qu?n l� th?c don online</li>
               <li>Nhan don tu khach</li>
               <li>Admin ho tro duyet quan</li>
             </ul>

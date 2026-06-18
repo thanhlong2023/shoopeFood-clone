@@ -95,7 +95,7 @@ const resourceConfigs: ResourceConfig[] = [
   {
     name: 'menu-manager',
     title: 'Menu',
-    description: 'Quan ly menu theo nha hang, loc danh muc va mon an.',
+    description: 'Qu?n l� menu theo nh� h�ng, l?c danh m?c v� m�n an.',
     columns: [],
     fields: [],
     canCreate: false,
@@ -103,7 +103,7 @@ const resourceConfigs: ResourceConfig[] = [
   },
   {
     name: 'orders',
-    title: 'Don hang',
+    title: '�on h�ng',
     description: 'Theo doi va cap nhat trang thai don hang.',
     columns: ['id', 'orderCode', 'customerId', 'restaurantId', 'driverId', 'statusCode', 'totalAmount', 'createdAt'],
     fields: [
@@ -117,7 +117,7 @@ const resourceConfigs: ResourceConfig[] = [
   },
   {
     name: 'restaurant-manager',
-    title: 'Nha hang',
+    title: 'Nh� h�ng',
     description: 'Tao quan cho chu quan, duyet va quan ly danh sach.',
     columns: [],
     fields: [],
@@ -127,7 +127,7 @@ const resourceConfigs: ResourceConfig[] = [
   {
     name: 'foods',
     title: 'Mon an',
-    description: 'Quan ly menu, gia va so luong mon moi ngay.',
+    description: 'Qu?n l� menu, gi� v� s? lu?ng m�n m?i ng�y.',
     columns: ['id', 'name', 'categoryId', 'price', 'isAvailable', 'currentQuantity', 'defaultQuantity'],
     fields: [
       { key: 'categoryId', label: 'Category ID', type: 'number', nullable: true },
@@ -159,7 +159,7 @@ const resourceConfigs: ResourceConfig[] = [
   {
     name: 'drivers',
     title: 'Tai xe',
-    description: 'Quan ly tai xe, bien so va trang thai online.',
+    description: 'Qu?n l� t�i x?, bi?n s? v� tr?ng th�i online.',
     columns: ['id', 'fullName', 'phone', 'vehicleType', 'licensePlate', 'isOnline', 'ratingAvg'],
     fields: [
       { key: 'fullName', label: 'Ho ten', type: 'text' },
@@ -173,8 +173,8 @@ const resourceConfigs: ResourceConfig[] = [
   },
   {
     name: 'users',
-    title: 'Nguoi dung',
-    description: 'Quan ly tai khoan khach hang va nhan su.',
+    title: 'Ngu?i d�ng',
+    description: 'Qu?n l� t�i kho?n kh�ch h�ng v� nh�n s?.',
     columns: ['id', 'fullName', 'phone', 'roles', 'ratingAvg', 'createdAt'],
     fields: [
       { key: 'fullName', label: 'Ho ten', type: 'text' },
@@ -378,7 +378,7 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
           </table>
 
           {query.isLoading ? <p className="empty-state">Dang tai du lieu...</p> : null}
-          {!query.isLoading && records.length === 0 ? <p className="empty-state">Chua co du lieu.</p> : null}
+          {!query.isLoading && records.length === 0 ? <p className="empty-state">Chua c� d? li?u.</p> : null}
         </div>
       </section>
 
@@ -736,7 +736,7 @@ function MenuManagerPanel() {
       <section className="menu-manager-hero">
         <div>
           <span className="hero-badge">Nguoi 4</span>
-          <h2>Quan ly menu theo nha hang</h2>
+          <h2>Qu?n l� menu theo nh� h�ng</h2>
           <p>CRUD danh muc, CRUD mon an va kiem tra API loc menu theo restaurant, category, ten mon, trang thai ban.</p>
         </div>
         <div className="menu-stat-grid">
@@ -763,7 +763,7 @@ function MenuManagerPanel() {
 
       <form className="menu-filter-bar" onSubmit={(event) => void applyFilters(event)}>
         <label>
-          <span>Nha hang</span>
+          <span>Nh� h�ng</span>
           <select value={restaurantFilter} onChange={(event) => setRestaurantFilter(event.target.value)}>
             <option value="">Tat ca nha hang</option>
             {restaurants.map((restaurant) => (
@@ -834,7 +834,7 @@ function MenuManagerPanel() {
                   </div>
                   <div className="menu-admin-meta">
                     <span>{restaurant ? restaurant.name : 'Chua gan nha hang'}</span>
-                    <span>{category ? category.name : 'Chua co danh muc'}</span>
+                    <span>{category ? category.name : 'Chua c� danh m?c'}</span>
                     <span>{food.isAvailable ? 'Dang ban' : 'Tam dung'}</span>
                     <span>
                       {food.currentQuantity}/{food.defaultQuantity} mon
@@ -902,7 +902,7 @@ function MenuManagerPanel() {
                 {foodFormErrors.price ? <p className="field-error">{foodFormErrors.price}</p> : null}
               </label>
               <label className="restaurant-field">
-                <span>Nha hang</span>
+                <span>Nh� h�ng</span>
                 <select
                   value={foodForm.restaurantId}
                   onChange={(event) => {
@@ -985,7 +985,7 @@ function MenuManagerPanel() {
             </div>
             <form className="admin-form" noValidate onSubmit={(event) => void handleCategorySubmit(event)}>
               <label className="restaurant-field">
-                <span>Nha hang</span>
+                <span>Nh� h�ng</span>
                 <select
                   value={categoryForm.restaurantId}
                   onChange={(event) => {
@@ -1166,7 +1166,7 @@ export default function AdminPage() {
         <div>
           <span className="hero-badge">Admin</span>
           <h1>Quan tri he thong GrabFood</h1>
-          <p>{user ? `${user.fullName || user.phone} dang dang nhap voi role ${user.role}` : 'Quan ly du lieu he thong.'}</p>
+          <p>{user ? `${user.fullName || user.phone} dang dang nh?p v?i role ${user.role}` : 'Qu?n l� d? li?u h? th?ng.'}</p>
         </div>
         <div className="admin-kpis">
           <div>

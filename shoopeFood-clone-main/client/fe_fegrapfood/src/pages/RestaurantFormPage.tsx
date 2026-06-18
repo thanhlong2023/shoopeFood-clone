@@ -297,7 +297,7 @@ export default function RestaurantFormPage() {
                   />
                 )}
                 {isAdmin && merchants.length === 0 ? (
-                  <p className="field-hint">Chua co chu quan. Tao tai Admin &gt; Nguoi dung (vai tro MERCHANT).</p>
+                  <p className="field-hint">Chua c� ch? qu�n. T?o t?i Admin &gt; Ngu?i d�ng (vai tro MERCHANT).</p>
                 ) : null}
                 {errors.ownerId ? <p className="field-error">{errors.ownerId}</p> : null}
               </div>

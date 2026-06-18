@@ -123,10 +123,10 @@ export default function Navbar() {
             {isMerchant && (
               <>
                 <li>
-                  <NavLink to="/merchant/orders" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Don hang</NavLink>
+                  <NavLink to="/merchant/orders" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>�on h�ng</NavLink>
                 </li>
                 <li>
-                  <NavLink to="/merchant/menu" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Thuc don</NavLink>
+                  <NavLink to="/merchant/menu" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Th?c don</NavLink>
                 </li>
               </>
             )}
@@ -137,11 +137,11 @@ export default function Navbar() {
                   <NavLink to="/" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Dat mon</NavLink>
                 </li>
                 <li>
-                  <NavLink to="/restaurants" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Nha hang</NavLink>
+                  <NavLink to="/restaurants" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Nh� h�ng</NavLink>
                 </li>
                 {isAuthenticated ? (
                   <li>
-                    <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Don hang</NavLink>
+                    <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>�on h�ng</NavLink>
                   </li>
                 ) : null}
               </>

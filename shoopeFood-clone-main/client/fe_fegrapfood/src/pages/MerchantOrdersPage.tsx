@@ -58,7 +58,7 @@ const ORDER_STATUS_GROUPS = {
 type StatusFilter = '' | keyof typeof ORDER_STATUS_GROUPS
 
 export default function MerchantOrdersPage() {
-  useDocumentTitle(`${APP_NAME} | Don hang quan`)
+  useDocumentTitle(`${APP_NAME} | �on h�ng quan`)
   const { user } = useAuth()
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
@@ -218,8 +218,8 @@ export default function MerchantOrdersPage() {
       <div className="restaurant-page-header">
         <div>
           <span className="hero-badge">Chu quan</span>
-          <h1>Don hang gui toi quan</h1>
-          <p>Xem va xac nhan don moi. Quan ly thuc don o muc <Link to="/merchant/menu">Thuc don</Link>.</p>
+          <h1>�on h�ng gui toi quan</h1>
+          <p>Xem v� x�c nh?n don m?i. Quan ly thuc don o muc <Link to="/merchant/menu">Th?c don</Link>.</p>
         </div>
         <button type="button" className="button-secondary" onClick={() => void loadData()} disabled={isLoading}>
           Lam moi
@@ -304,7 +304,7 @@ export default function MerchantOrdersPage() {
 
           {!isLoading && visibleOrders.length === 0 ? (
             <p className="empty-state">
-              {orders.length === 0 ? 'Chua co don hang nao.' : 'Khong co don hang phu hop bo loc.'}
+              {orders.length === 0 ? 'Chua c� don h�ng n�o.' : 'Kh�ng c� don h�ng ph� h?p b? l?c.'}
             </p>
           ) : (
             <div className="menu-card-grid">

@@ -160,7 +160,7 @@ export default function ProfilePage() {
   return (
     <section className="restaurant-page">
       <div className="restaurant-form-card">
-        <span className="hero-badge">Tai khoan</span>
+        <span className="hero-badge">T�i kho?n</span>
         <h1>Thong tin ca nhan</h1>
         <p>Cap nhat thong tin ca nhan va bao mat tai khoan.</p>
       </div>
@@ -276,7 +276,7 @@ export default function ProfilePage() {
           {isLoadingRestaurants ? <p className="empty-state">Dang tai quan...</p> : null}
 
           {!isLoadingRestaurants && restaurants.length === 0 ? (
-            <p className="empty-state">Chua co quan nao duoc gan. Lien he admin de duoc tao quan.</p>
+            <p className="empty-state">Chua c� qu�n n�o du?c g�n. Li�n h? admin d? du?c t?o qu�n.</p>
           ) : null}
 
           <div className="profile-restaurant-list">
@@ -289,7 +289,7 @@ export default function ProfilePage() {
                   />
                   <div>
                     <h3>{restaurant.name}</h3>
-                    <p>{restaurant.address || 'Chua co dia chi'}</p>
+                    <p>{restaurant.address || 'Chua c� d?a ch?'}</p>
                   </div>
                 </div>
 

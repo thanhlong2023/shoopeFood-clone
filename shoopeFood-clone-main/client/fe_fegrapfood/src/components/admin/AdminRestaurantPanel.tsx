@@ -293,7 +293,7 @@ export default function AdminRestaurantPanel() {
       <section className="admin-panel">
         <div className="admin-panel-head">
           <div>
-            <h2>Nha hang</h2>
+            <h2>Nh� h�ng</h2>
             <p>Tao quan cho chu quan, duyet quan cho, sua hoac xoa. Mot form duy nhat ben phai.</p>
           </div>
           <div className="admin-actions">
@@ -393,7 +393,7 @@ export default function AdminRestaurantPanel() {
           </table>
 
           {isLoading ? <p className="empty-state">Dang tai du lieu...</p> : null}
-          {!isLoading && restaurants.length === 0 ? <p className="empty-state">Chua co quan nao.</p> : null}
+          {!isLoading && restaurants.length === 0 ? <p className="empty-state">Chua c� qu�n n�o.</p> : null}
         </div>
 
         {rejectTargetId !== null ? (
@@ -443,7 +443,7 @@ export default function AdminRestaurantPanel() {
             </select>
             {merchants.length === 0 ? (
               <p className="field-hint">
-                Chua co chu quan. Tao tai tab <strong>Nguoi dung</strong> (vai tro MERCHANT) hoac dang nhap lai
+                Chua c� ch? qu�n. T?o t?i tab <strong>Ngu?i d�ng</strong> (vai tro MERCHANT) ho?c dang nh?p l?i
                 ADMIN: <strong>0900000005</strong> / 123456.
               </p>
             ) : null}
