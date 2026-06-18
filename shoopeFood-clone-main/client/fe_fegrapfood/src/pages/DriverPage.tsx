@@ -11,7 +11,7 @@ import type { Driver, Order, OrderTracking, RouteLeg, RoutePoint } from '../type
 
 const defaultCenter: [number, number] = [10.7769, 106.7009]
 const NEARBY_RADIUS_KM = 10
-const activeLocationStatuses = new Set(['DRIVER_ACCEPTED', 'CONFIRMED', 'PICKING_UP', 'DELIVERING'])
+const activeLocationStatuses = new Set(['DRIVER_ACCEPTED', 'PICKING_UP', 'DELIVERING'])
 
 function haversineKm(from: RoutePoint, to: { latitude?: number; longitude?: number }) {
   const lat2 = Number(to.latitude)
@@ -165,7 +165,7 @@ function RouteLegSummary({ leg }: { leg: RouteLeg }) {
     <div className="driver-route-leg">
       <div>
         <strong>{leg.label}</strong>
-        <span>{leg.ok ? `${formatDistance(leg.distanceKm)} - ${formatDuration(leg.durationMinutes)}` : leg.error || 'Chua co lo trinh'}</span>
+        <span>{leg.ok ? `${formatDistance(leg.distanceKm)} - ${formatDuration(leg.durationMinutes)}` : leg.error || 'Chua c� l? tr�nh'}</span>
       </div>
       <ol>
         {leg.steps.slice(0, 5).map((step, index) => (
@@ -180,7 +180,7 @@ function RouteLegSummary({ leg }: { leg: RouteLeg }) {
 }
 
 export default function DriverPage() {
-  useDocumentTitle(`${APP_NAME} | Tai xe`)
+  useDocumentTitle(`${APP_NAME} | T�i x?`)
   const { user } = useAuth()
   const driverId = user?.id ?? null
 
@@ -191,7 +191,7 @@ export default function DriverPage() {
   const [tracking, setTracking] = useState<OrderTracking | null>(null)
   const [currentPoint, setCurrentPoint] = useState<RoutePoint | null>(null)
   const [heading, setHeading] = useState(0)
-  const [gpsStatus, setGpsStatus] = useState('Dang lay vi tri GPS...')
+  const [gpsStatus, setGpsStatus] = useState('�ang l?y v? tr� GPS...')
   const [isLoading, setIsLoading] = useState(true)
   const [isActioning, setIsActioning] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -229,7 +229,7 @@ export default function DriverPage() {
   const isSelectedMine = Boolean(driverId && activeOrder?.driverId === driverId)
   const canAcceptSelected = Boolean(activeOrder && !activeOrder.driverId && activeOrder.statusCode === 'CONFIRMED')
   const canStartPickup = Boolean(isSelectedMine && activeOrder?.statusCode === 'DRIVER_ACCEPTED')
-  const canStartDelivery = Boolean(isSelectedMine && ['DRIVER_ACCEPTED', 'PICKING_UP'].includes(activeOrder?.statusCode || ''))
+  const canStartDelivery = Boolean(isSelectedMine && activeOrder?.statusCode === 'PICKING_UP')
   const canCompleteDelivery = Boolean(isSelectedMine && activeOrder?.statusCode === 'DELIVERING')
 
   const loadTracking = useCallback(async (orderId: number, quiet = false) => {
@@ -265,7 +265,7 @@ export default function DriverPage() {
         return feed.active[0]?.id ?? visibleAvailable[0]?.id ?? null
       })
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the tai bang tai xe')
+      setErrorMessage(error instanceof Error ? error.message : 'Kh�ng th? t?i b?ng t�i x?')
     } finally {
       setIsLoading(false)
     }
@@ -286,7 +286,7 @@ export default function DriverPage() {
 
   useEffect(() => {
     if (!driverId || !navigator.geolocation) {
-      setGpsStatus('Trinh duyet khong ho tro GPS, dung vi tri cuoi cung neu co.')
+      setGpsStatus('Tr�nh duy?t kh�ng h? tr? GPS, d�ng v? tr� cu?i c�ng n?u c�.')
       return undefined
     }
 
@@ -309,7 +309,7 @@ export default function DriverPage() {
         if (!isSimulating) {
           setCurrentPoint(nextPoint)
           setHeading(nextHeading)
-          setGpsStatus('GPS dang cap nhat')
+          setGpsStatus('GPS dang c?p nh?t')
 
           void updateDriverLocation(driverId, {
             ...(activeOrderForLocation ? { orderId: activeOrder.id } : {}),
@@ -318,12 +318,12 @@ export default function DriverPage() {
             heading: nextHeading,
             speedKmh: Number.isFinite(position.coords.speed) && position.coords.speed ? Number(position.coords.speed) * 3.6 : 28,
           }).catch((error) => {
-            setGpsStatus(error instanceof Error ? error.message : 'Khong the gui vi tri')
+            setGpsStatus(error instanceof Error ? error.message : 'Kh�ng th? g?i v? tr�')
           })
         }
       },
       () => {
-        setGpsStatus('Chua duoc cap quyen GPS, dung vi tri cuoi cung tren he thong.')
+        setGpsStatus('Chua du?c c?p quy?n GPS, d�ng v? tr� cu?i c�ng tr�n h? th?ng.')
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 12000 },
     )
@@ -408,9 +408,14 @@ export default function DriverPage() {
         }
 
         socket = createdSocket
+        if (driverId) {
+          socket.emit('driver:join', { driverId })
+        }
         socket.on('new_order', reloadFeed)
         socket.on('order:updated', reloadFeed)
         socket.on('order:claimed', reloadFeed)
+        socket.on('driver:order-offered', reloadFeed)
+        socket.on('driver:order-updated', reloadFeed)
       })
       .catch(() => {
         // Manual reload and polling still work when Socket.io is unavailable.
@@ -419,17 +424,22 @@ export default function DriverPage() {
     return () => {
       isMounted = false
       if (socket) {
+        if (driverId) {
+          socket.emit('driver:leave', { driverId })
+        }
         socket.off('new_order', reloadFeed)
         socket.off('order:updated', reloadFeed)
         socket.off('order:claimed', reloadFeed)
+        socket.off('driver:order-offered', reloadFeed)
+        socket.off('driver:order-updated', reloadFeed)
         socket.disconnect()
       }
     }
-  }, [activeOrderId, loadFeed, loadTracking])
+  }, [activeOrderId, driverId, loadFeed, loadTracking])
 
   async function handleAcceptOrder(order: Order) {
     if (hasActiveDelivery) {
-      setErrorMessage('Ban dang co don dang giao. Hoan thanh don hien tai truoc khi nhan don moi.')
+      setErrorMessage('B?n dang c� don dang giao. Ho�n th�nh don hi?n t?i tru?c khi nh?n don m?i.')
       return
     }
 
@@ -443,7 +453,7 @@ export default function DriverPage() {
       await loadFeed()
       await loadTracking(updated.id)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the nhan don')
+      setErrorMessage(error instanceof Error ? error.message : 'Kh�ng th? nh?n don')
     } finally {
       setIsActioning(false)
     }
@@ -461,7 +471,7 @@ export default function DriverPage() {
       await loadFeed()
       await loadTracking(updated.id)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the cap nhat trang thai')
+      setErrorMessage(error instanceof Error ? error.message : 'Kh�ng th? c?p nh?t tr?ng th�i')
     } finally {
       setIsActioning(false)
     }
@@ -482,7 +492,7 @@ export default function DriverPage() {
             disabled={isActioning || hasActiveDelivery}
             onClick={() => void handleAcceptOrder(order)}
           >
-            {hasActiveDelivery ? 'Dang giao don khac' : 'Nhan don'}
+            {hasActiveDelivery ? '�ang giao don kh�c' : 'Nh?n don'}
           </button>
         ) : null}
       </article>
@@ -494,8 +504,8 @@ export default function DriverPage() {
       <div className="driver-header">
         <div>
           <span className="hero-badge">Driver</span>
-          <h1>Don hang quanh ban</h1>
-          <p>{driver ? `${driver.fullName} - ${driver.licensePlate || driver.vehicleType}` : user?.fullName || 'Tai xe'}</p>
+          <h1>�on h�ng quanh b?n</h1>
+          <p>{driver ? `${driver.fullName} - ${driver.licensePlate || driver.vehicleType}` : user?.fullName || 'T�i x?'}</p>
         </div>
 
         <div className="driver-gps-pill">
@@ -524,24 +534,24 @@ export default function DriverPage() {
                   : `${nearbyAvailableOrders.length}/${availableOrders.length} don trong ${NEARBY_RADIUS_KM}km`}
             </h2>
             <button type="button" className="button-secondary" onClick={() => void loadFeed()} disabled={isLoading}>
-              Tai lai don
+              T?i l?i don
             </button>
           </div>
 
           <div className="driver-order-list">
-            <h3>{isShowingAllConfirmed ? 'Don moi da xac nhan' : `Don moi gan ban (${NEARBY_RADIUS_KM}km)`}</h3>
+            <h3>{isShowingAllConfirmed ? '�on m?i d� x�c nh?n' : `�on m?i g?n b?n (${NEARBY_RADIUS_KM}km)`}</h3>
             {visibleAvailableOrders.map((order) => renderOrderCard(order, 'available'))}
             {!isLoading && visibleAvailableOrders.length === 0 ? (
               <p className="empty-state">
                 {currentPoint
                   ? `Chua co don moi trong ban kinh ${NEARBY_RADIUS_KM}km. Neu can demo, kiem tra toa do nha hang va vi tri tai xe.`
-                  : 'Chua co don CONFIRMED nao. Hay cho merchant xac nhan don truoc.'}
+                  : 'Chua c� don CONFIRMED n�o. H�y ch? merchant x�c nh?n don tru?c.'}
               </p>
             ) : null}
 
-            <h3>Don cua toi</h3>
+            <h3>�on c?a t�i</h3>
             {myOrders.map((order) => renderOrderCard(order, 'mine'))}
-            {!isLoading && myOrders.length === 0 ? <p className="empty-state">Ban chua nhan don nao.</p> : null}
+            {!isLoading && myOrders.length === 0 ? <p className="empty-state">B?n chua nh?n don n�o.</p> : null}
           </div>
         </aside>
 
@@ -577,7 +587,7 @@ export default function DriverPage() {
             ) : null}
             {currentPoint ? (
               <Marker position={toLatLng(currentPoint)} icon={makeDriverMotoIcon(heading)}>
-                <Popup>{driver?.fullName || 'Tai xe'}</Popup>
+                <Popup>{driver?.fullName || 'T�i x?'}</Popup>
               </Marker>
             ) : null}
           </MapContainer>
@@ -585,29 +595,29 @@ export default function DriverPage() {
 
         <aside className="driver-control-panel">
           <div className="driver-control-head">
-            <span>Don dang chon</span>
+            <span>�on dang ch?n</span>
             <h2>{activeOrder?.orderCode || '-'}</h2>
             {activeOrder ? <strong className="driver-status-pill">{statusText(activeOrder)}</strong> : null}
-            <p>{activeOrder?.receiverAddress || 'Chon don de xem chi tiet'}</p>
+            <p>{activeOrder?.receiverAddress || 'Ch?n don d? xem chi ti?t'}</p>
           </div>
 
           {activeOrder ? (
             <>
               <div className="driver-detail-grid">
                 <div>
-                  <span>Nha hang</span>
+                  <span>Nh� h�ng</span>
                   <strong>{activeOrder.restaurant?.name || tracking?.restaurant?.name || `Quan #${activeOrder.restaurantId}`}</strong>
                 </div>
                 <div>
-                  <span>Khach hang</span>
+                  <span>Kh�ch h�ng</span>
                   <strong>{activeOrder.customerName || `Khach #${activeOrder.customerId}`}</strong>
                 </div>
                 <div>
-                  <span>SDT khach</span>
+                  <span>S�T kh�ch</span>
                   <strong>{activeOrder.customerPhone || '-'}</strong>
                 </div>
                 <div>
-                  <span>Tien can thu</span>
+                  <span>Ti?n c?n thu</span>
                   <strong>{formatPrice(activeOrder.cashToCollect || activeOrder.totalAmount)} VND</strong>
                 </div>
                 <div>
@@ -615,7 +625,7 @@ export default function DriverPage() {
                   <strong>{formatDuration(tracking?.route?.totalDurationMinutes)}</strong>
                 </div>
                 <div>
-                  <span>Quang duong</span>
+                  <span>Qu�ng du?ng</span>
                   <strong>{formatDistance(tracking?.route?.totalDistanceKm)}</strong>
                 </div>
               </div>
@@ -623,20 +633,20 @@ export default function DriverPage() {
               <div className="driver-actions-grid">
                 {canAcceptSelected ? (
                   <button type="button" className="button-primary" onClick={() => void handleAcceptOrder(activeOrder)} disabled={isActioning}>
-                    Nhan don
+                    Nh?n don
                   </button>
                 ) : null}
                 <button type="button" className="button-secondary" onClick={() => void handleStatus('PICKING_UP')} disabled={!canStartPickup || isActioning}>
-                  Den nha hang
+                  �?n nh� h�ng
                 </button>
                 <button type="button" className="button-primary" onClick={() => void handleStatus('DELIVERING')} disabled={!canStartDelivery || isActioning}>
-                  Da lay mon
+                  �� l?y m�n
                 </button>
                 <button type="button" className="button-secondary" onClick={() => void handleStatus('COMPLETED')} disabled={!canCompleteDelivery || isActioning}>
-                  Hoan thanh
+                  Ho�n th�nh
                 </button>
                 <button type="button" className="button-danger" onClick={() => void handleStatus('CANCELLED')} disabled={!isSelectedMine || isActioning}>
-                  Huy don
+                  H?y don
                 </button>
               </div>
 
@@ -644,20 +654,20 @@ export default function DriverPage() {
                 {routeLegs.map((leg) => (
                   <RouteLegSummary key={leg.key} leg={leg} />
                 ))}
-                {tracking && routeLegs.length === 0 ? <p className="empty-state">Chua co route OSRM cho don nay.</p> : null}
+                {tracking && routeLegs.length === 0 ? <p className="empty-state">Chua c� route OSRM cho don n�y.</p> : null}
               </div>
 
               <div className="driver-invoice-card">
                 <div className="driver-invoice-head">
                   <div>
-                    <span>Hoa don</span>
+                    <span>H�a don</span>
                     <h2>{activeOrder.orderCode}</h2>
                   </div>
                   <strong>{statusText(activeOrder)}</strong>
                 </div>
 
                 <div className="tracking-items">
-                  <h2>Mon can lay</h2>
+                  <h2>M�n c?n l?y</h2>
                   {(activeOrder.items || []).length > 0 ? (
                     (activeOrder.items || []).map((item) => (
                       <div key={item.id} className="tracking-item driver-invoice-item">
@@ -669,40 +679,40 @@ export default function DriverPage() {
                       </div>
                     ))
                   ) : (
-                    <p className="empty-state">Don nay chua co chi tiet mon trong du lieu tra ve.</p>
+                    <p className="empty-state">�on n�y chua c� chi ti?t m�n trong d? li?u tr? v?.</p>
                   )}
                 </div>
 
                 <div className="bill-box driver-invoice-totals">
                   <div>
-                    <span>Tien mon</span>
+                    <span>Ti?n m�n</span>
                     <strong>{formatPrice(activeOrder.subtotalAmount)} VND</strong>
                   </div>
                   <div>
-                    <span>Phi giao hang</span>
+                    <span>Ph� giao h�ng</span>
                     <strong>{formatPrice(activeOrder.shippingFee)} VND</strong>
                   </div>
                   <div>
-                    <span>Thue</span>
+                    <span>Thu?</span>
                     <strong>{formatPrice(activeOrder.taxAmount)} VND</strong>
                   </div>
                   <div>
-                    <span>Giam gia</span>
+                    <span>Gi?m gi�</span>
                     <strong>-{formatPrice(activeOrder.discountAmount)} VND</strong>
                   </div>
                   <div className="bill-total">
-                    <span>Tong don</span>
+                    <span>T?ng don</span>
                     <strong>{formatPrice(activeOrder.totalAmount)} VND</strong>
                   </div>
                   <div className="bill-total driver-cash-total">
-                    <span>Tai xe thu</span>
+                    <span>T�i x? thu</span>
                     <strong>{formatPrice(activeOrder.cashToCollect || activeOrder.totalAmount)} VND</strong>
                   </div>
                 </div>
               </div>
             </>
           ) : (
-            <p className="empty-state">Khong co don dang chon.</p>
+            <p className="empty-state">Kh�ng c� don dang ch?n.</p>
           )}
         </aside>
       </div>

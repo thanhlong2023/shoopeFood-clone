@@ -46,7 +46,7 @@ export default function ImageUrlField({
           </>
         ) : (
           <div className="image-url-preview-empty">
-            <span>Chua co link anh</span>
+            <span>Chua c� link ?nh</span>
             <small>Dan link hinh (jpg, png, webp...) de hien thi tren trang dat mon</small>
           </div>
         )}

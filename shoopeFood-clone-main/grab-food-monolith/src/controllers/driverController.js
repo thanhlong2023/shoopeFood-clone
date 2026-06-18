@@ -5,10 +5,12 @@ const orderRepository = require("../repositories/orderRepository");
 const { normalizeOrder } = require("../utils/orderNormalizer");
 const { setUserRole } = require("../utils/roleAssignment");
 const osrmService = require("../services/osrmService");
+const driverService = require("../services/driverService");
+const locationStreamService = require("../services/locationStreamService");
 
 const DRIVER_AVAILABLE_STATUS_CODE = "CONFIRMED";
 const COMPLETED_STATUS_CODE = "COMPLETED";
-const DRIVER_ACTIVE_STATUS_CODES = ["DRIVER_ACCEPTED", "CONFIRMED", "PICKING_UP", "DELIVERING"];
+const DRIVER_ACTIVE_STATUS_CODES = ["DRIVER_ACCEPTED", "PICKING_UP", "DELIVERING"];
 const DRIVER_PROFILE_DELIVERY_LIMIT = 10;
 const DRIVER_FEED_COMPLETED_LIMIT = 20;
 
@@ -35,6 +37,7 @@ const normalizeDriverLocation = (item) => ({
   orderId: item.orderId,
   latitude: Number(item.latitude || 0),
   longitude: Number(item.longitude || 0),
+  geohash: item.geohash || null,
   heading: Number(item.heading || 0),
   speedKmh: Number(item.speedKmh || 0),
   createdAt: item.createdAt,
@@ -170,7 +173,7 @@ exports.getMyOrderFeed = async (req, res) => {
       ? { driverId, statusId: completedStatus.id }
       : { driverId, id: -1 };
 
-    const [availableOrders, myOrders, completedOrders] = await Promise.all([
+    const [availableOrders, myOrders, completedOrders, latestLocation] = await Promise.all([
       availableStatusId
         ? Order.findAll({
             where: { driverId: null, statusId: availableStatusId },
@@ -191,12 +194,21 @@ exports.getMyOrderFeed = async (req, res) => {
         order: [["created_at", "DESC"]],
         limit: DRIVER_FEED_COMPLETED_LIMIT,
       }),
+      DriverLocation.findOne({
+        where: { driverId },
+        order: [["created_at", "DESC"]],
+      }),
     ]);
+    const nearbyAvailableOrders = driverService.hasValidPoint(latestLocation)
+      ? driverService.filterOrdersNearPoint(availableOrders, latestLocation, {
+          radiusKm: driverService.DEFAULT_SEARCH_RADIUS_KM,
+        })
+      : availableOrders;
 
     return res.json({
       data: {
         driver: normalizeDriver(driver),
-        available: availableOrders.map(normalizeOrder),
+        available: nearbyAvailableOrders.map(normalizeOrder),
         active: myOrders.map(normalizeOrder),
         completed: completedOrders.map(normalizeOrder),
       },
@@ -488,27 +500,51 @@ exports.updateDriverLocation = async (req, res) => {
       await driver.update({ isOnline: true });
     }
 
-    const location = await DriverLocation.create({
+    const streamDecision = locationStreamService.evaluateLocation({
       driverId: id,
       orderId: normalizedOrderId,
       latitude: Number(latitude),
       longitude: Number(longitude),
+    });
+    if (!streamDecision.ok) {
+      return res.status(400).json({ message: streamDecision.message });
+    }
+
+    const locationPayload = {
+      ...streamDecision.location,
       heading: Number.isFinite(Number(heading)) ? Number(heading) : 0,
       speedKmh: Number.isFinite(Number(speedKmh)) ? Number(speedKmh) : 24,
+    };
+    const location = streamDecision.shouldPersist
+      ? await DriverLocation.create(locationPayload)
+      : null;
+    const data = normalizeDriverLocation(location || locationPayload);
+
+    locationStreamService.rememberLocation(data, {
+      emitted: streamDecision.shouldEmit,
+      persisted: Boolean(location),
     });
 
-    const data = normalizeDriverLocation(location);
-
     try {
-      socketManager.getIO().emit("driver:location", data);
-      if (normalizedOrderId) {
-        socketManager.getIO().emit(`order:${normalizedOrderId}:driver-location`, data);
+      if (streamDecision.shouldEmit) {
+        const io = socketManager.getIO();
+        io.to(`driver:${id}`).emit("driver:location", data);
+        if (normalizedOrderId) {
+          io.to(`order:${normalizedOrderId}`).emit(`order:${normalizedOrderId}:driver-location`, data);
+        }
       }
     } catch (error) {
       console.log("Socket not ready or err", error.message);
     }
 
-    return res.status(201).json({ message: "Updated", data });
+    return res.status(location ? 201 : 200).json({
+      message: "Updated",
+      data,
+      meta: {
+        broadcast: streamDecision.shouldEmit,
+        persisted: Boolean(location),
+      },
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -530,6 +566,11 @@ exports.getLatestDriverLocation = async (req, res) => {
         return res.status(400).json({ message: "Invalid orderId" });
       }
       whereClause.orderId = normalizedOrderId;
+    }
+
+    const cachedLocation = locationStreamService.getLatestLocation(id, whereClause.orderId);
+    if (cachedLocation) {
+      return res.json({ data: normalizeDriverLocation(cachedLocation) });
     }
 
     const item = await DriverLocation.findOne({

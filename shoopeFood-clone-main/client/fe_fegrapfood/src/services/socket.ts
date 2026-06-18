@@ -5,6 +5,7 @@ type SocketHandler<T> = (payload: T) => void
 type BrowserSocket = {
   on: <T>(eventName: string, handler: SocketHandler<T>) => void
   off: <T>(eventName: string, handler: SocketHandler<T>) => void
+  emit: <T>(eventName: string, payload?: T) => void
   disconnect: () => void
 }
 

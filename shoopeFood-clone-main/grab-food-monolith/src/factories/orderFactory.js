@@ -37,6 +37,7 @@ class OrderFactory {
       shippingFee: Number(input.shippingFee),
       discountAmount: Number(input.discountAmount),
       statusId: Number(input.statusId),
+      statusChangedAt: input.statusChangedAt || new Date(),
       version: 0,
     };
   }

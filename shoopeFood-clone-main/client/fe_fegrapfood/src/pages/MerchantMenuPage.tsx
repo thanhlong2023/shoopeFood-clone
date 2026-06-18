@@ -7,7 +7,7 @@ import { restaurantThumbStyle } from '../utils/restaurantImage'
 import type { Restaurant } from '../types'
 
 export default function MerchantMenuPage() {
-  useDocumentTitle(`${APP_NAME} | Thuc don`)
+  useDocumentTitle(`${APP_NAME} | Th?c don`)
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -45,7 +45,7 @@ export default function MerchantMenuPage() {
 
       {!isLoading && restaurants.length === 0 ? (
         <div className="empty-state">
-          <p>Chua co quan nao duoc gan. Lien he admin de duoc tao quan.</p>
+          <p>Chua c� qu�n n�o du?c g�n. Li�n h? admin d? du?c t?o qu�n.</p>
         </div>
       ) : (
         <div className="restaurant-grid">
@@ -69,7 +69,7 @@ export default function MerchantMenuPage() {
               <p className="restaurant-manage-address">{restaurant.address}</p>
               <div className="restaurant-actions">
                 <Link to={`/restaurants/${restaurant.id}`} className="button-primary">
-                  Quan ly mon an
+                  Qu?n l� m�n an
                 </Link>
               </div>
             </article>

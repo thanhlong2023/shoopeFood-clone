@@ -109,6 +109,7 @@ const normalizeOrder = (item) => {
     statusCode: item.statusInfo ? item.statusInfo.code : null,
     status: item.statusInfo ? item.statusInfo.code : null,
     statusLabel: item.statusInfo ? item.statusInfo.label : null,
+    statusChangedAt: item.statusChangedAt,
     paymentMethod: item.payment ? item.payment.paymentMethod : null,
     paymentStatus: item.payment ? item.payment.status : null,
     items: item.items ? item.items.map(normalizeOrderItem) : [],

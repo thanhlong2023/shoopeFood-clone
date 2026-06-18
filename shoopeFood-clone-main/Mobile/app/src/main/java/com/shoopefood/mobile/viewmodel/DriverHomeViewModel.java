@@ -475,46 +475,18 @@ public class DriverHomeViewModel extends AndroidViewModel {
                                             ? new RoutePoint(restaurantLat, restaurantLng)
                                             : simulationRoute.get(simulationRoute.size() - 1);
 
-                                    repository.updateOrderStatus(
-                                            order.id,
-                                            "CONFIRMED",
-                                            deliveryOrder != null ? deliveryOrder.version : order.version,
-                                            new DriverRepository.OrderCallback() {
-                                                @Override
-                                                public void onSuccess(Order updatedOrder) {
-                                                    deliveryOrder = updatedOrder;
-                                                    DriverUiState latest = uiState.getValue();
-                                                    if (latest != null) {
-                                                        uiState.setValue(latest.copy(
-                                                                null, null, null, null, null, end.latitude, end.longitude, null, null, null, null, null,
-                                                                DriverWorkPhaseUtils.AT_RESTAURANT,
-                                                                null, null, null, null, null, null, simulationRoute,
-                                                                DriverUiState.ROUTE_LEG_TO_RESTAURANT,
-                                                                true,
-                                                                false
-                                                        ));
-                                                    }
-                                                    toastMessage.setValue(getApplication().getString(R.string.driver_arrived_restaurant));
-                                                }
-
-                                                @Override
-                                                public void onError(String message) {
-                                                    // Fallback even if server call fails
-                                                    DriverUiState latest = uiState.getValue();
-                                                    if (latest != null) {
-                                                        uiState.setValue(latest.copy(
-                                                                null, null, null, null, null, end.latitude, end.longitude, null, null, null, null, null,
-                                                                DriverWorkPhaseUtils.AT_RESTAURANT,
-                                                                null, null, null, null, null, null, simulationRoute,
-                                                                DriverUiState.ROUTE_LEG_TO_RESTAURANT,
-                                                                true,
-                                                                false
-                                                        ));
-                                                    }
-                                                    toastMessage.setValue(message);
-                                                }
-                                            }
-                                    );
+                                    DriverUiState latest = uiState.getValue();
+                                    if (latest != null) {
+                                        uiState.setValue(latest.copy(
+                                                null, null, null, null, null, end.latitude, end.longitude, null, null, null, null, null,
+                                                DriverWorkPhaseUtils.AT_RESTAURANT,
+                                                null, null, null, null, null, null, simulationRoute,
+                                                DriverUiState.ROUTE_LEG_TO_RESTAURANT,
+                                                true,
+                                                false
+                                        ));
+                                    }
+                                    toastMessage.setValue(getApplication().getString(R.string.driver_arrived_restaurant));
                                 }
                         );
                     }

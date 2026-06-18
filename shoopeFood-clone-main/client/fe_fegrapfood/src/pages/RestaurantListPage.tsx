@@ -173,7 +173,7 @@ export default function RestaurantListPage() {
     <section className="restaurant-page">
       <div className="restaurant-page-header">
         <div>
-          <h1>Quan ly nha hang</h1>
+          <h1>Qu?n l� nh� h�ng</h1>
           <p>Admin tao quan cho chu quan. Quan tu dong duyet va hien cho khach dat mon.</p>
         </div>
 
