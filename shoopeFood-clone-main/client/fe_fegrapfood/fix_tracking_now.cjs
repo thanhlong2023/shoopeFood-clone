@@ -1,0 +1,82 @@
+const fs = require('fs');
+const file = 'src/pages/TrackingPage.tsx';
+
+let content = fs.readFileSync(file, 'utf8');
+
+const dict = {
+  'Theo di don hang': 'Theo dõi đơn hàng',
+  'Theo di don': 'Theo dõi đơn',
+  'Chua c don hng d? theo di': 'Chưa có đơn hàng để theo dõi',
+  '?t mn xong b?n s? th?y ti?n trnh giao hng v l? trnh ti x? t?i dy.': 'Đặt món xong bạn sẽ thấy tiến trình giao hàng và lộ trình tài xế tại đây.',
+  '?t mn ngay': 'Đặt món ngay',
+  'ang t?i don hang cua ban...': 'Đang tải đơn hàng của bạn...',
+  'on hang cua ban': 'Đơn hàng của bạn',
+  'Chua c don hng no': 'Chưa có đơn hàng nào',
+  '?t mn d? xem l?ch s? v theo di giao hng t?i dy.': 'Đặt món để xem lịch sử và theo dõi giao hàng tại đây.',
+  'Ti x? d nh?n don': 'Tài xế đã nhận đơn',
+  ' hi?u': 'Đã hiểu',
+  'd nh?n don v dang di l?y mn cho b?n.': 'đã nhận đơn và đang đi lấy món cho bạn.',
+  'Ti x? dang giao d?n b?n': 'Tài xế đang giao đến bạn',
+  'd l?y mn xong v dang chu?n b? giao d?n cho b?n.': 'đã lấy món xong và đang chuẩn bị giao đến cho bạn.',
+  'Vui lng chu?n b? ti?n m?t': 'Vui lòng chuẩn bị tiền mặt',
+  ' giao hng thnh cng': 'Đã giao hàng thành công',
+  'd giao don hng d?n cho b?n thnh cng.': 'đã giao đơn hàng đến cho bạn thành công.',
+  'T?ng gi tr? don': 'Tổng giá trị đơn',
+  'C?m on b?n d s? d?ng d?ch v?!': 'Cảm ơn bạn đã sử dụng dịch vụ!',
+  'Theo di tr?c ti?p': 'Theo dõi trực tiếp',
+  'ang t?i thng tin don hng...': 'Đang tải thông tin đơn hàng...',
+  ' don da dat': ' đơn đã đặt',
+  ' don dang x? l': ' đơn đang xử lý',
+  'ang t?i': 'Đang tải',
+  'Ch? ti x?': 'Chờ tài xế',
+  'Nh hng': 'Nhà hàng',
+  'ang c?p nh?t': 'Đang cập nhật',
+  'Ti x?': 'Tài xế',
+  'Chua c ti x?': 'Chưa có tài xế',
+  'ST khch': 'SĐT khách',
+  'Bi?n s?': 'Biển số',
+  'Ti?n c?n thu': 'Tiền cần thu',
+  'Qung du?ng': 'Quãng đường',
+  'Chua c l? trnh': 'Chưa có lộ trình',
+  'Mn d d?t': 'Món đã đặt',
+  'Chua ?nh': 'Chưa ảnh',
+  'Mn #': 'Món #',
+  'T?m tnh': 'Tạm tính',
+  'Ph giao hng': 'Phí giao hàng',
+  'Gi?m gi': 'Giảm giá',
+  'Thu?': 'Thuế',
+  'T?ng thanh ton': 'Tổng thanh toán',
+  '?t thm mn': 'Đặt thêm món',
+  'nh gi nh hng': 'Đánh giá nhà hàng',
+  'on da hoan thanh, ban co the cham sao cho trai nghiem vua roi.': 'Đơn đã hoàn thành, bạn có thể chấm sao cho trải nghiệm vừa rồi.',
+  'Nh?n xt ng?n v? nh hng...': 'Nhận xét ngắn về nhà hàng...',
+  'ang g?i...': 'Đang gửi...',
+  'G?i dnh gi': 'Gửi đánh giá',
+  'on da dat': 'Đơn đã đặt',
+  ' dang xu ly': ' đang xử lý',
+  'Tai lai': 'Tải lại',
+  'T?t c?': 'Tất cả',
+  'Dang giao': 'Đang giao',
+  'Khng c don ph h?p b? l?c.': 'Không có đơn phù hợp bộ lọc.',
+  'Tru?c': 'Trước',
+  'Ti?p': 'Tiếp',
+  'Dat don': 'Đặt đơn',
+  'Lay mon': 'Lấy món',
+  'Khng th? h?y don hng': 'Không thể hủy đơn hàng',
+  'Khng th? t?i danh sch don hng': 'Không thể tải danh sách đơn hàng',
+  'Khng th? t?i tracking': 'Không thể tải tracking',
+  ' g?i dnh gi nh hng. C?m on b?n!': 'Đã gửi đánh giá nhà hàng. Cảm ơn bạn!',
+  'Khng th? g?i dnh gi': 'Không thể gửi đánh giá',
+  'Ti x? nhan': 'Tài xế nhận',
+  'Theo di': 'Theo dõi',
+  'ang xem': 'Đang xem',
+  'Xem chi ti?t': 'Xem chi tiết',
+  'mon khac': 'món khác'
+};
+
+for (const [key, value] of Object.entries(dict)) {
+  content = content.split(key).join(value);
+}
+
+fs.writeFileSync(file, content, 'utf8');
+console.log(`Replaced text in ${file}`);

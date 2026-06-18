@@ -11,6 +11,7 @@ import { getRestaurants } from '../services/api/restaurants'
 import { foodPhotoStyle } from '../utils/foodImage'
 import { setLastOrderId } from '../utils/orderStorage'
 import { saveCheckoutDraft } from '../utils/checkoutDraft'
+import { getCartDraft, saveCartDraft } from '../utils/cartDraft'
 import { restaurantCoverStyle, restaurantThumbStyle } from '../utils/restaurantImage'
 import type { Category, CreateOrderPayload, Food, Order, Restaurant } from '../types'
 
@@ -122,9 +123,20 @@ export default function HomePage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [foods, setFoods] = useState<Food[]>([])
-  const [activeRestaurantId, setActiveRestaurantId] = useState<number | null>(null)
+  const [activeRestaurantId, setActiveRestaurantId] = useState<number | null>(() => {
+    const draft = getCartDraft()
+    return draft?.restaurantId || null
+  })
   const [activeCategoryId, setActiveCategoryId] = useState<number | 'all'>('all')
-  const [cart, setCart] = useState<CartState>({})
+  const [cart, setCart] = useState<CartState>(() => {
+    const draft = getCartDraft()
+    return draft?.cart || {}
+  })
+
+  useEffect(() => {
+    saveCartDraft({ restaurantId: activeRestaurantId, cart })
+  }, [activeRestaurantId, cart])
+
   const [checkout, setCheckout] = useState<CheckoutState>(initialCheckoutState)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -353,10 +365,12 @@ export default function HomePage() {
   }, [activeRestaurant, checkout.receiverLat, checkout.receiverLng])
 
   function handleRestaurantSelect(restaurantId: number) {
+    if (activeRestaurantId !== restaurantId) {
+      setCart({})
+    }
     setActiveRestaurantId(restaurantId)
     setActiveCategoryId('all')
     setSearchTerm('')
-    setCart({})
     setSuccessOrder(null)
   }
 

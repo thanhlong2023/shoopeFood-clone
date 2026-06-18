@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import DriverWaitingOverlay from '../components/payment/DriverWaitingOverlay'
 import MockQrCode from '../components/payment/MockQrCode'
 import { APP_NAME } from '../constants/app'
@@ -26,6 +26,7 @@ function resolveStep(stage: QrStage) {
 
 export default function QrPaymentPage() {
   useDocumentTitle(`${APP_NAME} | Thanh toán QR`)
+  const navigate = useNavigate()
   const [draft] = useState(() => getCheckoutDraft())
   const [stage, setStage] = useState<QrStage>('ready')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -44,10 +45,10 @@ export default function QrPaymentPage() {
       await wait(1200)
       const order = await createOrder(buildCreateOrderPayloadFromDraft(draft))
       setStage('success')
-      setWaitingOrder(order)
       setLastOrderId(order.id)
       clearCheckoutDraft()
       notifyCartCleared()
+      navigate(`/tracking?orderId=${order.id}`)
     } catch (error) {
       setStage('ready')
       setErrorMessage(error instanceof Error ? error.message : 'Không thể xác nhận thanh toán')
@@ -75,7 +76,6 @@ export default function QrPaymentPage() {
 
   return (
     <section className="payment-shell payment-shell--compact">
-      <DriverWaitingOverlay order={waitingOrder} />
       <div className="payment-qr-layout">
         <header className="payment-header payment-header--center">
           <p className="payment-kicker">Thanh toán online</p>

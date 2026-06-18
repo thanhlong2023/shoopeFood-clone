@@ -1,76 +1,83 @@
-const fs = require('fs');
-const file = 'src/pages/TrackingPage.tsx';
+const fs = require("fs");
+const file = "src/pages/TrackingPage.tsx";
 
 if (!fs.existsSync(file)) process.exit(1);
 
-let content = fs.readFileSync(file, 'utf8');
+let content = fs.readFileSync(file, "utf8");
 
 const dict = {
-  'Tai xe da nhan don': 'Tài x? dã nh?n don',
-  'Don ': 'Ğon ',
-  'Da hieu': 'Ğã hi?u',
-  'da nhan don va dang di lay mon cho ban.': 'dã nh?n don và dang di l?y món cho b?n.',
-  'Tai xe dang giao den ban': 'Tài x? dang giao d?n b?n',
-  'da lay mon xong va dang chuan bi giao den cho ban.': 'dã l?y món xong và dang chu?n b? giao d?n cho b?n.',
-  'Vui long chuan bi tien mat: ': 'Vui lòng chu?n b? ti?n m?t: ',
-  'Da giao hang thanh cong': 'Ğã giao hàng thành công',
-  'da giao don hang den cho ban thanh cong.': 'dã giao don hàng d?n cho b?n thành công.',
-  'Tong gia tri don: ': 'T?ng giá tr? don: ',
-  'Cam on ban da su dung dich vu!': 'C?m on b?n dã s? d?ng d?ch v?!',
-  'Theo doi truc tiep': 'Theo dõi tr?c ti?p',
-  'Don hang cua ban': 'Ğon hàng c?a b?n',
-  ' don da dat · ': ' don dã d?t · ',
-  ' don dang xu ly': ' don dang x? lı',
-  'Dang tai thong tin don hang...': 'Ğang t?i thông tin don hàng...',
-  'Dang tai': 'Ğang t?i',
-  'Cho tai xe': 'Ch? tài x?',
-  'Nha hang': 'Nhà hàng',
-  'Dang cap nhat': 'Ğang c?p nh?t',
-  'Tai xe': 'Tài x?',
-  'Chua co tai xe': 'Chua có tài x?',
-  'SDT khach': 'SĞT khách',
-  'Bien so': 'Bi?n s?',
-  'Tien can thu': 'Ti?n c?n thu',
-  'Quang duong': 'Quãng du?ng',
-  'Chua co lo trinh': 'Chua có l? trình',
-  'Mon da dat': 'Món dã d?t',
-  'Chua anh': 'Chua ?nh',
-  'Mon #': 'Món #',
-  'Tam tinh': 'T?m tính',
-  'Phi giao hang': 'Phí giao hàng',
-  'Giam gia': 'Gi?m giá',
-  'Thue': 'Thu?',
-  'Tong thanh toan': 'T?ng thanh toán',
-  'Dat them mon': 'Ğ?t thêm món',
-  'Danh gia nha hang': 'Ğánh giá nhà hàng',
-  'Don da hoan thanh, ban co the cham sao cho trai nghiem vua roi.': 'Ğon dã hoàn thành, b?n có th? ch?m sao cho tr?i nghi?m v?a r?i.',
-  'Nhan xet ngan ve nha hang...': 'Nh?n xét ng?n v? nhà hàng...',
-  'Dang gui...': 'Ğang g?i...',
-  'Gui danh gia': 'G?i dánh giá',
-  'Tat ca': 'T?t c?',
-  'Dang xu ly': 'Ğang x? lı',
-  'Khong co don phu hop bo loc.': 'Không có don phù h?p b? l?c.',
-  'Dang xem': 'Ğang xem',
-  'Truoc': 'Tru?c',
-  'Tiep': 'Ti?p',
-  'Chua co don hang de theo doi': 'Chua có don hàng d? theo dõi',
-  'Dat mon xong ban se thay tien trinh giao hang va lo trinh tai xe tai day.': 'Ğ?t món xong b?n s? th?y ti?n trình giao hàng và l? trình tài x? t?i dây.',
-  'Dat mon ngay': 'Ğ?t món ngay',
-  'Dang tai don hang cua ban...': 'Ğang t?i don hàng c?a b?n...',
-  'Chua co don hang nao': 'Chua có don hàng nào',
-  'Dat mon de xem lich su va theo doi giao hang tai day.': 'Ğ?t món d? xem l?ch s? và theo dõi giao hàng t?i dây.',
-  'Khong the tai danh sach don hang': 'Không th? t?i danh sách don hàng',
-  'Khong the tai tracking': 'Không th? t?i tracking',
-  'Da gui danh gia nha hang. Cam on ban!': 'Ğã g?i dánh giá nhà hàng. C?m on b?n!',
-  'Khong the gui danh gia': 'Không th? g?i dánh giá'
+  "Tai xe da nhan don": "TÃ i xáº¿ Ä‘Ã£ nháº­n Ä‘Æ¡n",
+  "Don ": "ÄÆ¡n ",
+  "Da hieu": "ÄÃ£ hiá»ƒu",
+  "da nhan don va dang di lay mon cho ban.":
+    "Ä‘Ã£ nháº­n Ä‘Æ¡n vÃ  Ä‘ang Ä‘i láº¥y mÃ³n cho báº¡n.",
+  "Tai xe dang giao den ban": "TÃ i xáº¿ Ä‘ang giao Ä‘áº¿n báº¡n",
+  "da lay mon xong va dang chuan bi giao den cho ban.":
+    "Ä‘Ã£ láº¥y mÃ³n xong vÃ  Ä‘ang chuáº©n bá»‹ giao Ä‘áº¿n cho báº¡n.",
+  "Vui long chuan bi tien mat: ": "Vui lï¿½ng chu?n b? ti?n m?t: ",
+  "Da giao hang thanh cong": "ï¿½ï¿½ giao hï¿½ng thï¿½nh cï¿½ng",
+  "da giao don hang den cho ban thanh cong.":
+    "dï¿½ giao don hï¿½ng d?n cho b?n thï¿½nh cï¿½ng.",
+  "Tong gia tri don: ": "T?ng giï¿½ tr? don: ",
+  "Cam on ban da su dung dich vu!": "C?m on b?n dï¿½ s? d?ng d?ch v?!",
+  "Theo doi truc tiep": "Theo dï¿½i tr?c ti?p",
+  "Don hang cua ban": "ï¿½on hï¿½ng c?a b?n",
+  " don da dat ï¿½ ": " don dï¿½ d?t ï¿½ ",
+  " don dang xu ly": " don dang x? lï¿½",
+  "Dang tai thong tin don hang...": "ï¿½ang t?i thï¿½ng tin don hï¿½ng...",
+  "Dang tai": "ï¿½ang t?i",
+  "Cho tai xe": "Ch? tï¿½i x?",
+  "Nha hang": "Nhï¿½ hï¿½ng",
+  "Dang cap nhat": "ï¿½ang c?p nh?t",
+  "Tai xe": "Tï¿½i x?",
+  "Chua co tai xe": "Chua cï¿½ tï¿½i x?",
+  "SDT khach": "Sï¿½T khï¿½ch",
+  "Bien so": "Bi?n s?",
+  "Tien can thu": "Ti?n c?n thu",
+  "Quang duong": "Quï¿½ng du?ng",
+  "Chua co lo trinh": "Chua cï¿½ l? trï¿½nh",
+  "Mon da dat": "Mï¿½n dï¿½ d?t",
+  "Chua anh": "Chua ?nh",
+  "Mon #": "Mï¿½n #",
+  "Tam tinh": "T?m tï¿½nh",
+  "Phi giao hang": "Phï¿½ giao hï¿½ng",
+  "Giam gia": "Gi?m giï¿½",
+  Thue: "Thu?",
+  "Tong thanh toan": "T?ng thanh toï¿½n",
+  "Dat them mon": "ï¿½?t thï¿½m mï¿½n",
+  "Danh gia nha hang": "ï¿½ï¿½nh giï¿½ nhï¿½ hï¿½ng",
+  "Don da hoan thanh, ban co the cham sao cho trai nghiem vua roi.":
+    "ï¿½on dï¿½ hoï¿½n thï¿½nh, b?n cï¿½ th? ch?m sao cho tr?i nghi?m v?a r?i.",
+  "Nhan xet ngan ve nha hang...": "Nh?n xï¿½t ng?n v? nhï¿½ hï¿½ng...",
+  "Dang gui...": "ï¿½ang g?i...",
+  "Gui danh gia": "G?i dï¿½nh giï¿½",
+  "Tat ca": "T?t c?",
+  "Dang xu ly": "ï¿½ang x? lï¿½",
+  "Khong co don phu hop bo loc.": "Khï¿½ng cï¿½ don phï¿½ h?p b? l?c.",
+  "Dang xem": "ï¿½ang xem",
+  Truoc: "Tru?c",
+  Tiep: "Ti?p",
+  "Chua co don hang de theo doi": "Chua cï¿½ don hï¿½ng d? theo dï¿½i",
+  "Dat mon xong ban se thay tien trinh giao hang va lo trinh tai xe tai day.":
+    "ï¿½?t mï¿½n xong b?n s? th?y ti?n trï¿½nh giao hï¿½ng vï¿½ l? trï¿½nh tï¿½i x? t?i dï¿½y.",
+  "Dat mon ngay": "ï¿½?t mï¿½n ngay",
+  "Dang tai don hang cua ban...": "ï¿½ang t?i don hï¿½ng c?a b?n...",
+  "Chua co don hang nao": "Chua cï¿½ don hï¿½ng nï¿½o",
+  "Dat mon de xem lich su va theo doi giao hang tai day.":
+    "ï¿½?t mï¿½n d? xem l?ch s? vï¿½ theo dï¿½i giao hï¿½ng t?i dï¿½y.",
+  "Khong the tai danh sach don hang": "Khï¿½ng th? t?i danh sï¿½ch don hï¿½ng",
+  "Khong the tai tracking": "Khï¿½ng th? t?i tracking",
+  "Da gui danh gia nha hang. Cam on ban!":
+    "ï¿½ï¿½ g?i dï¿½nh giï¿½ nhï¿½ hï¿½ng. C?m on b?n!",
+  "Khong the gui danh gia": "Khï¿½ng th? g?i dï¿½nh giï¿½",
 };
 
 for (const [key, value] of Object.entries(dict)) {
   content = content.split(key).join(value);
 }
 
-content = content.replace(/Xem chi tiet/g, 'Xem chi ti?t');
-content = content.replace(/Theo doi/g, 'Theo dõi');
+content = content.replace(/Xem chi tiet/g, "Xem chi ti?t");
+content = content.replace(/Theo doi/g, "Theo dï¿½i");
 
-fs.writeFileSync(file, content, 'utf8');
-console.log('Fixed TrackingPage accents');
+fs.writeFileSync(file, content, "utf8");
+console.log("Fixed TrackingPage accents");

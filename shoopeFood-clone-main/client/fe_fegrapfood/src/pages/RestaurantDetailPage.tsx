@@ -11,6 +11,7 @@ import { createFood, getFoods, updateFood, type FoodPayload } from '../services/
 import { createCategory, getCategories } from '../services/api/categories'
 import { foodPhotoStyle } from '../utils/foodImage'
 import { restaurantCoverStyle } from '../utils/restaurantImage'
+import { getCartDraft, saveCartDraft } from '../utils/cartDraft'
 import { setLastOrderId } from '../utils/orderStorage'
 import type { Restaurant, Food, Category, CreateOrderPayload, Order } from '../types'
 
@@ -143,7 +144,21 @@ export default function RestaurantDetailPage() {
   const [categoryNameError, setCategoryNameError] = useState<string | null>(null)
   const [foodFeedback, setFoodFeedback] = useState<string | null>(null)
   const [categoryFeedback, setCategoryFeedback] = useState<string | null>(null)
-  const [cart, setCart] = useState<CartState>({})
+  
+  const [cart, setCart] = useState<CartState>(() => {
+    const draft = getCartDraft()
+    if (draft?.restaurantId === restaurantId) {
+      return draft.cart
+    }
+    return {}
+  })
+
+  useEffect(() => {
+    if (Object.keys(cart).length > 0 || getCartDraft()?.restaurantId === restaurantId) {
+      saveCartDraft({ restaurantId, cart })
+    }
+  }, [cart, restaurantId])
+
   const [checkout, setCheckout] = useState<CheckoutState>(emptyCheckout)
   const [isLocating, setIsLocating] = useState(false)
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false)

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@config "../tailwind.config.js";
 
 :root {
   --bg: #F4F7F6;
@@ -1765,12 +1766,17 @@ img {
   font-size: 0.95rem;
 }
 
-.tracking-layout,
 .driver-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
   gap: 16px;
   align-items: start;
+}
+
+.tracking-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .driver-layout {
@@ -1800,11 +1806,14 @@ img {
   min-height: 420px;
 }
 
-.tracking-card,
 .driver-orders,
 .driver-control-panel {
   position: sticky;
   top: 88px;
+  padding: 16px;
+}
+
+.tracking-card {
   padding: 16px;
 }
 
@@ -3436,13 +3445,11 @@ img {
     grid-column: 1 / -1;
   }
 
-  .tracking-layout,
   .driver-layout,
   .menu-manager-layout {
     grid-template-columns: 1fr;
   }
 
-  .tracking-card,
   .driver-orders,
   .driver-control-panel {
     position: static;

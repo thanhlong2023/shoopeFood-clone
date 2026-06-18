@@ -42,10 +42,10 @@ export default function PaymentPage() {
       setErrorMessage(null)
       setIsSubmitting(true)
       const order = await createOrder(buildCreateOrderPayloadFromDraft(draft))
-      setWaitingOrder(order)
       setLastOrderId(order.id)
       clearCheckoutDraft()
       notifyCartCleared()
+      navigate(`/tracking?orderId=${order.id}`)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Không thể tạo đơn hàng')
     } finally {
@@ -70,7 +70,6 @@ export default function PaymentPage() {
 
   return (
     <section className="payment-shell">
-      <DriverWaitingOverlay order={waitingOrder} />
       <div className="payment-container">
         <header className="payment-header">
           <div>

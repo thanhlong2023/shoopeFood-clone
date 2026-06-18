@@ -128,10 +128,10 @@ function MapAutoFit({ points }: { points: RoutePoint[] }) {
 
 function StatusSteps({ order }: { order: Order | null }) {
   const steps = [
-    { code: 'PENDING', label: 'Dat don' },
-    { code: 'DRIVER_ACCEPTED', label: 'T�i x? nhan' },
-    { code: 'PICKING_UP', label: 'Lay mon' },
-    { code: 'DELIVERING', label: 'Dang giao' },
+    { code: 'PENDING', label: 'Đặt đơn' },
+    { code: 'DRIVER_ACCEPTED', label: 'Tài xế nhận' },
+    { code: 'PICKING_UP', label: 'Lấy món' },
+    { code: 'DELIVERING', label: 'Đang giao' },
     { code: 'COMPLETED', label: 'Hoàn thành' },
   ]
   const currentIndex = Math.max(
@@ -140,19 +140,40 @@ function StatusSteps({ order }: { order: Order | null }) {
   )
 
   return (
-    <div className="tracking-steps">
-      {steps.map((step, index) => (
-        <div key={step.code} className={`tracking-step ${index <= currentIndex ? 'active' : ''}`}>
-          <span>{index + 1}</span>
-          <strong>{step.label}</strong>
-        </div>
-      ))}
+    <div className="flex justify-center w-full my-8">
+      <ol className="relative flex w-full max-w-2xl">
+        {steps.map((step, index) => {
+          const isActive = index <= currentIndex;
+          const isNextActive = index < currentIndex;
+          
+          return (
+            <li key={step.code} className="relative flex-1 flex flex-col items-center">
+              {/* Connecting line */}
+              {index < steps.length - 1 && (
+                <div className={`absolute top-[15px] left-[50%] w-full h-[2px] ${isNextActive ? 'bg-brand' : 'bg-gray-200'}`} />
+              )}
+              
+              {/* Step Icon */}
+              <div className={`z-10 flex items-center justify-center w-[30px] h-[30px] rounded-full text-sm font-bold ${isActive ? 'bg-brand text-white shadow-sm' : 'bg-[#eef2ef] text-gray-500'}`}>
+                {index + 1}
+              </div>
+              
+              {/* Step Label */}
+              <div className="mt-3 text-center">
+                <span className={`text-xs md:text-sm font-bold whitespace-nowrap ${isActive ? 'text-brand' : 'text-gray-500'}`}>
+                  {step.label}
+                </span>
+              </div>
+            </li>
+          )
+        })}
+      </ol>
     </div>
   )
 }
 
 export default function TrackingPage() {
-  useDocumentTitle(`${APP_NAME} | Theo d�i don`)
+  useDocumentTitle(`${APP_NAME} | Theo dõi đơn`)
   const navigate = useNavigate()
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -233,7 +254,7 @@ export default function TrackingPage() {
 
       deliveryCompletedNoticeShownRef.current.add(payload.orderId)
       setDeliveryCompletedNotice({
-        driverName: payload.driver?.fullName || 'T�i x?',
+        driverName: payload.driver?.fullName || 'Ti x?',
         orderCode: payload.orderCode,
         totalAmount: Number(payload.totalAmount ?? 0),
       })
@@ -253,10 +274,10 @@ export default function TrackingPage() {
         rating: reviewRating,
         comment: reviewComment,
       })
-      setReviewFeedback('�� g?i d�nh gi� nh� h�ng. C?m on b?n!')
+      setReviewFeedback(' đã gửi đánh giá nhà hàng. Cảm ơn bạn!')
       setReviewComment('')
     } catch (error) {
-      setReviewFeedback(error instanceof Error ? error.message : 'Kh�ng th? g?i d�nh gi�')
+      setReviewFeedback(error instanceof Error ? error.message : 'Không thể gửi đánh giá')
     } finally {
       setIsSubmittingReview(false)
     }
@@ -276,7 +297,7 @@ export default function TrackingPage() {
 
       driverDeliveringNoticeShownRef.current.add(payload.orderId)
       setDriverDeliveringNotice({
-        driverName: payload.driver?.fullName || 'T�i x?',
+        driverName: payload.driver?.fullName || 'Ti x?',
         orderCode: payload.orderCode,
         cashToCollect: Number(payload.cashToCollect ?? payload.totalAmount ?? 0),
       })
@@ -300,7 +321,7 @@ export default function TrackingPage() {
       )
       setCustomerOrders(sorted)
     } catch (error) {
-      setOrdersError(error instanceof Error ? error.message : 'Kh�ng th? t?i danh s�ch don h�ng')
+      setOrdersError(error instanceof Error ? error.message : 'Không thể tải danh sách đơn hàng')
     } finally {
       if (!quiet) {
         setOrdersLoading(false)
@@ -327,7 +348,7 @@ export default function TrackingPage() {
       setDriverLocation(data.driverLocation)
 
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Kh�ng th? t?i tracking')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể tải tracking')
     } finally {
       if (!quiet) {
         setIsLoading(false)
@@ -649,11 +670,11 @@ export default function TrackingPage() {
     return (
       <section className="tracking-page">
         <div className="tracking-empty">
-          <span className="hero-badge">Theo d�i don hang</span>
-          <h1>Chua c� don h�ng d? theo d�i</h1>
-          <p>�?t m�n xong b?n s? th?y ti?n tr�nh giao h�ng v� l? tr�nh t�i x? t?i d�y.</p>
+          <span className="hero-badge">Theo dõi đơn hàng</span>
+          <h1>Chưa có đơn hàng để theo dõi</h1>
+          <p>Đặt món xong bạn sẽ thấy tiến trình giao hàng và lộ trình tài xế tại đây.</p>
           <Link className="button-primary" to="/food">
-            �?t m�n ngay
+            Đặt món ngay
           </Link>
         </div>
       </section>
@@ -663,7 +684,7 @@ export default function TrackingPage() {
   if (isCustomer && ordersLoading && customerOrders.length === 0) {
     return (
       <section className="tracking-page">
-        <p className="empty-state">�ang t?i don hang cua ban...</p>
+        <p className="empty-state">ang t?i don hang cua ban...</p>
       </section>
     )
   }
@@ -672,11 +693,11 @@ export default function TrackingPage() {
     return (
       <section className="tracking-page">
         <div className="tracking-empty">
-          <span className="hero-badge">�on hang cua ban</span>
-          <h1>Chua c� don h�ng n�o</h1>
-          <p>�?t m�n d? xem l?ch s? v� theo d�i giao h�ng t?i d�y.</p>
+          <span className="hero-badge">Đơn hàng của bạn</span>
+          <h1>Chưa có đơn hàng nào</h1>
+          <p>Đặt món để xem lịch sử và theo dõi giao hàng tại đây.</p>
           <Link className="button-primary" to="/food">
-            �?t m�n ngay
+            Đặt món ngay
           </Link>
         </div>
       </section>
@@ -686,66 +707,66 @@ export default function TrackingPage() {
   return (
     <section className="tracking-page">
       <Modal
-        title="T�i x? d� nh?n don"
-        subtitle={driverAssignedNotice ? `�on ${driverAssignedNotice.orderCode}` : undefined}
+        title="Tài xế đã nhận đơn"
+        subtitle={driverAssignedNotice ? `on ${driverAssignedNotice.orderCode}` : undefined}
         isOpen={driverAssignedNotice !== null}
         onClose={() => setDriverAssignedNotice(null)}
         footer={
           <button type="button" className="button-primary" onClick={() => setDriverAssignedNotice(null)}>
-            �� hi?u
+             hi?u
           </button>
         }
       >
         {driverAssignedNotice ? (
           <p>
-            <strong>{driverAssignedNotice.driverName}</strong> d� nh?n don v� dang di l?y m�n cho b?n.
+            <strong>{driverAssignedNotice.driverName}</strong> đã nhận đơn và đang đi lấy món cho bạn.
           </p>
         ) : null}
       </Modal>
 
       <Modal
-        title="T�i x? dang giao d?n b?n"
-        subtitle={driverDeliveringNotice ? `�on ${driverDeliveringNotice.orderCode}` : undefined}
+        title="Tài xế đang giao đến bạn"
+        subtitle={driverDeliveringNotice ? `on ${driverDeliveringNotice.orderCode}` : undefined}
         isOpen={driverDeliveringNotice !== null}
         onClose={() => setDriverDeliveringNotice(null)}
         footer={
           <button type="button" className="button-primary" onClick={() => setDriverDeliveringNotice(null)}>
-            �� hi?u
+             hi?u
           </button>
         }
       >
         {driverDeliveringNotice ? (
           <div className="tracking-delivering-notice">
             <p>
-              <strong>{driverDeliveringNotice.driverName}</strong> d� l?y m�n xong v� dang chu?n b? giao d?n cho b?n.
+              <strong>{driverDeliveringNotice.driverName}</strong> đã lấy món xong và đang chuẩn bị giao đến cho bạn.
             </p>
             <p className="tracking-delivering-amount">
-              Vui l�ng chu?n b? ti?n m?t: <strong>{formatPrice(driverDeliveringNotice.cashToCollect)} VND</strong>
+              Vui lòng chuẩn bị tiền mặt: <strong>{formatPrice(driverDeliveringNotice.cashToCollect)} VND</strong>
             </p>
           </div>
         ) : null}
       </Modal>
 
       <Modal
-        title="�� giao h�ng th�nh c�ng"
-        subtitle={deliveryCompletedNotice ? `�on ${deliveryCompletedNotice.orderCode}` : undefined}
+        title=" giao hng thnh cng"
+        subtitle={deliveryCompletedNotice ? `on ${deliveryCompletedNotice.orderCode}` : undefined}
         isOpen={deliveryCompletedNotice !== null}
         onClose={() => setDeliveryCompletedNotice(null)}
         footer={
           <button type="button" className="button-primary" onClick={() => setDeliveryCompletedNotice(null)}>
-            �� hi?u
+             hi?u
           </button>
         }
       >
         {deliveryCompletedNotice ? (
           <div className="tracking-completed-notice">
             <p>
-              <strong>{deliveryCompletedNotice.driverName}</strong> d� giao don h�ng d?n cho b?n th�nh c�ng.
+              <strong>{deliveryCompletedNotice.driverName}</strong> đã giao đơn hàng đến cho bạn thành công.
             </p>
             <p className="tracking-completed-amount">
-              T?ng gi� tr? don: <strong>{formatPrice(deliveryCompletedNotice.totalAmount)} VND</strong>
+              Tổng giá trị đơn: <strong>{formatPrice(deliveryCompletedNotice.totalAmount)} VND</strong>
             </p>
-            <p>C?m on b?n d� s? d?ng d?ch v?!</p>
+            <p>Cảm ơn bạn đã sử dụng dịch vụ!</p>
           </div>
         ) : null}
       </Modal>
@@ -795,12 +816,12 @@ export default function TrackingPage() {
 
       <div className="tracking-header">
         <div>
-          <span className="hero-badge">Theo d�i tr?c ti?p</span>
-          <h1>�on hang cua ban</h1>
+          <span className="hero-badge">Theo dõi trực tiếp</span>
+          <h1>Đơn hàng của bạn</h1>
           <p>
             {isCustomer
-              ? `${customerOrders.length} don da dat · ${deliveringOrders.length} don dang x? l�`
-              : tracking?.order.orderCode || '�ang t?i th�ng tin don h�ng...'}
+              ? `${customerOrders.length} đơn đã đặt · ${deliveringOrders.length} đơn đang xử lý`
+              : tracking?.order.orderCode || 'Đang tải thông tin đơn hàng...'}
           </p>
         </div>
       </div>
@@ -848,7 +869,7 @@ export default function TrackingPage() {
             {simulatedDriverLocation ? (
               <>
                 <Marker position={[simulatedDriverLocation.latitude, simulatedDriverLocation.longitude]} icon={makeMotoIcon(motoHeading)}>
-                  <Popup>{tracking?.driver?.fullName || 'T�i x?'}</Popup>
+                  <Popup>{tracking?.driver?.fullName || 'Ti x?'}</Popup>
                 </Marker>
                 <CircleMarker center={[simulatedDriverLocation.latitude, simulatedDriverLocation.longitude]} radius={16} pathOptions={{ color: 'brand', opacity: 0.2 }} />
               </>
@@ -858,40 +879,40 @@ export default function TrackingPage() {
 
         <aside className="tracking-card">
           <div className="tracking-card-head">
-            <span>{isLoading ? '�ang t?i' : tracking?.order.statusLabel || tracking?.order.statusCode || 'Ch? t�i x?'}</span>
+            <span>{isLoading ? 'Đang tải' : tracking?.order.statusLabel || tracking?.order.statusCode || 'Chờ tài xế'}</span>
             <strong>{tracking ? `${tracking.routeProgress}%` : '0%'}</strong>
           </div>
 
           <StatusSteps order={tracking?.order || null} />
 
-          <div className="tracking-info-grid">
-            <div>
-              <span>Nh� h�ng</span>
-              <strong>{tracking?.restaurant?.name || '�ang c?p nh?t'}</strong>
+          <div className="grid grid-cols-2 gap-4 mt-6">
+            <div className="bg-white border border-gray-100 shadow-sm rounded-xl p-4 flex flex-col gap-1">
+              <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Nhà hàng</span>
+              <strong className="text-gray-900 truncate" title={tracking?.restaurant?.name}>{tracking?.restaurant?.name || 'Đang cập nhật'}</strong>
             </div>
-            <div>
-              <span>T�i x?</span>
-              <strong>{tracking?.driver?.fullName || 'Chua c� t�i x?'}</strong>
+            <div className="bg-white border border-gray-100 shadow-sm rounded-xl p-4 flex flex-col gap-1">
+              <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Tài xế</span>
+              <strong className="text-gray-900 truncate" title={tracking?.driver?.fullName}>{tracking?.driver?.fullName || 'Chưa có tài xế'}</strong>
             </div>
-            <div>
-              <span>S�T kh�ch</span>
-              <strong>{tracking?.order.customerPhone || '-'}</strong>
+            <div className="bg-white border border-gray-100 shadow-sm rounded-xl p-4 flex flex-col gap-1">
+              <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">SĐT khách</span>
+              <strong className="text-gray-900 truncate">{tracking?.order.customerPhone || '-'}</strong>
             </div>
-            <div>
-              <span>Bi?n s?</span>
-              <strong>{tracking?.driver?.licensePlate || '-'}</strong>
+            <div className="bg-white border border-gray-100 shadow-sm rounded-xl p-4 flex flex-col gap-1">
+              <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Biển số</span>
+              <strong className="text-gray-900 truncate">{tracking?.driver?.licensePlate || '-'}</strong>
             </div>
-            <div>
-              <span>Ti?n c?n thu</span>
-              <strong>{tracking ? formatCurrency(tracking.order.cashToCollect) : '-'}</strong>
+            <div className="bg-white border border-gray-100 shadow-sm rounded-xl p-4 flex flex-col gap-1">
+              <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Tiền cần thu</span>
+              <strong className="text-gray-900 truncate">{tracking ? formatCurrency(tracking.order.cashToCollect) : '-'}</strong>
             </div>
-            <div>
-              <span>ETA</span>
-              <strong>{formatDuration(tracking?.route?.totalDurationMinutes)}</strong>
+            <div className="bg-white border border-gray-100 shadow-sm rounded-xl p-4 flex flex-col gap-1">
+              <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">ETA</span>
+              <strong className="text-gray-900 truncate">{formatDuration(tracking?.route?.totalDurationMinutes)}</strong>
             </div>
-            <div>
-              <span>Qu�ng du?ng</span>
-              <strong>{formatDistance(tracking?.route?.totalDistanceKm)}</strong>
+            <div className="bg-white border border-gray-100 shadow-sm rounded-xl p-4 flex flex-col gap-1 col-span-2">
+              <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Quãng đường</span>
+              <strong className="text-gray-900 truncate">{formatDistance(tracking?.route?.totalDistanceKm)}</strong>
             </div>
           </div>
 
@@ -902,62 +923,66 @@ export default function TrackingPage() {
               <div key={leg.key} className="driver-route-leg">
                 <div>
                   <strong>{leg.label}</strong>
-                  <span>{leg.ok ? `${formatDistance(leg.distanceKm)} - ${formatDuration(leg.durationMinutes)}` : leg.error || 'Chua c� l? tr�nh'}</span>
+                  <span>{leg.ok ? `${formatDistance(leg.distanceKm)} - ${formatDuration(leg.durationMinutes)}` : leg.error || 'Chưa có lộ trình'}</span>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="tracking-items">
-            <h2>M�n d� d?t</h2>
-            {(tracking?.order.items || []).map((item) => (
-              <div key={item.id} className="tracking-item">
-                <div
-                  className={`tracking-item-thumb ${item.imageUrl ? '' : 'tracking-item-thumb--placeholder'}`}
-                  style={foodPhotoStyle(item.imageUrl, item.id)}
-                >
-                  {!item.imageUrl ? <span>Chua ?nh</span> : null}
+          <div className="tracking-items mt-6">
+            <h2 className="text-lg font-extrabold text-gray-800 mb-4 border-b border-gray-100 pb-2">Món đã đặt</h2>
+            <div className="flex flex-col gap-4">
+              {(tracking?.order.items || []).map((item) => (
+                <div key={item.id} className="tracking-item flex items-center gap-4">
+                  <div
+                    className={`w-16 h-16 min-w-[64px] rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] text-gray-400 font-bold bg-cover bg-center ${item.imageUrl ? '' : 'tracking-item-thumb--placeholder'}`}
+                    style={foodPhotoStyle(item.imageUrl, item.id)}
+                  >
+                    {!item.imageUrl ? <span>Chưa ảnh</span> : null}
+                  </div>
+                  <div className="flex-1 flex justify-between items-center min-w-0 gap-3">
+                    <span className="font-semibold text-gray-700 text-sm truncate">
+                      <strong className="text-brand mr-1">{item.quantity}x</strong> {item.foodName || `Món #${item.foodId}`}
+                    </span>
+                    <strong className="text-sm text-gray-900 whitespace-nowrap">{formatCurrency(item.lineTotal)}</strong>
+                  </div>
                 </div>
-                <div className="tracking-item-body">
-                  <span>{item.quantity} x {item.foodName || `M�n #${item.foodId}`}</span>
-                  <strong>{formatCurrency(item.lineTotal)}</strong>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           {tracking ? (
-            <div className="order-price-section">
-              <div className="order-price-row">
-                <span>T?m t�nh</span>
-                <span>{formatCurrency(tracking.order.subtotalAmount)}</span>
+            <div className="order-price-section mt-6 p-5 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-3">
+              <div className="order-price-row flex justify-between text-sm text-gray-600 font-medium">
+                <span>Tạm tính</span>
+                <span className="font-bold text-gray-900">{formatCurrency(tracking.order.subtotalAmount)}</span>
               </div>
-              <div className="order-price-row">
-                <span>Ph� giao h�ng</span>
-                <span>{formatCurrency(tracking.order.shippingFee)}</span>
+              <div className="order-price-row flex justify-between text-sm text-gray-600 font-medium">
+                <span>Phí giao hàng</span>
+                <span className="font-bold text-gray-900">{formatCurrency(tracking.order.shippingFee)}</span>
               </div>
               {tracking.order.discountAmount > 0 ? (
-                <div className="order-price-row discount">
-                  <span>Gi?m gi�</span>
-                  <span>-{formatCurrency(tracking.order.discountAmount)}</span>
+                <div className="order-price-row discount flex justify-between text-sm text-brand font-medium">
+                  <span>Giảm giá</span>
+                  <span className="font-bold">-{formatCurrency(tracking.order.discountAmount)}</span>
                 </div>
               ) : null}
               {tracking.order.taxAmount > 0 ? (
-                <div className="order-price-row">
-                  <span>Thu?</span>
-                  <span>{formatCurrency(tracking.order.taxAmount)}</span>
+                <div className="order-price-row flex justify-between text-sm text-gray-600 font-medium">
+                  <span>Thuế</span>
+                  <span className="font-bold text-gray-900">{formatCurrency(tracking.order.taxAmount)}</span>
                 </div>
               ) : null}
-              <div className="order-price-divider" />
-              <div className="order-price-row total">
-                <span>T?ng thanh to�n</span>
-                <span>{formatCurrency(tracking.order.totalAmount)}</span>
+              <div className="order-price-divider border-t border-gray-200 border-dashed my-1" />
+              <div className="order-price-row total flex justify-between text-base font-bold text-gray-900">
+                <span>Tổng thanh toán</span>
+                <span className="text-brand text-lg">{formatCurrency(tracking.order.totalAmount)}</span>
               </div>
             </div>
           ) : null}
 
-          <Link className="button-secondary" to="/food">
-            �?t th�m m�n
+          <Link className="button-secondary block text-center w-full mt-6 py-3.5 px-4 bg-white border-2 border-brand text-brand font-extrabold rounded-xl hover:bg-brand-light transition-colors" to="/food">
+            Đặt thêm món
           </Link>
 
           {isCustomer && tracking && (tracking.order.statusCode === 'PENDING' || tracking.order.statusCode === 'CONFIRMED') && !tracking.order.driverId && (
@@ -971,8 +996,8 @@ export default function TrackingPage() {
           )}
           {isCustomer && tracking?.order.statusCode === 'COMPLETED' ? (
             <div className="mt-4 rounded-2xl border border-yellow-100 bg-yellow-50 p-4">
-              <h3 className="text-sm font-black text-gray-900">��nh gi� nh� h�ng</h3>
-              <p className="mt-1 text-xs font-semibold text-gray-500">�on da hoan thanh, ban co the cham sao cho trai nghiem vua roi.</p>
+              <h3 className="text-sm font-black text-gray-900">Đánh giá nhà hàng</h3>
+              <p className="mt-1 text-xs font-semibold text-gray-500">on da hoan thanh, ban co the cham sao cho trai nghiem vua roi.</p>
               <div className="mt-3 flex gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -991,7 +1016,7 @@ export default function TrackingPage() {
                 onChange={(event) => setReviewComment(event.target.value)}
                 rows={3}
                 className="mt-3 w-full rounded-xl border border-yellow-100 bg-white p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-yellow-300"
-                placeholder="Nh?n x�t ng?n v? nh� h�ng..."
+                placeholder="Nhận xét ngắn về nhà hàng..."
               />
               <button
                 type="button"
@@ -999,7 +1024,7 @@ export default function TrackingPage() {
                 onClick={() => void handleSubmitRestaurantReview()}
                 disabled={isSubmittingReview}
               >
-                {isSubmittingReview ? '�ang g?i...' : 'G?i d�nh gi�'}
+                {isSubmittingReview ? 'Đang gửi...' : 'Gửi đánh giá'}
               </button>
               {reviewFeedback ? <p className="mt-2 text-xs font-bold text-gray-600">{reviewFeedback}</p> : null}
             </div>
@@ -1013,9 +1038,9 @@ export default function TrackingPage() {
         <section className="customer-orders-panel" aria-label="Danh sach don hang">
           <div className="customer-orders-toolbar">
             <div className="customer-orders-head">
-              <h2>�on da dat</h2>
+              <h2>Đơn đã đặt</h2>
               <p>
-                {customerOrders.length} don · {deliveringOrders.length} dang xu ly
+                {customerOrders.length} đơn · {deliveringOrders.length} đang xử lý
               </p>
             </div>
             <button
@@ -1024,7 +1049,7 @@ export default function TrackingPage() {
               onClick={() => void loadCustomerOrders()}
               disabled={ordersLoading}
             >
-              {ordersLoading ? '�ang t?i...' : 'Tai lai'}
+              {ordersLoading ? 'Đang tải...' : 'Tai lai'}
             </button>
           </div>
 
@@ -1036,7 +1061,7 @@ export default function TrackingPage() {
               className={orderListFilter === 'all' ? 'active' : ''}
               onClick={() => setOrderListFilter('all')}
             >
-              T?t c?
+              Tất cả
               <span>{customerOrders.length}</span>
             </button>
             <button
@@ -1046,7 +1071,7 @@ export default function TrackingPage() {
               className={orderListFilter === 'delivering' ? 'active' : ''}
               onClick={() => setOrderListFilter('delivering')}
             >
-              Dang giao
+              Đang giao
               <span>{deliveringOrders.length}</span>
             </button>
           </div>
@@ -1109,13 +1134,13 @@ export default function TrackingPage() {
                         {order.items.slice(0, 4).map((item) => (
                           <div key={item.id} className="order-card-item-row">
                             <span className="order-card-item-name">
-                              {item.quantity}x {item.foodName || `M�n #${item.foodId}`}
+                              {item.quantity}x {item.foodName || `Món #${item.foodId}`}
                             </span>
                             <span className="order-card-item-price">{formatCurrency(item.lineTotal)}</span>
                           </div>
                         ))}
                         {order.items.length > 4 ? (
-                          <p className="order-card-items-more">+{order.items.length - 4} mon khac</p>
+                          <p className="order-card-items-more">+{order.items.length - 4} món khác</p>
                         ) : null}
                       </div>
                     ) : null}
@@ -1125,13 +1150,13 @@ export default function TrackingPage() {
                       <div className="order-card-price-divider" />
                       {order.shippingFee > 0 ? (
                         <div className="order-card-price-line">
-                          <span>Ph� giao h�ng</span>
+                          <span>Phí giao hàng</span>
                           <span>{formatCurrency(order.shippingFee)}</span>
                         </div>
                       ) : null}
                       {order.discountAmount > 0 ? (
                         <div className="order-card-price-line discount">
-                          <span>Gi?m gi�</span>
+                          <span>Giảm giá</span>
                           <span>-{formatCurrency(order.discountAmount)}</span>
                         </div>
                       ) : null}
@@ -1158,12 +1183,10 @@ export default function TrackingPage() {
                       
                       {delivering ? (
                         <span className="customer-order-live">
-                          <span className="customer-order-live__dot" aria-hidden="true" />
-                          Theo d�i
-                        </span>
+                          <span className="customer-order-live__dot" aria-hidden="true" />Theo dõi</span>
                       ) : (
                         <span className="order-card-hint">
-                          {isSelected ? '�ang xem' : 'Xem chi ti?t →'}
+                          {isSelected ? 'Đang xem' : 'Xem chi tiết →'}
                         </span>
                       )}
                     </div>
@@ -1172,7 +1195,7 @@ export default function TrackingPage() {
               )
             })}
             {!ordersLoading && paginatedOrders.length === 0 ? (
-              <p className="customer-orders-empty">Kh�ng c� don ph� h?p b? l?c.</p>
+              <p className="customer-orders-empty">Không có đơn phù hợp bộ lọc.</p>
             ) : null}
           </div>
 
@@ -1185,7 +1208,7 @@ export default function TrackingPage() {
                 disabled={currentPage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               >
-                ← Tru?c
+                ← Trước
               </button>
               <div className="orders-pagination-pages">
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
@@ -1205,7 +1228,7 @@ export default function TrackingPage() {
                 disabled={currentPage >= totalPages}
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               >
-                Ti?p →
+                Tiếp →
               </button>
             </div>
           ) : null}
