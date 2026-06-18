@@ -2,7 +2,7 @@ const { Op } = require("sequelize");
 const { DriverDetail, DriverLocation, Order, OrderStatus, Restaurant, User } = require("../models");
 const driverService = require("./driverService");
 const { DRIVER_ACTIVE_STATUS_CODES } = require("./orderWorkflowService");
-const { isValidCoordinate } = require("../utils/geohash");
+const { coverRadiusWithGeohashes, getGeohashPrecisionForRadius, isValidCoordinate } = require("../utils/geohash");
 
 const DISPATCH_ALGORITHM = "GEOHASH_RING_SCORE_V1";
 const DISPATCH_SEARCH_RADII_KM = [3, 5, 10, 20];
@@ -137,26 +137,63 @@ const findDriverCandidatesForOrder = async (order, options = {}) => {
     };
   }
 
-  const onlineDrivers = await DriverDetail.findAll({
-    where: { approvalStatus: "APPROVED", isOnline: true },
-    include: driverInclude,
-    order: [["userId", "ASC"]],
-  });
-  const onlineDriverIds = onlineDrivers.map((driver) => Number(driver.userId)).filter(Boolean);
-  const activeDriverIds = await getActiveDriverIds(onlineDriverIds);
-  const availableDrivers = onlineDrivers.filter((driver) => !activeDriverIds.has(Number(driver.userId)));
-  const latestLocations = await getLatestLocationsByDriver(availableDrivers.map((driver) => Number(driver.userId)));
-  const now = Date.now();
-  const driversWithLocations = availableDrivers
-    .map((driver) => toDriverCandidate(driver, latestLocations.get(Number(driver.userId)), now))
-    .filter(Boolean);
-
   const radii = Array.isArray(options.searchRadiiKm) && options.searchRadiiKm.length
     ? options.searchRadiiKm
     : DISPATCH_SEARCH_RADII_KM;
   const limit = Number.isFinite(Number(options.limit)) ? Math.max(1, Number(options.limit)) : DEFAULT_DRIVER_LIMIT;
+  const now = Date.now();
+  const cutoffTime = new Date(now - MAX_LOCATION_AGE_MS);
 
   for (const radiusKm of radii) {
+    const precision = getGeohashPrecisionForRadius(radiusKm);
+    const prefixes = coverRadiusWithGeohashes(pickupPoint.latitude, pickupPoint.longitude, radiusKm, precision);
+    const prefixArray = Array.from(prefixes);
+
+    if (prefixArray.length === 0) continue;
+
+    // 1. Dùng Geohash Index để tìm các location gần đây thay vì load tất cả driver
+    const locations = await DriverLocation.findAll({
+      where: {
+        createdAt: { [Op.gte]: cutoffTime },
+        [Op.or]: prefixArray.map(prefix => ({ geohash: { [Op.startsWith]: prefix } }))
+      },
+      order: [["created_at", "DESC"]],
+    });
+
+    const latestByDriverId = new Map();
+    for (const location of locations) {
+      if (!latestByDriverId.has(Number(location.driverId))) {
+        latestByDriverId.set(Number(location.driverId), location);
+      }
+    }
+
+    const candidateDriverIds = Array.from(latestByDriverId.keys());
+    if (candidateDriverIds.length === 0) continue;
+
+    // 2. Chỉ load DriverDetail của những tài xế nằm trong khu vực
+    const onlineDrivers = await DriverDetail.findAll({
+      where: {
+        userId: { [Op.in]: candidateDriverIds },
+        approvalStatus: "APPROVED",
+        isOnline: true,
+      },
+      include: driverInclude,
+    });
+
+    const onlineDriverIds = onlineDrivers.map((driver) => Number(driver.userId)).filter(Boolean);
+    if (onlineDriverIds.length === 0) continue;
+
+    // 3. Lọc bỏ các tài xế đang bận đơn
+    const activeDriverIds = await getActiveDriverIds(onlineDriverIds);
+    const availableDrivers = onlineDrivers.filter((driver) => !activeDriverIds.has(Number(driver.userId)));
+
+    if (availableDrivers.length === 0) continue;
+
+    const driversWithLocations = availableDrivers
+      .map((driver) => toDriverCandidate(driver, latestByDriverId.get(Number(driver.userId)), now))
+      .filter(Boolean);
+
+    // 4. Tính khoảng cách chính xác (Haversine) và lọc lần cuối
     const nearby = driverService.findNearbyDrivers(driversWithLocations, pickupPoint, { radiusKm });
     if (nearby.length > 0) {
       return {
