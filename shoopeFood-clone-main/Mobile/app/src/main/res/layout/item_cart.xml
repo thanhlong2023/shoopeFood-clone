@@ -8,6 +8,15 @@
     android:orientation="horizontal"
     android:padding="16dp">
 
+    <ImageView
+        android:id="@+id/imageCartFood"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginEnd="12dp"
+        android:contentDescription="@string/cart_title"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_app_logo" />
+
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"

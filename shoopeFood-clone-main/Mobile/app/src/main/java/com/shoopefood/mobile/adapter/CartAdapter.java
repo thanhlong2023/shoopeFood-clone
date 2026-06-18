@@ -3,15 +3,18 @@ package com.shoopefood.mobile.adapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.google.android.material.button.MaterialButton;
 import com.shoopefood.mobile.R;
 import com.shoopefood.mobile.cart.CartManager;
 import com.shoopefood.mobile.util.CurrencyUtils;
+import com.shoopefood.mobile.util.ImageUrlUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,11 +62,13 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.CartViewHolder
         private final TextView nameText;
         private final TextView priceText;
         private final TextView quantityText;
+        private final ImageView foodImage;
         private final MaterialButton minusButton;
         private final MaterialButton plusButton;
 
         CartViewHolder(@NonNull View itemView) {
             super(itemView);
+            foodImage = itemView.findViewById(R.id.imageCartFood);
             nameText = itemView.findViewById(R.id.textCartFoodName);
             priceText = itemView.findViewById(R.id.textCartFoodPrice);
             quantityText = itemView.findViewById(R.id.textCartQuantity);
@@ -75,6 +80,13 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.CartViewHolder
             nameText.setText(line.food.name);
             priceText.setText(CurrencyUtils.formatVnd(line.food.price * line.quantity));
             quantityText.setText(String.valueOf(line.quantity));
+
+            Glide.with(itemView.getContext())
+                    .load(ImageUrlUtils.resolve(line.food.imageUrl))
+                    .placeholder(R.drawable.ic_app_logo)
+                    .error(R.drawable.ic_app_logo)
+                    .centerCrop()
+                    .into(foodImage);
 
             minusButton.setOnClickListener(v -> {
                 CartManager.getInstance().updateQuantity(line.food.id, line.quantity - 1);

@@ -247,6 +247,19 @@ export type OrderTracking = {
   routeProgress: number
 }
 
+export type RestaurantReviewSummary = {
+  restaurantId: number
+  reviewCount: number
+  ratingAvg: number
+}
+
+export type ReviewPayload = {
+  orderId: number
+  targetType: 'RESTAURANT' | 'DRIVER'
+  rating: number
+  comment?: string
+}
+
 export type UpdateOrderPayload = Partial<{
   customerId: number
   restaurantId: number

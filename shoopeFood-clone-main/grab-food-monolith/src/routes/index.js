@@ -9,6 +9,7 @@ const foodRoutes = require("./foodRoutes");
 const paymentRoutes = require("./paymentRoutes");
 const applicationRoutes = require("./applicationRoutes");
 
+
 const router = express.Router();
 
 router.get("/", (req, res) => {
@@ -40,5 +41,6 @@ router.use("/api/categories", categoryRoutes);
 router.use("/api/foods", foodRoutes);
 router.use("/api/payments", paymentRoutes);
 router.use("/api/applications", applicationRoutes);
+
 
 module.exports = router;

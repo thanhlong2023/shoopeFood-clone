@@ -138,6 +138,9 @@ export default function Navbar() {
                 <li>
                   <NavLink to="/" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Dat mon</NavLink>
                 </li>
+                <li>
+                  <NavLink to="/restaurants" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Nha hang</NavLink>
+                </li>
                 {isAuthenticated ? (
                   <li>
                     <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Don hang</NavLink>

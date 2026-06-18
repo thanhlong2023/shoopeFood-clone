@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useTrackableOrder } from '../hooks/useTrackableOrder'
 import { getCategories } from '../services/api/categories'
 import { getFoods } from '../services/api/foods'
 import { createOrder } from '../services/api/orders'
@@ -96,9 +97,24 @@ function toPromotion(restaurantId: number) {
   return promotions[restaurantId % promotions.length]
 }
 
+function getPromotionBadges(restaurant: Restaurant) {
+  const badges = []
+  if (restaurant.id % 2 === 0) badges.push('Freeship')
+  if (restaurant.ratingAvg >= 4.8) badges.push('Giảm 20%')
+  if (restaurant.id % 3 === 0) badges.push('Combo trưa')
+  if (restaurant.id >= 6) badges.push('Quán mới')
+  return badges.slice(0, 3)
+}
+
+function getDailySeed() {
+  const today = new Date()
+  return Number(`${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`)
+}
+
 export default function HomePage() {
   useDocumentTitle(`${APP_NAME} | Đặt món`)
   const { isAuthenticated, user } = useAuth()
+  const { hasTrackableOrder, lastOrderId } = useTrackableOrder()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
@@ -163,6 +179,11 @@ export default function HomePage() {
   }, [])
 
   const categoryNameById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories])
+  const restaurantIdByCategoryId = useMemo(
+    () => new Map(categories.map((category) => [category.id, category.restaurantId])),
+    [categories],
+  )
+  const restaurantById = useMemo(() => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant])), [restaurants])
   const normalizedSearch = normalizeSearchText(searchTerm)
   const restaurantSearchMatches = useMemo(() => {
     if (!normalizedSearch) {
@@ -194,6 +215,15 @@ export default function HomePage() {
   const visibleRestaurants = useMemo(
     () => restaurants.filter((restaurant) => restaurantSearchMatches.has(restaurant.id)),
     [restaurantSearchMatches, restaurants],
+  )
+  const previewRestaurants = useMemo(() => visibleRestaurants.slice(0, 6), [visibleRestaurants])
+  const featuredRestaurants = useMemo(
+    () =>
+      restaurants
+        .filter((restaurant) => restaurant.isOpen && restaurant.isOpenToday)
+        .sort((left, right) => right.ratingAvg - left.ratingAvg)
+        .slice(0, 3),
+    [restaurants],
   )
   const activeRestaurant = useMemo(
     () => restaurants.find((restaurant) => restaurant.id === activeRestaurantId) ?? restaurants[0] ?? null,
@@ -242,6 +272,25 @@ export default function HomePage() {
       return matchesCategory && matchesSearch
     })
   }, [activeCategoryId, activeRestaurant, categoryNameById, menuFoods, normalizedSearch, restaurantSearchMatches])
+
+  const todaysFoods = useMemo(
+    () =>
+      foods
+        .filter((food) => food.isAvailable && Number(food.currentQuantity || 0) > 0 && food.categoryId !== null)
+        .sort((left, right) => ((left.id * 17 + getDailySeed()) % 31) - ((right.id * 17 + getDailySeed()) % 31))
+        .slice(0, 8),
+    [foods],
+  )
+
+  function selectFoodRestaurant(food: Food) {
+    const restaurantId = restaurantIdByCategoryId.get(food.categoryId ?? 0)
+    if (!restaurantId) return
+
+    setActiveRestaurantId(restaurantId)
+    setActiveCategoryId(food.categoryId ?? 'all')
+    setSearchTerm('')
+    setSuccessOrder(null)
+  }
 
   const cartItems = useMemo(
     () =>
@@ -477,6 +526,19 @@ export default function HomePage() {
 
       {errorMessage ? <p className="app-feedback error bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 mb-4">{errorMessage}</p> : null}
 
+      {hasTrackableOrder ? (
+        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-green-100 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00b14f]">Đơn đang theo dõi</p>
+            <h2 className="mt-1 text-lg font-black text-gray-900">Bạn có đơn #{lastOrderId} đang hoạt động</h2>
+            <p className="text-sm font-semibold text-gray-500">Mở trang theo dõi để xem trạng thái và vị trí tài xế realtime.</p>
+          </div>
+          <Link to={`/tracking?orderId=${lastOrderId}`} className="rounded-full bg-[#00b14f] px-5 py-3 text-center text-sm font-black text-white no-underline shadow-sm">
+            Theo dõi đơn
+          </Link>
+        </div>
+      ) : null}
+
       <div className="order-layout">
         {/* Left: Restaurant Rail */}
         <aside className="tw-restaurant-rail bg-white border-0 rounded-2xl shadow-sm p-4 sticky top-20" aria-label="Nhà hàng">
@@ -491,7 +553,7 @@ export default function HomePage() {
           </div>
 
           <div className="tw-restaurant-stack flex flex-col gap-2.5 max-h-[60vh] overflow-y-auto px-1 pt-[20px]">
-            {visibleRestaurants.map((restaurant) => {
+            {previewRestaurants.map((restaurant) => {
               const isActive = activeRestaurant?.id === restaurant.id
               const thumbStyle = restaurantThumbStyle(restaurant.imageUrl)
 
@@ -525,6 +587,13 @@ export default function HomePage() {
             })}
             {!isLoading && visibleRestaurants.length === 0 ? <p className="text-gray-400 text-xs text-center py-6 font-medium">Không tìm thấy quán phù hợp.</p> : null}
           </div>
+
+          <Link
+            to={searchTerm ? `/restaurants?q=${encodeURIComponent(searchTerm)}` : '/restaurants'}
+            className="mt-3 flex items-center justify-center rounded-full bg-[#00b14f] px-4 py-2 text-xs font-black text-white no-underline shadow-sm"
+          >
+            Xem tất cả nhà hàng
+          </Link>
         </aside>
 
         {/* Center: Menu Panel */}
@@ -550,10 +619,92 @@ export default function HomePage() {
                     <Icon name="clock" />
                     {toEta(activeRestaurant.id)}
                   </span>
-                  <strong className="bg-[#ffb000] text-gray-900 rounded-full text-xs font-extrabold px-3 py-1.5 shadow-sm">
-                    {toPromotion(activeRestaurant.id)}
-                  </strong>
+                  <div className="flex flex-wrap justify-start gap-1.5 md:justify-end">
+                    {getPromotionBadges(activeRestaurant).map((badge) => (
+                      <strong key={badge} className="bg-[#ffb000] text-gray-900 rounded-full text-xs font-extrabold px-3 py-1.5 shadow-sm">
+                        {badge}
+                      </strong>
+                    ))}
+                  </div>
                 </div>
+              </div>
+            </div>
+          ) : null}
+
+          {featuredRestaurants.length > 0 ? (
+            <div className="mb-6 rounded-2xl bg-gray-50 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#00b14f]">Gợi ý nhanh</p>
+                  <h2 className="text-base font-black text-gray-900">Nhà hàng nổi bật</h2>
+                </div>
+                <Link to="/restaurants" className="text-xs font-black text-[#00b14f] no-underline">
+                  Xem tất cả
+                </Link>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                {featuredRestaurants.map((restaurant) => (
+                  <button
+                    key={restaurant.id}
+                    type="button"
+                    onClick={() => handleRestaurantSelect(restaurant.id)}
+                    className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <span
+                      className={`h-14 w-14 shrink-0 rounded-xl bg-cover bg-center ${restaurantThumbStyle(restaurant.imageUrl) ? '' : 'restaurant-thumb--placeholder'}`}
+                      style={restaurantThumbStyle(restaurant.imageUrl)}
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0">
+                      <strong className="block truncate text-sm font-black text-gray-900">{restaurant.name}</strong>
+                      <span className="mt-1 block text-[11px] font-bold text-gray-500">
+                        ★ {restaurant.ratingAvg.toFixed(1)} · {toEta(restaurant.id)}
+                      </span>
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {getPromotionBadges(restaurant).slice(0, 2).map((badge) => (
+                          <span key={badge} className="rounded-full bg-orange-50 px-2 py-0.5 text-[9px] font-black text-orange-600">
+                            {badge}
+                          </span>
+                        ))}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {todaysFoods.length > 0 ? (
+            <div className="mb-6">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-500">Random hôm nay</p>
+                  <h2 className="text-base font-black text-gray-900">Món ngon hôm nay</h2>
+                </div>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {todaysFoods.map((food) => {
+                  const restaurant = restaurantById.get(restaurantIdByCategoryId.get(food.categoryId ?? 0) ?? 0)
+                  return (
+                    <button
+                      key={food.id}
+                      type="button"
+                      onClick={() => selectFoodRestaurant(food)}
+                      className="w-[180px] shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    >
+                      <span
+                        className={`block h-24 bg-cover bg-center ${foodPhotoStyle(food.imageUrl) ? '' : 'food-photo--placeholder'}`}
+                        style={foodPhotoStyle(food.imageUrl)}
+                        aria-hidden="true"
+                      />
+                      <span className="block p-3">
+                        <strong className="block truncate text-xs font-black text-gray-900">{food.name}</strong>
+                        <span className="mt-1 block truncate text-[10px] font-bold text-gray-500">{restaurant?.name || 'Nhà hàng'}</span>
+                        <span className="mt-2 block text-xs font-black text-[#EE4D2D]">{formatPrice(Number(food.price))}</span>
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           ) : null}

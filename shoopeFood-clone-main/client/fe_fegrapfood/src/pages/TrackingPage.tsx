@@ -6,6 +6,7 @@ import { APP_NAME } from '../constants/app'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useTrackableOrder } from '../hooks/useTrackableOrder'
 import { getOrders, getOrderTracking, cancelOrder } from '../services/api/orders'
+import { createReview } from '../services/api/reviews'
 import { getLastOrderId } from '../utils/orderStorage'
 import { createSocket } from '../services/socket'
 import { foodPhotoStyle } from '../utils/foodImage'
@@ -200,6 +201,10 @@ export default function TrackingPage() {
   const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewFeedback, setReviewFeedback] = useState<string | null>(null)
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [driverAssignedNotice, setDriverAssignedNotice] = useState<{ driverName: string; orderCode: string } | null>(null)
   const [driverDeliveringNotice, setDriverDeliveringNotice] = useState<{
     driverName: string
@@ -235,6 +240,27 @@ export default function TrackingPage() {
     },
     [],
   )
+
+  async function handleSubmitRestaurantReview() {
+    if (!tracking) return
+
+    try {
+      setIsSubmittingReview(true)
+      setReviewFeedback(null)
+      await createReview({
+        orderId: tracking.order.id,
+        targetType: 'RESTAURANT',
+        rating: reviewRating,
+        comment: reviewComment,
+      })
+      setReviewFeedback('Da gui danh gia nha hang. Cam on ban!')
+      setReviewComment('')
+    } catch (error) {
+      setReviewFeedback(error instanceof Error ? error.message : 'Khong the gui danh gia')
+    } finally {
+      setIsSubmittingReview(false)
+    }
+  }
 
   const showDriverDeliveringNotice = useCallback(
     (payload: {
@@ -943,6 +969,41 @@ export default function TrackingPage() {
               Hủy đơn hàng
             </button>
           )}
+          {isCustomer && tracking?.order.statusCode === 'COMPLETED' ? (
+            <div className="mt-4 rounded-2xl border border-yellow-100 bg-yellow-50 p-4">
+              <h3 className="text-sm font-black text-gray-900">Danh gia nha hang</h3>
+              <p className="mt-1 text-xs font-semibold text-gray-500">Don da hoan thanh, ban co the cham sao cho trai nghiem vua roi.</p>
+              <div className="mt-3 flex gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    className={`text-2xl ${star <= reviewRating ? 'text-yellow-500' : 'text-gray-300'}`}
+                    onClick={() => setReviewRating(star)}
+                    aria-label={`${star} sao`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={reviewComment}
+                onChange={(event) => setReviewComment(event.target.value)}
+                rows={3}
+                className="mt-3 w-full rounded-xl border border-yellow-100 bg-white p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-yellow-300"
+                placeholder="Nhan xet ngan ve nha hang..."
+              />
+              <button
+                type="button"
+                className="mt-3 w-full rounded-xl bg-yellow-500 px-4 py-2.5 text-xs font-black text-white disabled:bg-gray-200 disabled:text-gray-400"
+                onClick={() => void handleSubmitRestaurantReview()}
+                disabled={isSubmittingReview}
+              >
+                {isSubmittingReview ? 'Dang gui...' : 'Gui danh gia'}
+              </button>
+              {reviewFeedback ? <p className="mt-2 text-xs font-bold text-gray-600">{reviewFeedback}</p> : null}
+            </div>
+          ) : null}
         </aside>
       </div>
       ) : null}

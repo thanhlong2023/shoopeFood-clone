@@ -1,5 +1,7 @@
 package com.shoopefood.mobile.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class Restaurant {
     public int id;
     public int ownerId;
@@ -13,7 +15,9 @@ public class Restaurant {
     public String closingTime;
     public boolean isOpen;
     public boolean isOpenToday;
+    @SerializedName(value = "imageUrl", alternate = {"image_url", "image"})
     public String imageUrl;
+    @SerializedName(value = "avatarUrl", alternate = {"avatar_url"})
     public String avatarUrl;
     public String promotionText;
     public String temporaryClosedReason;
