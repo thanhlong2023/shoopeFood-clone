@@ -594,20 +594,25 @@ export default function TrackingPage() {
     return visibleCustomerOrders.slice(start, start + ORDERS_PER_PAGE)
   }, [visibleCustomerOrders, currentPage])
 
-  const mapPoints = useMemo(() => {
-    const points = [...((tracking?.route?.legs || []).flatMap((leg) => leg.geometry))]
-    if (driverLocation) {
-      points.push({ latitude: driverLocation.latitude, longitude: driverLocation.longitude })
+  const isToMerchant = tracking?.order?.statusCode === 'DRIVER_ACCEPTED' || tracking?.order?.statusCode === 'PICKING_UP' || tracking?.order?.statusCode === 'CONFIRMED'
+  const isToCustomer = tracking?.order?.statusCode === 'SHIPPING' || tracking?.order?.statusCode === 'DELIVERING'
+  
+  const simulatedDriverLocation = driverLocation
+
+  const bounds = useMemo(() => {
+    const points: { latitude: number; longitude: number }[] = []
+    if (simulatedDriverLocation) {
+      points.push({ latitude: simulatedDriverLocation.latitude, longitude: simulatedDriverLocation.longitude })
     }
     if (tracking?.restaurant) points.push(tracking.restaurant)
     if (tracking?.destination) points.push(tracking.destination)
     return points
-  }, [driverLocation, tracking])
+  }, [simulatedDriverLocation, tracking])
 
   const routeLegs = tracking?.route?.legs || []
-  const driverPoint = driverLocation ? { latitude: driverLocation.latitude, longitude: driverLocation.longitude } : null
+  const driverPoint = simulatedDriverLocation ? { latitude: simulatedDriverLocation.latitude, longitude: simulatedDriverLocation.longitude } : null
   const nextPoint = tracking?.routePoints.find((point) => driverPoint && Math.hypot(point.latitude - driverPoint.latitude, point.longitude - driverPoint.longitude) > 0.0005)
-  const motoHeading = driverLocation?.heading || (driverPoint && nextPoint ? getHeading(driverPoint, nextPoint) : 0)
+  const motoHeading = simulatedDriverLocation?.heading || (driverPoint && nextPoint ? getHeading(driverPoint, nextPoint) : 0)
   const mapCenter: [number, number] = driverPoint
     ? toLatLng(driverPoint)
     : tracking?.restaurant
@@ -786,7 +791,7 @@ export default function TrackingPage() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <MapAutoFit points={mapPoints} />
+            <MapAutoFit points={bounds} />
 
             {routeLegs.map((leg) =>
               leg.geometry.length > 0 ? (
@@ -814,12 +819,12 @@ export default function TrackingPage() {
               </Marker>
             ) : null}
 
-            {driverLocation ? (
+            {simulatedDriverLocation ? (
               <>
-                <Marker position={[driverLocation.latitude, driverLocation.longitude]} icon={makeMotoIcon(motoHeading)}>
+                <Marker position={[simulatedDriverLocation.latitude, simulatedDriverLocation.longitude]} icon={makeMotoIcon(motoHeading)}>
                   <Popup>{tracking?.driver?.fullName || 'Tai xe'}</Popup>
                 </Marker>
-                <CircleMarker center={[driverLocation.latitude, driverLocation.longitude]} radius={16} pathOptions={{ color: '#00b14f', opacity: 0.2 }} />
+                <CircleMarker center={[simulatedDriverLocation.latitude, simulatedDriverLocation.longitude]} radius={16} pathOptions={{ color: '#00b14f', opacity: 0.2 }} />
               </>
             ) : null}
           </MapContainer>

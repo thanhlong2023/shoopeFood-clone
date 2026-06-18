@@ -3,6 +3,7 @@ package com.shoopefood.mobile.adapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -12,6 +13,7 @@ import com.google.android.material.button.MaterialButton;
 import com.shoopefood.mobile.R;
 import com.shoopefood.mobile.model.Food;
 import com.shoopefood.mobile.util.CurrencyUtils;
+import com.shoopefood.mobile.util.ImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,6 +58,7 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
 
     class FoodViewHolder extends RecyclerView.ViewHolder {
 
+        private final ImageView foodImage;
         private final TextView nameText;
         private final TextView priceText;
         private final TextView statusText;
@@ -63,6 +66,7 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
 
         FoodViewHolder(@NonNull View itemView) {
             super(itemView);
+            foodImage = itemView.findViewById(R.id.imageFood);
             nameText = itemView.findViewById(R.id.textFoodName);
             priceText = itemView.findViewById(R.id.textFoodPrice);
             statusText = itemView.findViewById(R.id.textFoodStatus);
@@ -75,6 +79,14 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
             statusText.setText(food.isAvailable ? "Con hang" : "Het hang");
             addButton.setEnabled(food.isAvailable);
             addButton.setOnClickListener(v -> listener.onAddFood(food));
+            
+            // Format URL to relative to absolute if needed, otherwise load directly
+            String imgUrl = food.imageUrl;
+            if (imgUrl != null && imgUrl.startsWith("uploads/")) {
+                // Point to backend API url host
+                imgUrl = "http://10.0.2.2:3000/" + imgUrl;
+            }
+            ImageLoader.loadImage(imgUrl, foodImage, R.drawable.ic_app_logo);
         }
     }
 }

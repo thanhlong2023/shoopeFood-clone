@@ -8,4 +8,5 @@ public class Food {
     public boolean isAvailable;
     public int defaultQuantity;
     public int currentQuantity;
+    public String imageUrl;
 }

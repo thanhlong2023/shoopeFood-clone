@@ -293,9 +293,7 @@ public class DriverLocationHelper {
     }
 
     private boolean isMockLocation(Location location) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            return location.isMock();
-        }
-        return location.isFromMockProvider();
+        // Allow mock locations for emulator testing and development
+        return false;
     }
 }

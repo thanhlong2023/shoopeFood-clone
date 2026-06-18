@@ -29,6 +29,52 @@ function haversineKm(from: RoutePoint, to: { latitude?: number; longitude?: numb
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+function advanceAlongPolyline(
+  startPoint: RoutePoint,
+  polyline: RoutePoint[],
+  startIndex: number,
+  distanceKmToMove: number
+): { point: RoutePoint, index: number, reachedEnd: boolean, heading: number } {
+  if (!polyline || polyline.length === 0) return { point: startPoint, index: startIndex, reachedEnd: true, heading: 0 };
+  
+  let currentP = startPoint;
+  let currentIndex = startIndex;
+  let distLeft = distanceKmToMove;
+  let heading = 0;
+
+  while (distLeft > 0 && currentIndex < polyline.length - 1) {
+    const nextP = polyline[currentIndex + 1];
+    const segmentDist = haversineKm(currentP, nextP);
+    
+    if (segmentDist <= 0.001) {
+      currentIndex++;
+      continue;
+    }
+
+    if (distLeft >= segmentDist) {
+      distLeft -= segmentDist;
+      heading = calculateHeading(currentP, nextP);
+      currentP = nextP;
+      currentIndex++;
+    } else {
+      const fraction = distLeft / segmentDist;
+      heading = calculateHeading(currentP, nextP);
+      const newLat = currentP.latitude + (nextP.latitude - currentP.latitude) * fraction;
+      const newLng = currentP.longitude + (nextP.longitude - currentP.longitude) * fraction;
+      currentP = { latitude: newLat, longitude: newLng };
+      distLeft = 0;
+      break;
+    }
+  }
+
+  return {
+    point: currentP,
+    index: currentIndex,
+    reachedEnd: currentIndex >= polyline.length - 1 && distLeft >= 0,
+    heading
+  };
+}
+
 function filterNearbyOrders(orders: Order[], point: RoutePoint | null, radiusKm = NEARBY_RADIUS_KM) {
   if (!point) {
     return []
@@ -150,7 +196,10 @@ export default function DriverPage() {
   const [isActioning, setIsActioning] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [isSimulating, setIsSimulating] = useState(true)
   const lastGpsPointRef = useRef<RoutePoint | null>(null)
+  const simulationReachedRef = useRef<Record<string, boolean>>({})
+  const simStateRef = useRef<{ stateKey: string; index: number; point: RoutePoint | null }>({ stateKey: '', index: 0, point: null })
 
   const nearbyAvailableOrders = useMemo(
     () => filterNearbyOrders(availableOrders, currentPoint),
@@ -257,19 +306,21 @@ export default function DriverPage() {
         const activeOrderForLocation = activeOrder?.driverId === driverId && activeLocationStatuses.has(activeOrder.statusCode || '')
 
         lastGpsPointRef.current = nextPoint
-        setCurrentPoint(nextPoint)
-        setHeading(nextHeading)
-        setGpsStatus('GPS dang cap nhat')
+        if (!isSimulating) {
+          setCurrentPoint(nextPoint)
+          setHeading(nextHeading)
+          setGpsStatus('GPS dang cap nhat')
 
-        void updateDriverLocation(driverId, {
-          ...(activeOrderForLocation ? { orderId: activeOrder.id } : {}),
-          latitude: nextPoint.latitude,
-          longitude: nextPoint.longitude,
-          heading: nextHeading,
-          speedKmh: Number.isFinite(position.coords.speed) && position.coords.speed ? Number(position.coords.speed) * 3.6 : 28,
-        }).catch((error) => {
-          setGpsStatus(error instanceof Error ? error.message : 'Khong the gui vi tri')
-        })
+          void updateDriverLocation(driverId, {
+            ...(activeOrderForLocation ? { orderId: activeOrder.id } : {}),
+            latitude: nextPoint.latitude,
+            longitude: nextPoint.longitude,
+            heading: nextHeading,
+            speedKmh: Number.isFinite(position.coords.speed) && position.coords.speed ? Number(position.coords.speed) * 3.6 : 28,
+          }).catch((error) => {
+            setGpsStatus(error instanceof Error ? error.message : 'Khong the gui vi tri')
+          })
+        }
       },
       () => {
         setGpsStatus('Chua duoc cap quyen GPS, dung vi tri cuoi cung tren he thong.')
@@ -278,7 +329,65 @@ export default function DriverPage() {
     )
 
     return () => navigator.geolocation.clearWatch(watchId)
-  }, [activeOrder, driverId, heading])
+  }, [activeOrder, driverId, heading, isSimulating])
+
+  useEffect(() => {
+    if (!isSimulating || !activeOrder || !tracking || !driverId || !currentPoint) return;
+
+    const isToMerchant = activeOrder.statusCode === 'DRIVER_ACCEPTED' || activeOrder.statusCode === 'PICKING_UP';
+    const isToCustomer = activeOrder.statusCode === 'DELIVERING';
+
+    if (!isToMerchant && !isToCustomer) return;
+
+    const legKey = isToMerchant ? 'driver_to_restaurant' : 'restaurant_to_customer';
+    const leg = tracking.route?.legs?.find((l: any) => l.key === legKey);
+    const polyline = leg?.geometry || [];
+    
+    if (polyline.length === 0) return;
+
+    const stateKey = `${activeOrder.id}-${activeOrder.statusCode}`;
+    if (simStateRef.current.stateKey !== stateKey) {
+      simStateRef.current = {
+        stateKey,
+        index: 0,
+        point: polyline[0] || currentPoint
+      };
+    }
+
+    const timer = setTimeout(() => {
+      // Di chuyển 0.2km mỗi 2s (tương đương 1km mỗi 10s)
+      const result = advanceAlongPolyline(simStateRef.current.point || currentPoint, polyline, simStateRef.current.index, 0.2);
+      
+      simStateRef.current.point = result.point;
+      simStateRef.current.index = result.index;
+
+      setCurrentPoint(result.point);
+      if (result.heading) setHeading(result.heading);
+
+      // Push to server
+      updateDriverLocation(driverId, {
+        orderId: activeOrder.id,
+        latitude: result.point.latitude,
+        longitude: result.point.longitude,
+        heading: result.heading || 0,
+        speedKmh: 72, // 0.2km / 2s = 0.1km/s = 360km/h (tốc độ theo yêu cầu mô phỏng)
+      }).catch(console.error);
+
+      if (result.reachedEnd) {
+        if (!simulationReachedRef.current[stateKey]) {
+          simulationReachedRef.current[stateKey] = true;
+          if (isToMerchant) {
+            setSuccessMessage('Đã tới cửa hàng! Vui lòng nhận món và bấm "Đã lấy món".');
+          } else if (isToCustomer) {
+            setSuccessMessage('Đã tới khách hàng! Vui lòng giao hàng và bấm "Hoàn thành".');
+          }
+        }
+      }
+
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [activeOrder?.id, activeOrder?.statusCode, tracking, driverId, currentPoint, isSimulating]);
 
   useEffect(() => {
     let isMounted = true
@@ -391,7 +500,13 @@ export default function DriverPage() {
 
         <div className="driver-gps-pill">
           <span>GPS</span>
-          <strong>{gpsStatus}</strong>
+          <strong>{isSimulating ? 'Giả lập đang bật' : gpsStatus}</strong>
+          <button 
+            className="ml-2 px-2 py-1 bg-gray-200 text-xs rounded" 
+            onClick={() => setIsSimulating(!isSimulating)}
+          >
+            {isSimulating ? 'Tắt' : 'Bật'} giả lập
+          </button>
         </div>
       </div>
 

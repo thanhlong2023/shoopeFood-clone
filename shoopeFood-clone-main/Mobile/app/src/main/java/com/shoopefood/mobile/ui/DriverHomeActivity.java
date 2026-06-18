@@ -485,10 +485,33 @@ public class DriverHomeActivity extends AppCompatActivity implements DriverHomeH
         showOrdersTab(state.selectedTab);
         bindMap(state, isOnline);
 
-        binding.buttonDeliverToCustomer.setVisibility(
-                state.showDeliverToCustomerButton ? View.VISIBLE : View.GONE
-        );
-        binding.buttonDeliverToCustomer.setEnabled(!state.simulationRunning);
+        if (state.activeDeliveryOrderId > 0) {
+            binding.buttonDeliverToCustomer.setVisibility(View.VISIBLE);
+            if (com.shoopefood.mobile.util.DriverWorkPhaseUtils.TO_RESTAURANT.equals(state.driverWorkPhase)) {
+                if (state.simulationRunning) {
+                    binding.buttonDeliverToCustomer.setText("Đang đi lấy món...");
+                    binding.buttonDeliverToCustomer.setEnabled(false);
+                } else {
+                    binding.buttonDeliverToCustomer.setText("Đi lấy món");
+                    binding.buttonDeliverToCustomer.setEnabled(true);
+                }
+            } else if (com.shoopefood.mobile.util.DriverWorkPhaseUtils.AT_RESTAURANT.equals(state.driverWorkPhase)) {
+                if (state.simulationRunning) {
+                    binding.buttonDeliverToCustomer.setText("Đang đi giao hàng...");
+                    binding.buttonDeliverToCustomer.setEnabled(false);
+                } else {
+                    binding.buttonDeliverToCustomer.setText("Đã lấy đồ ăn & Đi giao");
+                    binding.buttonDeliverToCustomer.setEnabled(true);
+                }
+            } else if (com.shoopefood.mobile.util.DriverWorkPhaseUtils.DELIVERING.equals(state.driverWorkPhase)) {
+                binding.buttonDeliverToCustomer.setText("Đang đi giao hàng...");
+                binding.buttonDeliverToCustomer.setEnabled(false);
+            } else {
+                binding.buttonDeliverToCustomer.setVisibility(View.GONE);
+            }
+        } else {
+            binding.buttonDeliverToCustomer.setVisibility(View.GONE);
+        }
 
         if (isOnline && !state.simulationRunning) {
             startLocationWatchIfNeeded();
@@ -498,7 +521,15 @@ public class DriverHomeActivity extends AppCompatActivity implements DriverHomeH
     }
 
     private void setupDeliveryButton() {
-        binding.buttonDeliverToCustomer.setOnClickListener(v -> viewModel.startDeliverToCustomer());
+        binding.buttonDeliverToCustomer.setOnClickListener(v -> {
+            DriverUiState state = viewModel.getUiState().getValue();
+            if (state == null) return;
+            if (com.shoopefood.mobile.util.DriverWorkPhaseUtils.TO_RESTAURANT.equals(state.driverWorkPhase)) {
+                viewModel.startGoToMerchant();
+            } else if (com.shoopefood.mobile.util.DriverWorkPhaseUtils.AT_RESTAURANT.equals(state.driverWorkPhase)) {
+                viewModel.startDeliverToCustomer();
+            }
+        });
     }
 
     private void showOrdersTab(int selectedTab) {

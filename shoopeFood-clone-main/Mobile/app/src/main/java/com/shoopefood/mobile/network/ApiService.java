@@ -87,6 +87,9 @@ public interface ApiService {
     @PATCH("api/orders/{id}/reject")
     Call<OrderResponse> rejectOrder(@Path("id") int id, @Body RejectOrderRequest request);
 
+    @POST("api/orders/{id}/cancel")
+    Call<OrderResponse> cancelOrder(@Path("id") int id);
+
     @POST("api/orders/{id}/accept")
     Call<OrderResponse> acceptOrder(@Path("id") int id);
 
@@ -95,6 +98,14 @@ public interface ApiService {
 
     @GET("api/orders/{id}/tracking")
     Call<OrderTrackingResponse> getOrderTracking(@Path("id") int id);
+
+    @GET("api/orders/route")
+    Call<DrivingRouteResponse> getRoute(
+            @Query("fromLat") double fromLat,
+            @Query("fromLng") double fromLng,
+            @Query("toLat") double toLat,
+            @Query("toLng") double toLng
+    );
 
     @POST("api/applications/merchant")
     Call<ApiMessageResponse> applyMerchant(@Body MerchantApplicationRequest request);

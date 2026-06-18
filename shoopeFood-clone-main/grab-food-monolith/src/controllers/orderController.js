@@ -1071,6 +1071,27 @@ exports.deleteOrder = async (req, res) => {
   }
 };
 
+exports.getRoute = async (req, res) => {
+  try {
+    const fromLat = Number(req.query.fromLat);
+    const fromLng = Number(req.query.fromLng);
+    const toLat = Number(req.query.toLat);
+    const toLng = Number(req.query.toLng);
+
+    if (isNaN(fromLat) || isNaN(fromLng) || isNaN(toLat) || isNaN(toLng)) {
+      return res.status(400).json({ message: "Invalid coordinates" });
+    }
+
+    const route = await osrmService.getRoute(
+      { latitude: fromLat, longitude: fromLng },
+      { latitude: toLat, longitude: toLng }
+    );
+    return res.json({ data: route });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 exports.getOrdersPage = (req, res) => {
   return orderRepository
     .findAll()

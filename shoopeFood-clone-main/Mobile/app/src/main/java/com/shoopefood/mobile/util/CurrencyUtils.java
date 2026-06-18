@@ -10,6 +10,6 @@ public final class CurrencyUtils {
 
     public static String formatVnd(double value) {
         NumberFormat formatter = NumberFormat.getInstance(new Locale("vi", "VN"));
-        return formatter.format(Math.round(value)) + " d";
+        return formatter.format(Math.round(value)) + " ₫";
     }
 }

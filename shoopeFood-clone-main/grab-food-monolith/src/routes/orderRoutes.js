@@ -9,6 +9,7 @@ const router = express.Router();
 router.post("/secure", auth, requireRole(["CUSTOMER"]), orderController.createOrder);
 router.get("/", auth, orderController.getOrders);
 router.get("/page", orderController.getOrdersPage);
+router.get("/route", auth, orderController.getRoute);
 router.get("/:id/tracking", optionalAuth, orderController.getOrderTracking);
 router.get("/:id", orderController.getOrderById);
 router.post("/:id/accept", auth, requireRole(["DRIVER"]), orderController.acceptOrder);

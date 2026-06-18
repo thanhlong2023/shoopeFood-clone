@@ -33,7 +33,7 @@ public class DriverHomeViewModel extends AndroidViewModel {
     private static final long MIN_SYNC_INTERVAL_MS = 10_000L;
     private static final long FEED_POLL_INTERVAL_MS = 5_000L;
     private static final int SIMULATION_STEPS = 20;
-    private static final long SIMULATION_STEP_MS = 500L;
+    private static final long SIMULATION_STEP_MS = 2000L;
 
     private final DriverRepository repository;
     private final SessionManager sessionManager;
@@ -311,11 +311,10 @@ public class DriverHomeViewModel extends AndroidViewModel {
                         null,
                         new ArrayList<>(),
                         DriverUiState.ROUTE_LEG_TO_RESTAURANT,
-                        false,
+                        true,
                         false
                 ));
 
-                startSimulationToRestaurant(enrichedOrder);
                 loadFeed();
             }
 
@@ -332,6 +331,51 @@ public class DriverHomeViewModel extends AndroidViewModel {
                 toastMessage.setValue(message);
             }
         });
+    }
+
+    public void startGoToMerchant() {
+        if (deliveryOrder == null) {
+            toastMessage.setValue("Khong tim thay don dang giao");
+            return;
+        }
+
+        DriverUiState current = uiState.getValue();
+        if (current == null || current.simulationRunning) {
+            return;
+        }
+
+        uiState.setValue(current.copy(
+                null, null, null, null, null, null, null, null, null, true, null, null,
+                DriverWorkPhaseUtils.TO_RESTAURANT,
+                null, null, null, null, null, null, null,
+                DriverUiState.ROUTE_LEG_TO_RESTAURANT,
+                false,
+                false
+        ));
+
+        repository.updateOrderStatus(
+                deliveryOrder.id,
+                "PICKING_UP",
+                deliveryOrder.version,
+                new DriverRepository.OrderCallback() {
+                    @Override
+                    public void onSuccess(Order order) {
+                        deliveryOrder = order;
+                        startSimulationToRestaurant(order);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        DriverUiState latest = uiState.getValue();
+                        uiState.setValue(latest.copy(
+                                null, null, null, null, null, null, null, null, false, null, message, null,
+                                DriverWorkPhaseUtils.TO_RESTAURANT,
+                                null, null, null, null, null, null, null, null, true, null
+                        ));
+                        toastMessage.setValue(message);
+                    }
+                }
+        );
     }
 
     public void startDeliverToCustomer() {
@@ -430,15 +474,47 @@ public class DriverHomeViewModel extends AndroidViewModel {
                                     RoutePoint end = simulationRoute.isEmpty()
                                             ? new RoutePoint(restaurantLat, restaurantLng)
                                             : simulationRoute.get(simulationRoute.size() - 1);
-                                    uiState.setValue(arrived.copy(
-                                            null, null, null, null, null, end.latitude, end.longitude, null, null, null, null, null,
-                                            DriverWorkPhaseUtils.AT_RESTAURANT,
-                                            null, null, null, null, null, null, simulationRoute,
-                                            DriverUiState.ROUTE_LEG_TO_RESTAURANT,
-                                            true,
-                                            false
-                                    ));
-                                    toastMessage.setValue(getApplication().getString(R.string.driver_arrived_restaurant));
+
+                                    repository.updateOrderStatus(
+                                            order.id,
+                                            "CONFIRMED",
+                                            deliveryOrder != null ? deliveryOrder.version : order.version,
+                                            new DriverRepository.OrderCallback() {
+                                                @Override
+                                                public void onSuccess(Order updatedOrder) {
+                                                    deliveryOrder = updatedOrder;
+                                                    DriverUiState latest = uiState.getValue();
+                                                    if (latest != null) {
+                                                        uiState.setValue(latest.copy(
+                                                                null, null, null, null, null, end.latitude, end.longitude, null, null, null, null, null,
+                                                                DriverWorkPhaseUtils.AT_RESTAURANT,
+                                                                null, null, null, null, null, null, simulationRoute,
+                                                                DriverUiState.ROUTE_LEG_TO_RESTAURANT,
+                                                                true,
+                                                                false
+                                                        ));
+                                                    }
+                                                    toastMessage.setValue(getApplication().getString(R.string.driver_arrived_restaurant));
+                                                }
+
+                                                @Override
+                                                public void onError(String message) {
+                                                    // Fallback even if server call fails
+                                                    DriverUiState latest = uiState.getValue();
+                                                    if (latest != null) {
+                                                        uiState.setValue(latest.copy(
+                                                                null, null, null, null, null, end.latitude, end.longitude, null, null, null, null, null,
+                                                                DriverWorkPhaseUtils.AT_RESTAURANT,
+                                                                null, null, null, null, null, null, simulationRoute,
+                                                                DriverUiState.ROUTE_LEG_TO_RESTAURANT,
+                                                                true,
+                                                                false
+                                                        ));
+                                                    }
+                                                    toastMessage.setValue(message);
+                                                }
+                                            }
+                                    );
                                 }
                         );
                     }
@@ -604,6 +680,22 @@ public class DriverHomeViewModel extends AndroidViewModel {
     private void runRouteSimulation(List<RoutePoint> route, String phase, Runnable onComplete) {
         stopSimulation();
         simulationRoute = route != null ? new ArrayList<>(route) : new ArrayList<>();
+        
+        double distanceKm = 0.0;
+        if (route != null) {
+            for (int i = 1; i < route.size(); i++) {
+                RoutePoint prev = route.get(i - 1);
+                RoutePoint curr = route.get(i);
+                distanceKm += GeoUtils.distanceKm(prev.latitude, prev.longitude, curr.latitude, curr.longitude);
+            }
+        }
+        
+        // 10 seconds per 1 km = 10000 ms per km
+        double totalTimeMs = distanceKm * 10000.0;
+        if (totalTimeMs < 2000.0) {
+            totalTimeMs = 2000.0; // Minimum 2 seconds
+        }
+        final int totalSteps = (int) (totalTimeMs / SIMULATION_STEP_MS);
         final int[] step = {0};
 
         simulationRunnable = new Runnable() {
@@ -614,7 +706,6 @@ public class DriverHomeViewModel extends AndroidViewModel {
                     return;
                 }
 
-                int totalSteps = Math.max(SIMULATION_STEPS, Math.min(simulationRoute.size(), 40));
                 double fraction = step[0] / (double) totalSteps;
                 RoutePoint point = RouteInterpolator.pointAtFraction(simulationRoute, fraction);
                 uiState.setValue(current.copy(
@@ -626,7 +717,7 @@ public class DriverHomeViewModel extends AndroidViewModel {
                         null, null, null, null, null, null, simulationRoute, current.routeLeg, null, true
                 ));
 
-                repository.pushLocation(getDriverId(), point.latitude, point.longitude);
+                repository.pushLocation(getDriverId(), point.latitude, point.longitude, current.activeDeliveryOrderId);
 
                 if (step[0] >= totalSteps) {
                     stopSimulation();
@@ -751,7 +842,9 @@ public class DriverHomeViewModel extends AndroidViewModel {
         lastLocationSyncAtMs = now;
         lastSyncedLatitude = latitude;
         lastSyncedLongitude = longitude;
-        repository.pushLocation(driverId, latitude, longitude);
+        DriverUiState state = uiState.getValue();
+        Integer activeOrderId = (state != null && state.activeDeliveryOrderId > 0) ? state.activeDeliveryOrderId : null;
+        repository.pushLocation(driverId, latitude, longitude, activeOrderId);
     }
 
     public void selectTab(int tab) {

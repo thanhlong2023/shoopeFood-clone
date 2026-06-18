@@ -153,7 +153,11 @@ public class DriverRepository {
     }
 
     public void pushLocation(int driverId, double latitude, double longitude) {
-        DriverLocationRequest locationRequest = new DriverLocationRequest(latitude, longitude);
+        pushLocation(driverId, latitude, longitude, null);
+    }
+
+    public void pushLocation(int driverId, double latitude, double longitude, Integer orderId) {
+        DriverLocationRequest locationRequest = new DriverLocationRequest(latitude, longitude, orderId);
         apiService.updateDriverLocation(driverId, locationRequest).enqueue(new Callback<com.shoopefood.mobile.model.ApiMessageResponse>() {
             @Override
             public void onResponse(Call<com.shoopefood.mobile.model.ApiMessageResponse> call, Response<com.shoopefood.mobile.model.ApiMessageResponse> response) {

@@ -188,14 +188,16 @@ public class CustomerTrackingMapController {
             mapView.getController().setZoom(12.0);
             return;
         }
-        if (points.size() == 1) {
-            mapView.getController().animateTo(points.get(0));
+        if (points.size() == 1 || mapView.getWidth() == 0 || mapView.getHeight() == 0) {
+            mapView.getController().setCenter(points.get(0));
             mapView.getController().setZoom(15.0);
             return;
         }
 
-        BoundingBox bounds = BoundingBox.fromGeoPoints(points);
-        mapView.post(() -> mapView.zoomToBoundingBox(bounds.increaseByScale(1.2f), true, 100));
+        try {
+            BoundingBox bounds = BoundingBox.fromGeoPoints(points);
+            mapView.zoomToBoundingBox(bounds.increaseByScale(1.2f), true, 100);
+        } catch (Exception ignored) {}
     }
 
     public void onResume() {
