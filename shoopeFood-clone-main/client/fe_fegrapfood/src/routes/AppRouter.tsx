@@ -40,7 +40,14 @@ export default function AppRouter() {
             </RequireAuth>
           }
         />
-        <Route path="/tracking" element={<TrackingPage />} />
+        <Route
+          path="/tracking"
+          element={
+            <RequireAuth>
+              <TrackingPage />
+            </RequireAuth>
+          }
+        />
         <Route
           path="/driver"
           element={

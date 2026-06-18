@@ -2,13 +2,11 @@ import { NavLink, useNavigate, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { APP_NAME } from '../../constants/app'
 import { useAuth } from '../../contexts/AuthContext'
-import { useTrackableOrder } from '../../hooks/useTrackableOrder'
 import ApplyDriverModal from '../partner/ApplyDriverModal'
 import ApplyMerchantModal from '../partner/ApplyMerchantModal'
 
 export default function Navbar() {
   const { isAuthenticated, user, logout, hasRole } = useAuth()
-  const { hasTrackableOrder } = useTrackableOrder()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -144,10 +142,6 @@ export default function Navbar() {
                 {isAuthenticated ? (
                   <li>
                     <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Don hang</NavLink>
-                  </li>
-                ) : hasTrackableOrder ? (
-                  <li>
-                    <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-[#00883d] shadow-sm' : 'text-gray-500'}`}>Theo doi</NavLink>
                   </li>
                 ) : null}
               </>
