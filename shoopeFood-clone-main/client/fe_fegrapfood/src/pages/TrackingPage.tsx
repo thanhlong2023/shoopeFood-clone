@@ -652,7 +652,7 @@ export default function TrackingPage() {
           <span className="hero-badge">Theo d�i don hang</span>
           <h1>Chua c� don h�ng d? theo d�i</h1>
           <p>�?t m�n xong b?n s? th?y ti?n tr�nh giao h�ng v� l? tr�nh t�i x? t?i d�y.</p>
-          <Link className="button-primary" to="/">
+          <Link className="button-primary" to="/food">
             �?t m�n ngay
           </Link>
         </div>
@@ -675,7 +675,7 @@ export default function TrackingPage() {
           <span className="hero-badge">�on hang cua ban</span>
           <h1>Chua c� don h�ng n�o</h1>
           <p>�?t m�n d? xem l?ch s? v� theo d�i giao h�ng t?i d�y.</p>
-          <Link className="button-primary" to="/">
+          <Link className="button-primary" to="/food">
             �?t m�n ngay
           </Link>
         </div>
@@ -956,7 +956,7 @@ export default function TrackingPage() {
             </div>
           ) : null}
 
-          <Link className="button-secondary" to="/">
+          <Link className="button-secondary" to="/food">
             �?t th�m m�n
           </Link>
 

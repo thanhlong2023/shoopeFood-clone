@@ -200,7 +200,7 @@ export default function BrowseRestaurantsPage() {
           <p className="text-sm font-bold text-gray-500">
             {isLoading ? 'Đang tải...' : `${filteredRestaurants.length} nhà hàng phù hợp`}
           </p>
-          <Link to="/" className="rounded-full bg-white px-4 py-2 text-xs font-black text-[#00b14f] shadow-sm">
+          <Link to="/food" className="rounded-full bg-white px-4 py-2 text-xs font-black text-[#00b14f] shadow-sm">
             Về trang đặt món
           </Link>
         </div>
