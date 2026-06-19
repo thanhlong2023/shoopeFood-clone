@@ -78,7 +78,7 @@ public class DriverLocationHelper {
 
     public void fetchCurrentLocation(Context context, OnLocationResult callback) {
         if (!hasLocationPermission(context)) {
-            callback.onError("Chua cap quyen vi tri");
+            callback.onError("Chưa cấp quyền vị trí");
             return;
         }
 
@@ -96,14 +96,14 @@ public class DriverLocationHelper {
                         callback.onSuccess(location.getLatitude(), location.getLongitude(),
                                 location.hasAccuracy() ? location.getAccuracy() : 0f);
                     } else {
-                        callback.onError("Khong the lay vi tri hien tai.");
+                        callback.onError("Không thể lấy vị trí hiện tại.");
                     }
                 }
             };
 
             fusedLocationClient.requestLocationUpdates(request, singleUpdateCallback, Looper.getMainLooper());
         } catch (SecurityException e) {
-            callback.onError("Khong co quyen truy cap vi tri");
+            callback.onError("Không có quyền truy cập vị trí");
         }
     }
 
@@ -167,7 +167,7 @@ public class DriverLocationHelper {
                     Looper.getMainLooper()
             );
         } catch (SecurityException ex) {
-            finishFetchWithError("Khong co quyen truy cap vi tri");
+            finishFetchWithError("Không có quyền truy cập vị trí");
         }
     }
 
@@ -222,13 +222,13 @@ public class DriverLocationHelper {
 
         if (bestFetchLocation != null) {
             finishFetchWithError(String.format(
-                    "GPS chua du chinh xac (sai so %.0fm). Di ra noi thoang hon roi thu lai.",
+                    "GPS chưa đủ chính xác (sai số %.0fm). Đi ra nơi thoáng hơn rồi thử lại.",
                     bestFetchLocation.getAccuracy()
             ));
             return;
         }
 
-        finishFetchWithError("Khong lay duoc vi tri GPS. Hay bat dinh vi va thu lai.");
+        finishFetchWithError("Không lấy được vị trí GPS. Hãy bật định vị và thử lại.");
     }
 
     private void finishFetchWithError(String message) {

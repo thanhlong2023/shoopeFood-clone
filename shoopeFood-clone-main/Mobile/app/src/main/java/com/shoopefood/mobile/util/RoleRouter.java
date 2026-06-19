@@ -33,8 +33,8 @@ public final class RoleRouter {
 
     public static String getBlockedMessage(String role) {
         if (ROLE_ADMIN.equals(role)) {
-            return "Tai khoan Admin chi dung duoc tren web.";
+            return "Tài khoản Admin chỉ được sử dụng trên web.";
         }
-        return "Vai tro nay chua ho tro tren mobile.";
+        return "Vai trò này chưa hỗ trợ trên mobile.";
     }
 }

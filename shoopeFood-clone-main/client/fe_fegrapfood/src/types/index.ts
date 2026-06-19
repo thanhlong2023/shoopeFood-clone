@@ -118,6 +118,32 @@ export type CreateOrderPayload = {
   items: OrderItemPayload[]
 }
 
+export type AddressSuggestion = {
+  placeId: string
+  description: string
+  mainText: string
+  secondaryText: string
+  latitude: number | null
+  longitude: number | null
+  provider: string
+  raw?: unknown
+}
+
+export type AddressDetail = {
+  placeId: string
+  formattedAddress: string
+  latitude: number | null
+  longitude: number | null
+  province: string
+  district: string
+  ward: string
+  street: string
+  houseNumber: string
+  name?: string
+  provider: string
+  raw?: unknown
+}
+
 export type OrderItem = {
   id: number
   orderId: number
@@ -141,6 +167,7 @@ export type Order = {
   restaurant?: Pick<Restaurant, 'id' | 'name' | 'address' | 'latitude' | 'longitude' | 'isOpen'> | null
   driverId: number | null
   driver?: Driver | null
+  driverName?: string | null
   receiverAddress: string
   receiverLat: number | null
   receiverLng: number | null

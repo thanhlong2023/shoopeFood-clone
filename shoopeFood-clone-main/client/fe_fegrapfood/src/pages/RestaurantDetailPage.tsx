@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getRestaurantById } from '../services/api/restaurants'
-import { createOrder } from '../services/api/orders'
 import ImageUrlField from '../components/common/ImageUrlField'
+import AddressAutocomplete from '../components/common/AddressAutocomplete'
+import ShippingTypeSelect from '../components/common/ShippingTypeSelect'
+import { reverseGeocodeAddress } from '../services/api/addresses'
 import { createFood, getFoods, updateFood, type FoodPayload } from '../services/api/foods'
 import { createCategory, getCategories } from '../services/api/categories'
 import { foodPhotoStyle } from '../utils/foodImage'
@@ -15,7 +17,8 @@ import { getCartDraft, saveCartDraft } from '../utils/cartDraft'
 import { calculateDistanceKm } from '../utils/geoUtils'
 import { ErrorModal } from '../components/ErrorModal'
 import { setLastOrderId } from '../utils/orderStorage'
-import type { Restaurant, Food, Category, CreateOrderPayload, Order } from '../types'
+import { saveCheckoutDraft } from '../utils/checkoutDraft'
+import type { AddressDetail, Restaurant, Food, Category, CreateOrderPayload, Order } from '../types'
 
 type CartState = Record<number, number>
 
@@ -73,6 +76,24 @@ function formatMoney(value: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(value))
 }
 
+function isValidCoordinate(latitude: number, longitude: number) {
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    Math.abs(latitude) <= 90 &&
+    Math.abs(longitude) <= 180
+  )
+}
+
+function toNullableCoordinate(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
+}
+
 function isFoodInStock(food: Food) {
   return food.isAvailable && Number(food.currentQuantity || 0) > 0
 }
@@ -115,6 +136,7 @@ function MapViewUpdater({ position }: { position: [number, number] }) {
 export default function RestaurantDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user, isAuthenticated } = useAuth()
+  const navigate = useNavigate()
   const restaurantId = Number(id)
 
   useDocumentTitle(`${APP_NAME} | Chi tiết nhà hàng`)
@@ -150,9 +172,9 @@ export default function RestaurantDetailPage() {
   }, [cart, restaurantId])
 
   const [checkout, setCheckout] = useState<CheckoutState>(emptyCheckout)
+  const [isDeliveryAddressConfirmed, setIsDeliveryAddressConfirmed] = useState(false)
+  const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState<AddressDetail | null>(null)
   const [isLocating, setIsLocating] = useState(false)
-  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false)
-  const [orderFeedback, setOrderFeedback] = useState<Order | null>(null)
 
   const isAdmin = user?.role === 'ADMIN'
   const isMerchantOwner = Boolean(
@@ -263,13 +285,13 @@ export default function RestaurantDetailPage() {
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0)
 
   useEffect(() => {
-    const receiverLat = Number(checkout.receiverLat)
-    const receiverLng = Number(checkout.receiverLng)
+    const receiverLat = toNullableCoordinate(checkout.receiverLat)
+    const receiverLng = toNullableCoordinate(checkout.receiverLng)
 
     if (
       !restaurant ||
-      !Number.isFinite(receiverLat) ||
-      !Number.isFinite(receiverLng) ||
+      receiverLat === null ||
+      receiverLng === null ||
       !Number.isFinite(Number(restaurant.latitude)) ||
       !Number.isFinite(Number(restaurant.longitude))
     ) {
@@ -295,12 +317,44 @@ export default function RestaurantDetailPage() {
 
       return nextCart
     })
-    setOrderFeedback(null)
+  }
+
+  function updateReceiverAddress(value: string) {
+    setCheckout((current) => ({
+      ...current,
+      receiverAddress: value,
+      receiverLat: '',
+      receiverLng: '',
+      distanceKm: '',
+    }))
+    setSelectedDeliveryAddress(null)
+    setIsDeliveryAddressConfirmed(false)
+  }
+
+  function selectDeliveryAddress(address: AddressDetail) {
+    const receiverLat = toNullableCoordinate(address.latitude)
+    const receiverLng = toNullableCoordinate(address.longitude)
+    const hasValidCoordinates = receiverLat !== null && receiverLng !== null && isValidCoordinate(receiverLat, receiverLng)
+    const nextDistance =
+      restaurant && hasValidCoordinates
+        ? calculateDistanceKm(restaurant.latitude, restaurant.longitude, receiverLat, receiverLng)
+        : Number(checkout.distanceKm)
+
+    setCheckout((current) => ({
+      ...current,
+      receiverAddress: address.formattedAddress,
+      receiverLat: hasValidCoordinates ? receiverLat.toFixed(6) : '',
+      receiverLng: hasValidCoordinates ? receiverLng.toFixed(6) : '',
+      distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
+    }))
+    setSelectedDeliveryAddress(address)
+    setIsDeliveryAddressConfirmed(hasValidCoordinates)
+    setMenuError(hasValidCoordinates ? null : 'Địa chỉ đã chọn chưa có tọa độ hợp lệ')
   }
 
   function useCurrentLocation() {
     if (!navigator.geolocation) {
-      setMenuError('Trinh duyệt khong ho tro lay vi tri')
+      setMenuError('Trình duyệt không hỗ trợ lấy vị trí')
       return
     }
 
@@ -309,19 +363,37 @@ export default function RestaurantDetailPage() {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        void (async () => {
         const receiverLat = position.coords.latitude
         const receiverLng = position.coords.longitude
         const nextDistance = restaurant
           ? calculateDistanceKm(restaurant.latitude, restaurant.longitude, receiverLat, receiverLng)
           : Number(checkout.distanceKm)
+        const resolvedAddress = await reverseGeocodeAddress(receiverLat, receiverLng)
+
+        if (!resolvedAddress.formattedAddress) {
+          throw new Error('Không thể suy ra địa chỉ từ vị trí hiện tại')
+        }
 
         setCheckout((current) => ({
           ...current,
+          receiverAddress: resolvedAddress.formattedAddress,
           receiverLat: receiverLat.toFixed(6),
           receiverLng: receiverLng.toFixed(6),
           distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
         }))
+        setSelectedDeliveryAddress({
+          ...resolvedAddress,
+          latitude: receiverLat,
+          longitude: receiverLng,
+        })
+        setIsDeliveryAddressConfirmed(true)
         setIsLocating(false)
+        })().catch((error) => {
+          setMenuError(error instanceof Error ? error.message : 'Không thể suy ra địa chỉ từ vị trí hiện tại')
+          setIsDeliveryAddressConfirmed(false)
+          setIsLocating(false)
+        })
       },
       (error) => {
         setMenuError(error.message || 'Không thể lấy vị trí hiện tại')
@@ -333,15 +405,19 @@ export default function RestaurantDetailPage() {
 
   function validateOrder() {
     if (!restaurant) return 'Không tìm thấy nhà hàng'
-    if (!canOrder) return 'Nhà hàng hien chua nhan don'
-    if (!isAuthenticated || user?.role !== 'CUSTOMER') return 'Vui long dang nhap tài khoản khách hang de dat mon'
-    if (cartItems.length === 0) return 'Gio hang dang trong'
-    if (!checkout.receiverAddress.trim()) return 'Vui long nhap dia chi giao hàng'
-    if (!Number.isFinite(Number(checkout.receiverLat)) || !Number.isFinite(Number(checkout.receiverLng))) {
-      return 'Toa do giao hàng khong hop le'
+    if (!canOrder) return 'Nhà hàng hiện chưa nhận đơn'
+    if (!isAuthenticated || user?.role !== 'CUSTOMER') return 'Vui lòng đăng nhập tài khoản khách hàng để đặt món'
+    if (cartItems.length === 0) return 'Giỏ hàng đang trống'
+    if (!checkout.receiverAddress.trim()) return 'Vui lòng nhập địa chỉ giao hàng'
+    if (!isDeliveryAddressConfirmed) return 'Vui lòng chọn địa chỉ giao hàng từ danh sách gợi ý'
+    const receiverLat = toNullableCoordinate(checkout.receiverLat)
+    const receiverLng = toNullableCoordinate(checkout.receiverLng)
+
+    if (receiverLat === null || receiverLng === null || !isValidCoordinate(receiverLat, receiverLng)) {
+      return 'Tọa độ giao hàng không hợp lệ'
     }
     if (!Number.isFinite(Number(checkout.distanceKm)) || Number(checkout.distanceKm) <= 0) {
-      return 'Khoang cach giao hàng khong hop le'
+      return 'Khoảng cách giao hàng không hợp lệ'
     }
 
     return null
@@ -356,36 +432,52 @@ export default function RestaurantDetailPage() {
       return
     }
 
-    try {
-      setIsSubmittingOrder(true)
-      setMenuError(null)
-      setOrderFeedback(null)
+    const idempotencyKey = `WEB-${Date.now()}-${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`
 
-      const createdOrder = await createOrder({
-        restaurantId: restaurant.id,
-        receiverAddress: checkout.receiverAddress.trim(),
-        receiverLat: Number(checkout.receiverLat),
-        receiverLng: Number(checkout.receiverLng),
+    saveCheckoutDraft({
+      id: idempotencyKey,
+      createdAt: new Date().toISOString(),
+      idempotencyKey,
+      restaurant: {
+        id: restaurant.id,
+        name: restaurant.name,
+        address: restaurant.address,
+        imageUrl: restaurant.imageUrl,
+        ratingAvg: restaurant.ratingAvg,
+      },
+      receiver: {
+        address: checkout.receiverAddress.trim(),
+        lat: Number(checkout.receiverLat),
+        lng: Number(checkout.receiverLng),
         distanceKm: Number(checkout.distanceKm),
-        shippingType: checkout.shippingType,
+        placeId: selectedDeliveryAddress?.placeId,
+        formattedAddress: selectedDeliveryAddress?.formattedAddress,
+        province: selectedDeliveryAddress?.province,
+        district: selectedDeliveryAddress?.district,
+        ward: selectedDeliveryAddress?.ward,
+        street: selectedDeliveryAddress?.street,
+        houseNumber: selectedDeliveryAddress?.houseNumber,
+        provider: selectedDeliveryAddress?.provider || 'BROWSER_GEOLOCATION',
+      },
+      shippingType: checkout.shippingType,
+      pricing: {
+        subtotalAmount: subtotal,
+        shippingFee,
         discountAmount,
         taxAmount: 0,
-        idempotencyKey: `RESTAURANT-${restaurant.id}-${Date.now()}-${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`,
-        items: cartItems.map((item) => ({
-          foodId: item.food.id,
-          quantity: item.quantity,
-        })),
-      })
+        totalAmount,
+      },
+      items: cartItems.map((item) => ({
+        foodId: item.food.id,
+        name: item.food.name,
+        imageUrl: item.food.imageUrl,
+        price: Number(item.food.price),
+        quantity: item.quantity,
+        lineTotal: Number(item.food.price) * item.quantity,
+      })),
+    })
 
-      setOrderFeedback(createdOrder)
-      setLastOrderId(createdOrder.id)
-      setCart({})
-      await loadMenu()
-    } catch (error) {
-      setMenuError(error instanceof Error ? error.message : 'Không thể tạo đơn hàng')
-    } finally {
-      setIsSubmittingOrder(false)
-    }
+    navigate('/payment')
   }
 
   function editFood(food: Food) {
@@ -472,6 +564,7 @@ export default function RestaurantDetailPage() {
     }
 
     try {
+      setMenuError(null)
       setIsSavingCategory(true)
       setCategoryNameError(null)
       setCategoryFeedback(null)
@@ -642,108 +735,12 @@ export default function RestaurantDetailPage() {
 
           {foodFeedback ? <p className="restaurant-feedback success">{foodFeedback}</p> : null}
           {categoryFeedback ? <p className="restaurant-feedback success">{categoryFeedback}</p> : null}
-          {orderFeedback ? (
-            <p className="restaurant-feedback success">
-              Da dat don {orderFeedback.orderCode}. <Link to={`/tracking?orderId=${orderFeedback.id}`}>Theo dõi don</Link>
-            </p>
-          ) : null}
 
-          {!canManageFoods ? (
-            <form className="restaurant-order-panel" onSubmit={handleOrderSubmit}>
-              <div className="section-heading-row">
-                <h3>Giỏ hàng từ quán này</h3>
-                <span className="owner-note">{cartCount} món</span>
-              </div>
-
-              <div className="restaurant-cart-lines">
-                {cartItems.map((item) => (
-                  <div key={item.food.id} className="restaurant-cart-line">
-                    <span>{item.food.name}</span>
-                    <strong>
-                      {item.quantity} x {formatMoney(Number(item.food.price))} d
-                    </strong>
-                  </div>
-                ))}
-                {cartItems.length === 0 ? <p className="empty-state">Chọn món bên dưới để đặt hàng.</p> : null}
-              </div>
-
-              <div className="restaurant-form-grid">
-                <div className="restaurant-field full">
-                  <label htmlFor="restaurantReceiverAddress">Địa chỉ giao hàng</label>
-                  <input
-                    id="restaurantReceiverAddress"
-                    value={checkout.receiverAddress}
-                    onChange={(event) => setCheckout((current) => ({ ...current, receiverAddress: event.target.value }))}
-                    placeholder="Nhập địa chỉ giao hàng"
-                  />
-                </div>
-
-                <div className="restaurant-field">
-                  <label htmlFor="restaurantReceiverLat">Vĩ độ</label>
-                  <input
-                    id="restaurantReceiverLat"
-                    value={checkout.receiverLat}
-                    onChange={(event) => setCheckout((current) => ({ ...current, receiverLat: event.target.value }))}
-                  />
-                </div>
-
-                <div className="restaurant-field">
-                  <label htmlFor="restaurantReceiverLng">Kinh độ</label>
-                  <input
-                    id="restaurantReceiverLng"
-                    value={checkout.receiverLng}
-                    onChange={(event) => setCheckout((current) => ({ ...current, receiverLng: event.target.value }))}
-                  />
-                </div>
-
-                <div className="restaurant-field">
-                  <label htmlFor="restaurantDistanceKm">Km</label>
-                  <input
-                    id="restaurantDistanceKm"
-                    value={checkout.distanceKm}
-                    onChange={(event) => setCheckout((current) => ({ ...current, distanceKm: event.target.value }))}
-                  />
-                </div>
-
-                <div className="restaurant-field">
-                  <label htmlFor="restaurantShippingType">Giao hàng</label>
-                  <select
-                    id="restaurantShippingType"
-                    value={checkout.shippingType}
-                    onChange={(event) =>
-                      setCheckout((current) => ({
-                        ...current,
-                        shippingType: event.target.value as CheckoutState['shippingType'],
-                      }))
-                    }
-                  >
-                    <option value="STANDARD">Standard</option>
-                    <option value="FAST">Fast</option>
-                    <option value="ECO">Eco</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="restaurant-order-summary">
-                <span>Tạm tính: {formatMoney(subtotal)} d</span>
-                <span>Ship: {formatMoney(shippingFee)} d</span>
-                <span>Ưu đãi: -{formatMoney(discountAmount)} d</span>
-                <strong>Tổng: {formatMoney(totalAmount)} d</strong>
-              </div>
-
-              <div className="restaurant-form-actions">
-                <button type="button" className="button-secondary" onClick={useCurrentLocation} disabled={isLocating}>
-                  {isLocating ? 'Đang lấy vị trí...' : 'Dùng vị trí hiện tại'}
-                </button>
-                <button type="submit" className="button-primary" disabled={isSubmittingOrder || cartItems.length === 0}>
-                  {isSubmittingOrder ? 'Đang đặt hàng...' : 'Đặt hàng'}
-                </button>
-              </div>
-            </form>
-          ) : null}
+          <div className="flex flex-col lg:flex-row gap-6 items-start mt-6">
+            <div className="flex-1 min-w-0 w-full">
 
           {canManageFoods ? (
-            <div className="category-owner-panel">
+            <div className="category-owner-panel mb-6">
               <div className="section-heading-row">
                 <h3>Danh mục món</h3>
                 <button type="button" className="button-secondary" onClick={() => void loadMenu()}>
@@ -785,7 +782,7 @@ export default function RestaurantDetailPage() {
           ) : null}
 
           {canManageFoods ? (
-            <form className="food-owner-form" noValidate onSubmit={handleFoodSubmit}>
+            <form className="food-owner-form mb-6" noValidate onSubmit={handleFoodSubmit}>
               <div className="restaurant-form-grid">
                 <div className="restaurant-field">
                   <label htmlFor="foodName">Tên món</label>
@@ -902,118 +899,249 @@ export default function RestaurantDetailPage() {
                     {categoryFoods.length === 0 ? (
                       <p className="empty-state">Chưa có món trong danh mục này</p>
                     ) : (
-                      <div className="food-grid">
-                        {categoryFoods.map((food) => (
-                          <div key={food.id} className="restaurant-food-card">
-                            <div
-                              className={`food-card-photo ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
-                              style={foodPhotoStyle(food.imageUrl, food.id)}
-                            />
-                            <div className="food-card-header">
-                              <h4>{food.name}</h4>
-                              <span className={`availability-badge ${isFoodInStock(food) ? 'available' : 'unavailable'}`}>
-                                {isFoodInStock(food) ? 'Còn' : 'Hết'}
-                              </span>
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                              {categoryFoods.map((food) => (
+                                <article key={food.id} className={`tw-food-card bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between ${!isFoodInStock(food) ? 'opacity-60' : ''}`}>
+                                  <div>
+                                    <div
+                                      className={`tw-food-photo h-[120px] relative bg-cover bg-center ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
+                                      style={foodPhotoStyle(food.imageUrl, food.id)}
+                                    >
+                                      <span className="absolute left-3 bottom-3 bg-black/60 text-white rounded-full text-[10px] px-2.5 py-1 font-semibold z-10">
+                                        {isFoodInStock(food) ? 'Còn' : 'Hết'}
+                                      </span>
+                                    </div>
+                                    <div className="tw-food-body p-3 flex flex-col gap-1">
+                                      <h3 className="font-bold text-gray-900 text-sm line-clamp-1 m-0" title={food.name}>{food.name}</h3>
+                                      <div className="flex justify-between items-center mt-1">
+                                        <span className="font-extrabold text-[gray-900] text-sm">{food.price.toLocaleString('vi-VN')} đ</span>
+                                        {canManageFoods && (
+                                          <span className="text-[10px] text-gray-500 font-medium">Kho: {food.currentQuantity}/{food.defaultQuantity}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="tw-quantity-row p-3 pt-0 flex flex-wrap items-center justify-between gap-2 mt-auto">
+                                    {canOrder && (
+                                      <>
+                                        {(cart[food.id] || 0) > 0 ? (
+                                          <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-full px-2 py-1">
+                                            <button
+                                              type="button"
+                                              className="w-6 h-6 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center cursor-pointer text-gray-600 border border-gray-200 transition-colors"
+                                              onClick={() => updateCart(food, (cart[food.id] || 0) - 1)}
+                                            >
+                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M20 12H4" /></svg>
+                                            </button>
+                                            <strong className="text-xs font-bold text-gray-800 w-4 text-center">{cart[food.id]}</strong>
+                                          </div>
+                                        ) : <span />}
+                                        <button
+                                          type="button"
+                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand hover:bg-brand-dark disabled:bg-gray-100 disabled:text-gray-400 text-white rounded-full text-[11px] font-bold transition-all cursor-pointer border-0 shadow-sm"
+                                          onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
+                                          disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
+                                        >
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
+                                          Thêm
+                                        </button>
+                                      </>
+                                    )}
+                                    {canManageFoods && (
+                                      <button type="button" className="text-xs text-brand hover:underline font-bold ml-auto bg-transparent border-0 cursor-pointer" onClick={() => editFood(food)}>
+                                        Sửa món
+                                      </button>
+                                    )}
+                                  </div>
+                                </article>
+                              ))}
                             </div>
+                          )}
+                        </div>
+                      )
+                    })}
 
-                            <div className="food-card-details">
-                              <p>
-                                <strong>{food.price.toLocaleString('vi-VN')} đ</strong>
-                              </p>
-                              <p>
-                                Hiện có: {food.currentQuantity}/{food.defaultQuantity}
-                              </p>
-                              {food.quantityResetDate ? <p>Reset lúc: {formatDateTime(food.quantityResetDate)}</p> : null}
-                            </div>
-
-                            {canOrder ? (
-                              <div className="restaurant-order-actions">
-                                {(cart[food.id] || 0) > 0 ? (
-                                  <button type="button" className="button-secondary" onClick={() => updateCart(food, (cart[food.id] || 0) - 1)}>
-                                    -
-                                  </button>
-                                ) : null}
-                                {(cart[food.id] || 0) > 0 ? <strong>{cart[food.id]}</strong> : null}
-                                <button
-                                  type="button"
-                                  className="button-primary"
-                                  onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
-                                  disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
+                    {(foodsByCategory[0] || []).length > 0 ? (
+                      <div className="food-category-group">
+                        <h3>Không có danh mục</h3>
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                          {(foodsByCategory[0] || []).map((food) => (
+                            <article key={food.id} className={`tw-food-card bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between ${!isFoodInStock(food) ? 'opacity-60' : ''}`}>
+                              <div>
+                                <div
+                                  className={`tw-food-photo h-[120px] relative bg-cover bg-center ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
+                                  style={foodPhotoStyle(food.imageUrl, food.id)}
                                 >
-                                  Thêm
-                                </button>
+                                  <span className="absolute left-3 bottom-3 bg-black/60 text-white rounded-full text-[10px] px-2.5 py-1 font-semibold z-10">
+                                    {isFoodInStock(food) ? 'Còn' : 'Hết'}
+                                  </span>
+                                </div>
+                                <div className="tw-food-body p-3 flex flex-col gap-1">
+                                  <h3 className="font-bold text-gray-900 text-sm line-clamp-1 m-0" title={food.name}>{food.name}</h3>
+                                  <div className="flex justify-between items-center mt-1">
+                                    <span className="font-extrabold text-[gray-900] text-sm">{food.price.toLocaleString('vi-VN')} đ</span>
+                                    {canManageFoods && (
+                                      <span className="text-[10px] text-gray-500 font-medium">Kho: {food.currentQuantity}/{food.defaultQuantity}</span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
-                            ) : null}
-
-                            {canManageFoods ? (
-                              <div className="food-card-actions">
-                                <button type="button" className="button-secondary" onClick={() => editFood(food)}>
-                                  Sửa món
-                                </button>
+                              
+                              <div className="tw-quantity-row p-3 pt-0 flex flex-wrap items-center justify-between gap-2 mt-auto">
+                                {canOrder && (
+                                  <>
+                                    {(cart[food.id] || 0) > 0 ? (
+                                      <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-full px-2 py-1">
+                                        <button
+                                          type="button"
+                                          className="w-6 h-6 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center cursor-pointer text-gray-600 border border-gray-200 transition-colors"
+                                          onClick={() => updateCart(food, (cart[food.id] || 0) - 1)}
+                                        >
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M20 12H4" /></svg>
+                                        </button>
+                                        <strong className="text-xs font-bold text-gray-800 w-4 text-center">{cart[food.id]}</strong>
+                                      </div>
+                                    ) : <span />}
+                                    <button
+                                      type="button"
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand hover:bg-brand-dark disabled:bg-gray-100 disabled:text-gray-400 text-white rounded-full text-[11px] font-bold transition-all cursor-pointer border-0 shadow-sm"
+                                      onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
+                                      disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
+                                    >
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
+                                      Thêm
+                                    </button>
+                                  </>
+                                )}
+                                {canManageFoods && (
+                                  <button type="button" className="text-xs text-brand hover:underline font-bold ml-auto bg-transparent border-0 cursor-pointer" onClick={() => editFood(food)}>
+                                    Sửa món
+                                  </button>
+                                )}
                               </div>
-                            ) : null}
-                          </div>
-                        ))}
+                            </article>
+                          ))}
+                        </div>
                       </div>
-                    )}
+                    ) : null}
                   </div>
-                )
-              })}
+                )}
+            </div>
 
-              {(foodsByCategory[0] || []).length > 0 ? (
-                <div className="food-category-group">
-                  <h3>Không có danh mục</h3>
-                  <div className="food-grid">
-                    {(foodsByCategory[0] || []).map((food) => (
-                      <div key={food.id} className="restaurant-food-card">
-                        <div
-                          className={`food-card-photo ${foodPhotoStyle(food.imageUrl, food.id) ? '' : 'food-photo--placeholder'}`}
-                          style={foodPhotoStyle(food.imageUrl, food.id)}
-                        />
-                        <div className="food-card-header">
-                          <h4>{food.name}</h4>
-                          <span className={`availability-badge ${isFoodInStock(food) ? 'available' : 'unavailable'}`}>
-                            {isFoodInStock(food) ? 'Còn' : 'Hết'}
-                          </span>
-                        </div>
-                        <div className="food-card-details">
-                          <p>
-                            <strong>{food.price.toLocaleString('vi-VN')} đ</strong>
-                          </p>
-                        </div>
-                        {canOrder ? (
-                          <div className="restaurant-order-actions">
-                            {(cart[food.id] || 0) > 0 ? (
-                              <button type="button" className="button-secondary" onClick={() => updateCart(food, (cart[food.id] || 0) - 1)}>
-                                -
-                              </button>
-                            ) : null}
-                            {(cart[food.id] || 0) > 0 ? <strong>{cart[food.id]}</strong> : null}
-                            <button
-                              type="button"
-                              className="button-primary"
-                              onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
-                              disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
-                            >
-                              Thêm
-                            </button>
-                          </div>
-                        ) : null}
+            {!canManageFoods ? (
+              <aside className="w-full lg:w-[360px] shrink-0 sticky top-24 relative">
+                {menuError ? (
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%]">
+                    <div className="bg-red-50 text-red-600 p-4 rounded-xl border-2 border-red-200 shadow-[0_10px_40px_rgba(239,68,68,0.3)] text-base font-bold text-center">
+                      {menuError}
+                    </div>
+                  </div>
+                ) : null}
+                <form className="restaurant-order-panel !m-0" onSubmit={handleOrderSubmit}>
+                  <div className="section-heading-row">
+                    <h3>Giỏ hàng từ quán này</h3>
+                    <span className="owner-note">{cartCount} món</span>
+                  </div>
 
-                        {canManageFoods ? (
-                          <div className="food-card-actions">
-                            <button type="button" className="button-secondary" onClick={() => editFood(food)}>
-                              Sửa món
-                            </button>
-                          </div>
-                        ) : null}
+                  <div className="restaurant-cart-lines">
+                    {cartItems.map((item) => (
+                      <div key={item.food.id} className="restaurant-cart-line">
+                        <span>{item.food.name}</span>
+                        <strong>
+                          {item.quantity} x {formatMoney(Number(item.food.price))} đ
+                        </strong>
                       </div>
                     ))}
+                    {cartItems.length === 0 ? <p className="empty-state">Chọn món bên dưới để đặt hàng.</p> : null}
                   </div>
-                </div>
-              ) : null}
-            </div>
-          )}
+
+                  <div className="restaurant-form-grid">
+                    <div className="restaurant-field full">
+                      <label htmlFor="restaurantReceiverAddress">Địa chỉ giao hàng</label>
+                      <AddressAutocomplete
+                        id="restaurantReceiverAddress"
+                        value={checkout.receiverAddress}
+                        onTextChange={updateReceiverAddress}
+                        onSelect={selectDeliveryAddress}
+                        isSelectionConfirmed={isDeliveryAddressConfirmed}
+                        placeholder="Nhập địa chỉ giao hàng"
+                        inputClassName=""
+                      />
+                      <div className="flex flex-col gap-2 mt-2">
+                        <span className={isDeliveryAddressConfirmed ? 'address-status success !mt-0' : 'address-status !mt-0'}>
+                          {isDeliveryAddressConfirmed
+                            ? selectedDeliveryAddress
+                              ? 'Đã chọn địa chỉ giao hàng'
+                              : 'Đã chọn vị trí hiện tại'
+                            : 'Vui lòng chọn một địa chỉ'}
+                        </span>
+                        <button type="button" className="flex items-center justify-center gap-2 border border-gray-200 rounded-lg py-2 w-full text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer bg-white mt-1" onClick={useCurrentLocation} disabled={isLocating}>
+                          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                          {isLocating ? 'Đang lấy vị trí...' : 'Dùng vị trí hiện tại'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="restaurant-field full">
+                      <label>Khoảng cách</label>
+                      <span className="address-distance">
+                        {Number(checkout.distanceKm) > 0 ? `${Number(checkout.distanceKm).toFixed(2)} km` : 'Tính sau'}
+                      </span>
+                    </div>
+
+                    <div className="restaurant-field full">
+                      <label htmlFor="restaurantShippingType">Giao hàng</label>
+                      <ShippingTypeSelect
+                        id="restaurantShippingType"
+                        value={checkout.shippingType}
+                        compact
+                        onChange={(shippingType) =>
+                          setCheckout((current) => ({
+                            ...current,
+                            shippingType,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 mt-4 mb-4">
+                    <div className="flex justify-between items-center text-sm font-medium text-gray-600">
+                      <span>Tạm tính</span>
+                      <span className="text-gray-900">{formatMoney(subtotal)} đ</span>
+                    </div>
+                    <div className="flex justify-between items-start text-sm font-medium text-gray-600">
+                      <div className="flex flex-col">
+                        <span>Phí giao hàng</span>
+                        {Number(checkout.distanceKm) > 0 && (
+                          <span className="text-[11px] text-gray-400 font-normal">Khoảng cách: {Number(checkout.distanceKm).toFixed(2)} km</span>
+                        )}
+                      </div>
+                      <span className="text-gray-900">{formatMoney(shippingFee)} đ</span>
+                    </div>
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between items-center text-sm font-bold text-[#00b14f]">
+                        <span>Ưu đãi</span>
+                        <span>-{formatMoney(discountAmount)} đ</span>
+                      </div>
+                    )}
+                    <div className="h-[1px] bg-gray-100 w-full my-1"></div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="font-bold text-[#333]">Tổng thanh toán</span>
+                      <strong className="text-2xl text-[#00b14f]">{formatMoney(totalAmount)} đ</strong>
+                    </div>
+                  </div>
+
+                  <div className="restaurant-form-actions">
+                    <button type="submit" className="button-primary w-full" disabled={cartItems.length === 0}>
+                      Đặt hàng
+                    </button>
+                  </div>
+                </form>
+              </aside>
+            ) : null}
+          </div>
         </div>
       </div>
     </section>

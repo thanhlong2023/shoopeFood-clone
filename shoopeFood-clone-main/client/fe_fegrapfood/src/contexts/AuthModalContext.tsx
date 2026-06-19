@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 import AuthModal from '../components/auth/AuthModal'
 
 type AuthModalContextType = {

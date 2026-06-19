@@ -492,14 +492,14 @@ public class DriverHomeViewModel extends AndroidViewModel {
     private void startSimulationToRestaurant(Order order) {
         DriverUiState state = uiState.getValue();
         if (state == null || state.driverLatitude == null || state.driverLongitude == null) {
-            toastMessage.setValue("Chua co vi tri de mo phong lo trinh");
+            toastMessage.setValue("Chưa có vị trí để mô phỏng lộ trình");
             return;
         }
 
         double restaurantLat = resolveRestaurantLat(order);
         double restaurantLng = resolveRestaurantLng(order);
         if (!GeoUtils.isValidCoordinate(restaurantLat, restaurantLng)) {
-            toastMessage.setValue("Don khong co toa do nha hang");
+            toastMessage.setValue("Đơn không có tọa độ nhà hàng");
             return;
         }
 
@@ -569,7 +569,7 @@ public class DriverHomeViewModel extends AndroidViewModel {
         double restaurantLat = resolveRestaurantLat(deliveryOrder);
         double restaurantLng = resolveRestaurantLng(deliveryOrder);
         if (!GeoUtils.isValidCoordinate(restaurantLat, restaurantLng)) {
-            toastMessage.setValue("Khong tim thay toa do nha hang");
+            toastMessage.setValue("Không tìm thấy tọa độ nhà hàng");
             return;
         }
 
@@ -892,7 +892,7 @@ public class DriverHomeViewModel extends AndroidViewModel {
     public void goOnline(double latitude, double longitude) {
         int driverId = getDriverId();
         if (driverId <= 0) {
-            toastMessage.setValue("Khong tim thay tai khoan tai xe");
+            toastMessage.setValue("Không tìm thấy tài khoản tài xế");
             return;
         }
 
@@ -913,7 +913,7 @@ public class DriverHomeViewModel extends AndroidViewModel {
                         driver, null, null, null, null, latitude, longitude, null, null, false, null, null, DriverWorkPhaseUtils.IDLE,
                         null, null, null, null, null, null, null, null, null, null
                 ));
-                toastMessage.setValue("Da bat nhan don. Vi tri da duoc cap nhat.");
+                toastMessage.setValue("Đã bật nhận đơn. Vị trí đã được cập nhật.");
                 loadFeed();
                 startFeedPolling();
             }
@@ -954,7 +954,7 @@ public class DriverHomeViewModel extends AndroidViewModel {
     public void goOffline() {
         int driverId = getDriverId();
         if (driverId <= 0) {
-            toastMessage.setValue("Khong tim thay tai khoan tai xe");
+            toastMessage.setValue("Không tìm thấy tài khoản tài xế");
             return;
         }
 
@@ -1000,7 +1000,7 @@ public class DriverHomeViewModel extends AndroidViewModel {
                         false,
                         false
                 ));
-                toastMessage.setValue("Da tat nhan don. Ban se khong nhan don moi.");
+                toastMessage.setValue("Đã tắt nhận đơn. Bạn sẽ không nhận đơn mới.");
                 loadFeed();
             }
 

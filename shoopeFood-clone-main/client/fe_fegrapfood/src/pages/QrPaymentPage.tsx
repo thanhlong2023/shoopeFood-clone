@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import DriverWaitingOverlay from '../components/payment/DriverWaitingOverlay'
 import MockQrCode from '../components/payment/MockQrCode'
 import { APP_NAME } from '../constants/app'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { createOrder } from '../services/api/orders'
-import type { Order } from '../types'
 import { buildCreateOrderPayloadFromDraft, clearCheckoutDraft, getCheckoutDraft, notifyCartCleared } from '../utils/checkoutDraft'
 import { formatCurrency } from '../utils/formatters'
 import { setLastOrderId } from '../utils/orderStorage'
@@ -31,11 +29,10 @@ export default function QrPaymentPage() {
   const [draft] = useState(() => getCheckoutDraft())
   const [stage, setStage] = useState<QrStage>('ready')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [waitingOrder, setWaitingOrder] = useState<Order | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   async function handleMockPaid() {
-    if (!draft || isSubmitting || waitingOrder) {
+    if (!draft || isSubmitting) {
       return
     }
 

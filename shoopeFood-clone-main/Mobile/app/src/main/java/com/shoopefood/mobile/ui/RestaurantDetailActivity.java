@@ -122,7 +122,7 @@ public class RestaurantDetailActivity extends AppCompatActivity implements FoodA
                 metaText.setText(String.format(
                         "%.1f sao | %s",
                         restaurant.ratingAvg,
-                        restaurant.isOpenToday ? "Mo cua hom nay" : "Dong cua hom nay"
+                        restaurant.isOpenToday ? "Mở cửa hôm nay" : "Đóng cửa hôm nay"
                 ));
             }
 

@@ -1,19 +1,20 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useTrackableOrder } from '../hooks/useTrackableOrder'
+import AddressAutocomplete from '../components/common/AddressAutocomplete'
+import ShippingTypeSelect from '../components/common/ShippingTypeSelect'
+import { reverseGeocodeAddress } from '../services/api/addresses'
 import { getCategories } from '../services/api/categories'
 import { getFoods } from '../services/api/foods'
-import { createOrder } from '../services/api/orders'
 import { getRestaurants } from '../services/api/restaurants'
 import { foodPhotoStyle } from '../utils/foodImage'
-import { setLastOrderId } from '../utils/orderStorage'
-import { saveCheckoutDraft } from '../utils/checkoutDraft'
+import { saveCheckoutDraft, getCheckoutDraft } from '../utils/checkoutDraft'
 import { getCartDraft, saveCartDraft } from '../utils/cartDraft'
 import { restaurantCoverStyle, restaurantThumbStyle } from '../utils/restaurantImage'
-import type { Category, CreateOrderPayload, Food, Order, Restaurant } from '../types'
+import type { AddressDetail, Category, CreateOrderPayload, Food, Order, Restaurant } from '../types'
 
 type CartState = Record<number, number>
 
@@ -25,14 +26,21 @@ type CheckoutState = {
   shippingType: NonNullable<CreateOrderPayload['shippingType']>
 }
 
+type DeliveryLocationSource = 'default' | 'current' | 'address'
+
+type DeliveryPoint = {
+  latitude: number
+  longitude: number
+}
+
 type IconName = 'search' | 'location' | 'cart' | 'plus' | 'minus' | 'trash' | 'store' | 'clock' | 'star' | 'receipt' | 'check'
 
 const quickFilters = ['Cơm trưa', 'Bún phở', 'Đồ uống', 'Ăn vặt', 'Chay', 'Giảm giá']
 const initialCheckoutState: CheckoutState = {
-  receiverAddress: '12 Nguyễn Huệ, Quận 1',
-  receiverLat: '10.7769',
-  receiverLng: '106.7009',
-  distanceKm: '3.2',
+  receiverAddress: '',
+  receiverLat: '',
+  receiverLng: '',
+  distanceKm: '',
   shippingType: 'STANDARD',
 }
 
@@ -72,6 +80,53 @@ function calculateDistanceKm(fromLat: number, fromLng: number, toLat: number, to
     Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
 
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function isValidCoordinate(latitude: number, longitude: number) {
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    Math.abs(latitude) <= 90 &&
+    Math.abs(longitude) <= 180
+  )
+}
+
+function toNullableCoordinate(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
+}
+
+function getRestaurantDistanceKm(restaurant: Restaurant, deliveryPoint: DeliveryPoint | null) {
+  if (
+    !deliveryPoint ||
+    !isValidCoordinate(deliveryPoint.latitude, deliveryPoint.longitude) ||
+    !isValidCoordinate(Number(restaurant.latitude), Number(restaurant.longitude))
+  ) {
+    return null
+  }
+
+  return calculateDistanceKm(deliveryPoint.latitude, deliveryPoint.longitude, restaurant.latitude, restaurant.longitude)
+}
+
+function formatDistanceKm(value: number | null) {
+  if (value === null || !Number.isFinite(value)) {
+    return ''
+  }
+
+  return value < 1 ? `${Math.round(value * 1000)} m` : `${value.toFixed(1)} km`
+}
+
+function toEtaFromDistance(distanceKm: number | null, restaurantId: number) {
+  if (distanceKm === null || !Number.isFinite(distanceKm)) {
+    return toEta(restaurantId)
+  }
+
+  const baseMinute = Math.max(12, Math.round(10 + distanceKm * 4))
+  return `${baseMinute}-${baseMinute + 7} phút`
 }
 
 function normalizeSearchText(value: string) {
@@ -137,13 +192,27 @@ export default function HomePage() {
     saveCartDraft({ restaurantId: activeRestaurantId, cart })
   }, [activeRestaurantId, cart])
 
-  const [checkout, setCheckout] = useState<CheckoutState>(initialCheckoutState)
+  const [checkout, setCheckout] = useState<CheckoutState>(() => {
+    const draft = getCheckoutDraft()
+    if (draft) {
+      return {
+        receiverAddress: draft.receiver.address,
+        receiverLat: String(draft.receiver.lat),
+        receiverLng: String(draft.receiver.lng),
+        distanceKm: String(draft.receiver.distanceKm),
+        shippingType: draft.shippingType,
+      }
+    }
+    return initialCheckoutState
+  })
   const [isLoading, setIsLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
+  const [deliveryLocationSource, setDeliveryLocationSource] = useState<DeliveryLocationSource>(() => getCheckoutDraft() ? 'address' : 'default')
+  const [isDeliveryAddressConfirmed, setIsDeliveryAddressConfirmed] = useState(() => !!getCheckoutDraft())
+  const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState<AddressDetail | null>(null)
+  const [shouldFollowDeliveryLocation, setShouldFollowDeliveryLocation] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successOrder, setSuccessOrder] = useState<Order | null>(null)
-  const submitKeyRef = useRef<string | null>(null)
 
   // Search term synced with URL
   const searchTerm = searchParams.get('q') || ''
@@ -230,7 +299,34 @@ export default function HomePage() {
     () => restaurants.filter((restaurant) => restaurantSearchMatches.has(restaurant.id)),
     [restaurantSearchMatches, restaurants],
   )
-  const previewRestaurants = useMemo(() => visibleRestaurants.slice(0, 6), [visibleRestaurants])
+  const deliveryPoint = useMemo(() => {
+    const latitude = toNullableCoordinate(checkout.receiverLat)
+    const longitude = toNullableCoordinate(checkout.receiverLng)
+
+    return latitude !== null && longitude !== null && isValidCoordinate(latitude, longitude) ? { latitude, longitude } : null
+  }, [checkout.receiverLat, checkout.receiverLng])
+  const rankedRestaurants = useMemo(
+    () =>
+      visibleRestaurants
+        .map((restaurant) => ({
+          restaurant,
+          distanceKm: getRestaurantDistanceKm(restaurant, deliveryPoint),
+        }))
+        .sort((left, right) => {
+          const leftClosed = left.restaurant.isOpen && left.restaurant.isOpenToday ? 0 : 1
+          const rightClosed = right.restaurant.isOpen && right.restaurant.isOpenToday ? 0 : 1
+          if (leftClosed !== rightClosed) return leftClosed - rightClosed
+
+          const leftDistance = left.distanceKm ?? Number.POSITIVE_INFINITY
+          const rightDistance = right.distanceKm ?? Number.POSITIVE_INFINITY
+          if (leftDistance !== rightDistance) return leftDistance - rightDistance
+
+          return right.restaurant.ratingAvg - left.restaurant.ratingAvg
+        }),
+    [deliveryPoint, visibleRestaurants],
+  )
+  const previewRestaurants = useMemo(() => rankedRestaurants.slice(0, 6), [rankedRestaurants])
+  const hasCartQuantities = useMemo(() => Object.values(cart).some((quantity) => quantity > 0), [cart])
   const featuredRestaurants = useMemo(
     () =>
       restaurants
@@ -304,6 +400,7 @@ export default function HomePage() {
     setActiveCategoryId(food.categoryId ?? 'all')
     setSearchTerm('')
     setSuccessOrder(null)
+    setShouldFollowDeliveryLocation(false)
   }
 
   const cartItems = useMemo(
@@ -347,13 +444,13 @@ export default function HomePage() {
   }, [cartCount])
 
   useEffect(() => {
-    const receiverLat = Number(checkout.receiverLat)
-    const receiverLng = Number(checkout.receiverLng)
+    const receiverLat = toNullableCoordinate(checkout.receiverLat)
+    const receiverLng = toNullableCoordinate(checkout.receiverLng)
 
     if (
       !activeRestaurant ||
-      !Number.isFinite(receiverLat) ||
-      !Number.isFinite(receiverLng) ||
+      receiverLat === null ||
+      receiverLng === null ||
       !Number.isFinite(Number(activeRestaurant.latitude)) ||
       !Number.isFinite(Number(activeRestaurant.longitude))
     ) {
@@ -364,6 +461,19 @@ export default function HomePage() {
     setCheckout((current) => ({ ...current, distanceKm: nextDistance.toFixed(2) }))
   }, [activeRestaurant, checkout.receiverLat, checkout.receiverLng])
 
+  useEffect(() => {
+    if (!shouldFollowDeliveryLocation || hasCartQuantities) {
+      return
+    }
+
+    const nearestRestaurantId = rankedRestaurants[0]?.restaurant.id
+    if (!nearestRestaurantId) {
+      return
+    }
+
+    setActiveRestaurantId((current) => (current === nearestRestaurantId ? current : nearestRestaurantId))
+  }, [hasCartQuantities, rankedRestaurants, shouldFollowDeliveryLocation])
+
   function handleRestaurantSelect(restaurantId: number) {
     if (activeRestaurantId !== restaurantId) {
       setCart({})
@@ -372,6 +482,42 @@ export default function HomePage() {
     setActiveCategoryId('all')
     setSearchTerm('')
     setSuccessOrder(null)
+    setShouldFollowDeliveryLocation(false)
+  }
+
+  function updateReceiverAddress(value: string) {
+    setCheckout((current) => ({
+      ...current,
+      receiverAddress: value,
+      receiverLat: '',
+      receiverLng: '',
+      distanceKm: '',
+    }))
+    setSelectedDeliveryAddress(null)
+    setIsDeliveryAddressConfirmed(false)
+  }
+
+  function selectDeliveryAddress(address: AddressDetail) {
+    const receiverLat = toNullableCoordinate(address.latitude)
+    const receiverLng = toNullableCoordinate(address.longitude)
+    const hasValidCoordinates = receiverLat !== null && receiverLng !== null && isValidCoordinate(receiverLat, receiverLng)
+    const nextDistance =
+      activeRestaurant && hasValidCoordinates
+        ? calculateDistanceKm(activeRestaurant.latitude, activeRestaurant.longitude, receiverLat, receiverLng)
+        : Number(checkout.distanceKm)
+
+    setCheckout((current) => ({
+      ...current,
+      receiverAddress: address.formattedAddress,
+      receiverLat: hasValidCoordinates ? receiverLat.toFixed(6) : '',
+      receiverLng: hasValidCoordinates ? receiverLng.toFixed(6) : '',
+      distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
+    }))
+    setSelectedDeliveryAddress(address)
+    setDeliveryLocationSource('address')
+    setIsDeliveryAddressConfirmed(hasValidCoordinates)
+    setShouldFollowDeliveryLocation(true)
+    setErrorMessage(hasValidCoordinates ? null : 'Dia chi da chon chua co toa do hop le')
   }
 
   function updateFoodQuantity(food: Food, nextQuantity: number) {
@@ -402,19 +548,39 @@ export default function HomePage() {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        void (async () => {
         const receiverLat = position.coords.latitude
         const receiverLng = position.coords.longitude
         const nextDistance = activeRestaurant
           ? calculateDistanceKm(activeRestaurant.latitude, activeRestaurant.longitude, receiverLat, receiverLng)
           : Number(checkout.distanceKm)
+        const resolvedAddress = await reverseGeocodeAddress(receiverLat, receiverLng)
+
+        if (!resolvedAddress.formattedAddress) {
+          throw new Error('Khong the suy ra dia chi tu vi tri hien tai')
+        }
 
         setCheckout((current) => ({
           ...current,
+          receiverAddress: resolvedAddress.formattedAddress,
           receiverLat: receiverLat.toFixed(6),
           receiverLng: receiverLng.toFixed(6),
           distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
         }))
+        setSelectedDeliveryAddress({
+          ...resolvedAddress,
+          latitude: receiverLat,
+          longitude: receiverLng,
+        })
+        setDeliveryLocationSource('current')
+        setIsDeliveryAddressConfirmed(true)
+        setShouldFollowDeliveryLocation(true)
         setIsLocating(false)
+        })().catch((error) => {
+          setErrorMessage(error instanceof Error ? error.message : 'Khong the suy ra dia chi tu vi tri hien tai')
+          setIsDeliveryAddressConfirmed(false)
+          setIsLocating(false)
+        })
       },
       (error) => {
         setErrorMessage(error.message || 'Không thể lấy vị trí hiện tại')
@@ -437,11 +603,18 @@ export default function HomePage() {
       return 'Vui lòng nhập địa chỉ giao hàng'
     }
 
+    if (!isDeliveryAddressConfirmed) {
+      return 'Vui lòng chọn địa chỉ giao hàng từ danh sách gợi ý'
+    }
+
     if (!isAuthenticated || user?.role !== 'CUSTOMER') {
       return 'Vui lòng đăng nhập tài khoản khách hàng để đặt món'
     }
 
-    if (!Number.isFinite(Number(checkout.receiverLat)) || !Number.isFinite(Number(checkout.receiverLng))) {
+    const receiverLat = toNullableCoordinate(checkout.receiverLat)
+    const receiverLng = toNullableCoordinate(checkout.receiverLng)
+
+    if (receiverLat === null || receiverLng === null || !isValidCoordinate(receiverLat, receiverLng)) {
       return 'Tọa độ giao hàng không hợp lệ'
     }
 
@@ -484,6 +657,14 @@ export default function HomePage() {
         lat: Number(checkout.receiverLat),
         lng: Number(checkout.receiverLng),
         distanceKm: Number(checkout.distanceKm),
+        placeId: selectedDeliveryAddress?.placeId,
+        formattedAddress: selectedDeliveryAddress?.formattedAddress,
+        province: selectedDeliveryAddress?.province,
+        district: selectedDeliveryAddress?.district,
+        ward: selectedDeliveryAddress?.ward,
+        street: selectedDeliveryAddress?.street,
+        houseNumber: selectedDeliveryAddress?.houseNumber,
+        provider: selectedDeliveryAddress?.provider || 'BROWSER_GEOLOCATION',
       },
       shippingType: checkout.shippingType,
       pricing: {
@@ -506,6 +687,15 @@ export default function HomePage() {
     navigate('/payment')
   }
 
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage(null)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [errorMessage])
+
   return (
     <section className="order-page bg-slate-50 min-h-screen">
       {/* Premium Search Hero Banner */}
@@ -513,7 +703,7 @@ export default function HomePage() {
         <div className="hero-copy p-8 md:p-12">
           <span className="hero-badge bg-white/20 border border-white/30 text-white rounded-full text-xs px-3 py-1 font-bold">GrabFood</span>
           <h1 className="text-4xl md:text-5xl font-black text-white mt-4 leading-tight">Đặt món ngon quanh bạn</h1>
-          <p className="text-white/80 font-medium mt-2">Giao tới: {checkout.receiverAddress}</p>
+          <p className="text-white/80 font-medium mt-2">Giao tới: {checkout.receiverAddress || 'Chua chon dia chi'}</p>
 
           <div className="flex h-[58px] items-center gap-2.5 bg-white rounded-full px-4 shadow-[0_14px_30px_rgba(6,33,19,0.2)] mt-6 w-full max-w-[620px] md:hidden">
             <Icon name="search" />
@@ -549,7 +739,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {errorMessage ? <p className="app-feedback error bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 mb-4">{errorMessage}</p> : null}
+
 
       {isAuthenticated && hasTrackableOrder ? (
         <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-brand-light bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
@@ -576,9 +766,18 @@ export default function HomePage() {
               {visibleRestaurants.length} quán
             </span>
           </div>
+          {deliveryPoint ? (
+            <p className="mb-2 px-1 text-[10px] font-semibold text-gray-400">
+              {deliveryLocationSource === 'current'
+                ? 'Theo vị trí hiện tại'
+                : deliveryLocationSource === 'address'
+                  ? 'Theo địa chỉ đã chọn'
+                  : 'Theo toa do da chon'}
+            </p>
+          ) : null}
 
           <div className="tw-restaurant-stack flex flex-col gap-2.5 max-h-[60vh] overflow-y-auto px-1 pt-[20px]">
-            {previewRestaurants.map((restaurant) => {
+            {previewRestaurants.map(({ restaurant, distanceKm }) => {
               const isActive = activeRestaurant?.id === restaurant.id
               const thumbStyle = restaurantThumbStyle(restaurant.imageUrl, restaurant.id)
 
@@ -604,7 +803,13 @@ export default function HomePage() {
                         ★ {restaurant.ratingAvg.toFixed(1)}
                       </span>
                       <span>·</span>
-                      <span>{toEta(restaurant.id)}</span>
+                      {distanceKm !== null ? (
+                        <>
+                          <span>{formatDistanceKm(distanceKm)}</span>
+                          <span>·</span>
+                        </>
+                      ) : null}
+                      <span>{toEtaFromDistance(distanceKm, restaurant.id)}</span>
                     </span>
                   </span>
                 </button>
@@ -823,7 +1028,14 @@ export default function HomePage() {
         </main>
 
         {/* Right: Checkout Panel */}
-        <aside className="tw-checkout-panel bg-white border-0 rounded-2xl shadow-sm p-4 sticky top-20" id="checkout" aria-label="Giỏ hàng">
+        <aside className="tw-checkout-panel bg-white border-0 rounded-2xl shadow-sm p-4 sticky top-20 relative" id="checkout" aria-label="Giỏ hàng">
+          {errorMessage ? (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%]">
+              <div className="bg-red-50 text-red-600 p-4 rounded-xl border-2 border-red-200 shadow-[0_10px_40px_rgba(239,68,68,0.3)] text-base font-bold text-center">
+                {errorMessage}
+              </div>
+            </div>
+          ) : null}
           <div className="tw-checkout-head flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
             <div>
               <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider">Giỏ hàng của bạn</span>
@@ -895,14 +1107,24 @@ export default function HomePage() {
                   </div>
                   <div className="mt-2 flex flex-col gap-1">
                     <label className="text-[10px] font-bold text-gray-400">Địa chỉ giao hàng</label>
-                    <textarea
-                      rows={2}
+                    <AddressAutocomplete
                       value={checkout.receiverAddress}
-                      onChange={(event) => setCheckout((current) => ({ ...current, receiverAddress: event.target.value }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium bg-gray-50 resize-none"
+                      onTextChange={updateReceiverAddress}
+                      onSelect={selectDeliveryAddress}
+                      isSelectionConfirmed={isDeliveryAddressConfirmed}
+                      inputMode="textarea"
+                      rows={2}
+                      inputClassName="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium bg-gray-50 resize-none"
                       placeholder="Nhập địa chỉ giao hàng..."
                     />
                   </div>
+                  <p className={`text-[10px] font-bold ${isDeliveryAddressConfirmed ? 'text-green-600' : 'text-amber-600'}`}>
+                    {isDeliveryAddressConfirmed
+                      ? selectedDeliveryAddress
+                        ? 'Da chon dia chi giao hang'
+                        : 'Da chon vi tri hien tai'
+                      : 'Vui long chon mot dia chi trong danh sach goi y'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -919,7 +1141,16 @@ export default function HomePage() {
 
             <div className="flex flex-col gap-1.5">
               <span className="text-[11px] font-bold text-gray-500">Hình thức giao hàng</span>
-              <div className="relative">
+              <ShippingTypeSelect
+                value={checkout.shippingType}
+                onChange={(shippingType) =>
+                  setCheckout((current) => ({
+                    ...current,
+                    shippingType,
+                  }))
+                }
+              />
+              <div className="hidden">
                 <select
                   value={checkout.shippingType}
                   onChange={(event) =>
@@ -971,10 +1202,10 @@ export default function HomePage() {
             <button
               type="submit"
               className="tw-checkout-button w-full flex items-center justify-center gap-2 py-4 bg-brand hover:bg-brand-dark disabled:bg-gray-100 disabled:text-gray-400 text-white border-0 rounded-xl text-sm font-bold transition-colors cursor-pointer shadow-md mt-1"
-              disabled={isSubmitting || cartItems.length === 0}
+              disabled={cartItems.length === 0}
             >
               <Icon name="receipt" />
-              {isSubmitting ? 'Đang đặt hàng...' : 'Đặt đơn hàng'}
+              Đặt đơn hàng
             </button>
           </form>
 

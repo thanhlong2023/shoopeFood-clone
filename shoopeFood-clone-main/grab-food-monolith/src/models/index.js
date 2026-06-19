@@ -14,6 +14,7 @@ const Category = require("./Category");
 const Payment = require("./Payment");
 const PaymentTransaction = require("./PaymentTransaction");
 const Review = require("./Review");
+const UserAddress = require("./UserAddress");
 
 User.belongsToMany(Role, { through: UserRole, foreignKey: "userId", otherKey: "roleId", as: "roles" });
 Role.belongsToMany(User, { through: UserRole, foreignKey: "roleId", otherKey: "userId", as: "users" });
@@ -26,6 +27,9 @@ DriverLocation.belongsTo(User, { foreignKey: "driverId", targetKey: "id", as: "d
 
 User.hasMany(Order, { foreignKey: "customerId", sourceKey: "id" });
 Order.belongsTo(User, { foreignKey: "customerId", targetKey: "id", as: "customerUser" });
+
+User.hasMany(UserAddress, { foreignKey: "userId", sourceKey: "id", as: "addresses" });
+UserAddress.belongsTo(User, { foreignKey: "userId", targetKey: "id", as: "user" });
 
 User.hasMany(Order, { foreignKey: "driverId", sourceKey: "id", as: "driverOrders" });
 Order.belongsTo(User, { foreignKey: "driverId", targetKey: "id", as: "driverUser" });
@@ -86,4 +90,5 @@ module.exports = {
   Payment,
   PaymentTransaction,
   Review,
+  UserAddress,
 };

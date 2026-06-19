@@ -9,6 +9,7 @@ const foodRoutes = require("./foodRoutes");
 const paymentRoutes = require("./paymentRoutes");
 const applicationRoutes = require("./applicationRoutes");
 const reviewRoutes = require("./reviewRoutes");
+const addressRoutes = require("../modules/address/address.route");
 
 
 const router = express.Router();
@@ -43,6 +44,7 @@ router.use("/api/foods", foodRoutes);
 router.use("/api/payments", paymentRoutes);
 router.use("/api/applications", applicationRoutes);
 router.use("/api/reviews", reviewRoutes);
+router.use("/api/addresses", addressRoutes);
 
 
 module.exports = router;
