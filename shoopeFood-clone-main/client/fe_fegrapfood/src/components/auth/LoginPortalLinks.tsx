@@ -15,7 +15,7 @@ type LoginPortalLinksProps = {
 export default function LoginPortalLinks({ activeRole }: LoginPortalLinksProps) {
   return (
     <div className="login-portal-links" aria-label="Cac cong dang nhap">
-      <span>Đăng nhập khac:</span>
+      <span>Đăng nhập khác:</span>
       {portals.map((portal) => (
         <Link
           key={portal.role}

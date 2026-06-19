@@ -647,8 +647,8 @@ export default function RestaurantDetailPage() {
           {!canManageFoods ? (
             <form className="restaurant-order-panel" onSubmit={handleOrderSubmit}>
               <div className="section-heading-row">
-                <h3>Gio hang tu quan nay</h3>
-                <span className="owner-note">{cartCount} mon</span>
+                <h3>Giỏ hàng từ quán này</h3>
+                <span className="owner-note">{cartCount} món</span>
               </div>
 
               <div className="restaurant-cart-lines">
@@ -660,22 +660,22 @@ export default function RestaurantDetailPage() {
                     </strong>
                   </div>
                 ))}
-                {cartItems.length === 0 ? <p className="empty-state">Chon mon ben duoi de dat hang.</p> : null}
+                {cartItems.length === 0 ? <p className="empty-state">Chọn món bên dưới để đặt hàng.</p> : null}
               </div>
 
               <div className="restaurant-form-grid">
                 <div className="restaurant-field full">
-                  <label htmlFor="restaurantReceiverAddress">Dia chi giao hang</label>
+                  <label htmlFor="restaurantReceiverAddress">Địa chỉ giao hàng</label>
                   <input
                     id="restaurantReceiverAddress"
                     value={checkout.receiverAddress}
                     onChange={(event) => setCheckout((current) => ({ ...current, receiverAddress: event.target.value }))}
-                    placeholder="Nhap dia chi giao hang"
+                    placeholder="Nhập địa chỉ giao hàng"
                   />
                 </div>
 
                 <div className="restaurant-field">
-                  <label htmlFor="restaurantReceiverLat">Lat</label>
+                  <label htmlFor="restaurantReceiverLat">Vĩ độ</label>
                   <input
                     id="restaurantReceiverLat"
                     value={checkout.receiverLat}
@@ -684,7 +684,7 @@ export default function RestaurantDetailPage() {
                 </div>
 
                 <div className="restaurant-field">
-                  <label htmlFor="restaurantReceiverLng">Lng</label>
+                  <label htmlFor="restaurantReceiverLng">Kinh độ</label>
                   <input
                     id="restaurantReceiverLng"
                     value={checkout.receiverLng}
@@ -702,7 +702,7 @@ export default function RestaurantDetailPage() {
                 </div>
 
                 <div className="restaurant-field">
-                  <label htmlFor="restaurantShippingType">Giao hang</label>
+                  <label htmlFor="restaurantShippingType">Giao hàng</label>
                   <select
                     id="restaurantShippingType"
                     value={checkout.shippingType}
@@ -721,18 +721,18 @@ export default function RestaurantDetailPage() {
               </div>
 
               <div className="restaurant-order-summary">
-                <span>Tam tinh: {formatMoney(subtotal)} d</span>
+                <span>Tạm tính: {formatMoney(subtotal)} d</span>
                 <span>Ship: {formatMoney(shippingFee)} d</span>
-                <span>Uu dai: -{formatMoney(discountAmount)} d</span>
-                <strong>Tong: {formatMoney(totalAmount)} d</strong>
+                <span>Ưu đãi: -{formatMoney(discountAmount)} d</span>
+                <strong>Tổng: {formatMoney(totalAmount)} d</strong>
               </div>
 
               <div className="restaurant-form-actions">
                 <button type="button" className="button-secondary" onClick={useCurrentLocation} disabled={isLocating}>
-                  {isLocating ? 'Dang lay vi tri...' : 'Dung vi tri hien tai'}
+                  {isLocating ? 'Đang lấy vị trí...' : 'Dùng vị trí hiện tại'}
                 </button>
                 <button type="submit" className="button-primary" disabled={isSubmittingOrder || cartItems.length === 0}>
-                  {isSubmittingOrder ? 'Dang dat hang...' : 'Dat hang'}
+                  {isSubmittingOrder ? 'Đang đặt hàng...' : 'Đặt hàng'}
                 </button>
               </div>
             </form>
@@ -797,10 +797,10 @@ export default function RestaurantDetailPage() {
                 <div className="restaurant-field full">
                   <ImageUrlField
                     id="foodImageUrl"
-                    label="Link hinh anh mon"
+                    label="Link hình ảnh món ăn"
                     value={foodForm.imageUrl}
                     placeholder="https://example.com/mon-an.jpg"
-                    hint="Dan link anh mon an de hien thi cho khach dat hang."
+                    hint="Dán link hình ảnh món ăn để hiển thị cho khách đặt hàng."
                     onChange={(value) => updateFoodField('imageUrl', value)}
                   />
                 </div>
@@ -936,7 +936,7 @@ export default function RestaurantDetailPage() {
                                   onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
                                   disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
                                 >
-                                  Them
+                                  Thêm
                                 </button>
                               </div>
                             ) : null}
@@ -991,7 +991,7 @@ export default function RestaurantDetailPage() {
                               onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
                               disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
                             >
-                              Them
+                              Thêm
                             </button>
                           </div>
                         ) : null}

@@ -12,7 +12,7 @@ export function useLoginForm(initialPhone = '') {
     
     if (touched.phone) {
       if (!phone.trim()) {
-        nextErrors.phone = 'Vui long nhap so dien thoai'
+        nextErrors.phone = 'Vui lòng nhâp số điện thoại'
       } else if (!PHONE_REGEX.test(phone.trim())) {
         nextErrors.phone = 'Số điện thoại khong hop le'
       }
@@ -20,9 +20,9 @@ export function useLoginForm(initialPhone = '') {
 
     if (touched.password) {
       if (!password) {
-        nextErrors.password = 'Vui long nhap mat khau'
+        nextErrors.password = 'Vui lòng nhập mật khẩu'
       } else if (password.length < 6) {
-        nextErrors.password = 'Mật khẩu phai co it nhat 6 ky tu'
+        nextErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự'
       }
     }
 

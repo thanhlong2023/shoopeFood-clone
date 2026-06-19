@@ -35,16 +35,16 @@ const LOGIN_CONFIG: Record<UserRole, LoginPageConfig> = {
     demoPhone: '0900000003',
   },
   DRIVER: {
-    title: 'Đăng nhập tai xe',
-    subtitle: 'Nhan don giao hang va cap nhat vi tri.',
+    title: 'Đăng nhập tài xế',
+    subtitle: 'Nhận đơn giao hàng và cập nhật vị trí.',
     demoPhone: '0900000002',
-    accountNote: 'Chua la tai xe? Đăng ký tai trang chu (can bien so + CCCD) va cho Admin duyet.',
+    accountNote: 'Chưa là tài xế? Đăng ký tại trang chủ (cần biển số + CCCD) và chờ Admin duyệt.',
   },
   ADMIN: {
     title: 'Đăng nhập Admin',
-    subtitle: 'Quan tri he thong, nha hang, menu va nguoi dung.',
+    subtitle: 'Quản trị hệ thống, nhà hàng, menu và người dùng.',
     demoPhone: '0900000005',
-    accountNote: 'Chi danh cho quan tri vien he thong.',
+    accountNote: 'Chỉ dành cho quản trị viên hệ thống.',
   },
 }
 

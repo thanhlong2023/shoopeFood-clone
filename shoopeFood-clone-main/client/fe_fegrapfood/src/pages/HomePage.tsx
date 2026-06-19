@@ -29,7 +29,7 @@ type IconName = 'search' | 'location' | 'cart' | 'plus' | 'minus' | 'trash' | 's
 
 const quickFilters = ['Cơm trưa', 'Bún phở', 'Đồ uống', 'Ăn vặt', 'Chay', 'Giảm giá']
 const initialCheckoutState: CheckoutState = {
-  receiverAddress: '12 Nguyen Hue, Quan 1',
+  receiverAddress: '12 Nguyễn Huệ, Quận 1',
   receiverLat: '10.7769',
   receiverLng: '106.7009',
   distanceKm: '3.2',

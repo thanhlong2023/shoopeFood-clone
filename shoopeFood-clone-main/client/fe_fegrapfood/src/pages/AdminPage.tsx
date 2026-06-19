@@ -88,7 +88,7 @@ const ROLE_LABELS: Record<string, string> = {
   CUSTOMER: 'CUSTOMER - Khách hàng',
   DRIVER: 'DRIVER - Tài xế',
   MERCHANT: 'MERCHANT - Chủ quán',
-  ADMIN: 'ADMIN - Quan tri',
+  ADMIN: 'ADMIN - Quản trị',
 }
 
 const resourceConfigs: ResourceConfig[] = [
@@ -104,21 +104,21 @@ const resourceConfigs: ResourceConfig[] = [
   {
     name: 'orders',
     title: 'Đơn hàng',
-    description: 'Theo doi va cap nhat trang thai don hang.',
+    description: 'Theo dõi và cập nhật trạng thái đơn hàng.',
     columns: ['id', 'orderCode', 'customerId', 'restaurantId', 'driverId', 'statusCode', 'totalAmount', 'createdAt'],
     fields: [
-      { key: 'statusCode', label: 'Trang thai', type: 'select', options: ['PENDING', 'CONFIRMED', 'PICKING_UP', 'DELIVERING', 'COMPLETED', 'CANCELLED'] },
-      { key: 'receiverAddress', label: 'Dia chi giao', type: 'text' },
-      { key: 'distanceKm', label: 'Khoang cach km', type: 'number' },
+      { key: 'statusCode', label: 'Trạng thái', type: 'select', options: ['PENDING', 'CONFIRMED', 'PICKING_UP', 'DELIVERING', 'COMPLETED', 'CANCELLED'] },
+      { key: 'receiverAddress', label: 'Địa chỉ giao', type: 'text' },
+      { key: 'distanceKm', label: 'Khoảng cách km', type: 'number' },
       { key: 'discountAmount', label: 'Giảm giá', type: 'number', defaultValue: 0 },
-      { key: 'taxAmount', label: 'Thue', type: 'number', defaultValue: 0 },
+      { key: 'taxAmount', label: 'Thuế', type: 'number', defaultValue: 0 },
     ],
     canCreate: false,
   },
   {
     name: 'restaurant-manager',
     title: 'Nhà hàng',
-    description: 'Tao quan cho chu quan, duyet va quan ly danh sach.',
+    description: 'Tạo quán cho chủ quán, duyệt và quản lý danh sách.',
     columns: [],
     fields: [],
     canCreate: false,
@@ -126,22 +126,22 @@ const resourceConfigs: ResourceConfig[] = [
   },
   {
     name: 'foods',
-    title: 'Mon an',
+    title: 'Món ăn',
     description: 'Quản lý menu, giá và số lượng món mỗi ngày.',
     columns: ['id', 'name', 'categoryId', 'price', 'isAvailable', 'currentQuantity', 'defaultQuantity'],
     fields: [
       { key: 'categoryId', label: 'Category ID', type: 'number', nullable: true },
-      { key: 'name', label: 'Ten mon', type: 'text' },
-      { key: 'price', label: 'Gia', type: 'number' },
-      { key: 'defaultQuantity', label: 'So luong mac dinh', type: 'number', defaultValue: 20 },
-      { key: 'currentQuantity', label: 'So luong hien tai', type: 'number', defaultValue: 20 },
-      { key: 'isAvailable', label: 'Dang ban', type: 'checkbox', defaultValue: true },
+      { key: 'name', label: 'Tên món', type: 'text' },
+      { key: 'price', label: 'Giá', type: 'number' },
+      { key: 'defaultQuantity', label: 'Số lượng mặc định', type: 'number', defaultValue: 20 },
+      { key: 'currentQuantity', label: 'Số lượng hiện tại', type: 'number', defaultValue: 20 },
+      { key: 'isAvailable', label: 'Đang bán', type: 'checkbox', defaultValue: true },
     ],
   },
   {
     name: 'category-manager',
-    title: 'Danh muc',
-    description: 'Tao danh muc theo dung nha hang.',
+    title: 'Danh mục',
+    description: 'Tạo danh mục theo đúng nhà hàng.',
     columns: [],
     fields: [],
     canCreate: false,
@@ -149,8 +149,8 @@ const resourceConfigs: ResourceConfig[] = [
   },
   {
     name: 'driver-applications',
-    title: 'Don tai xe',
-    description: 'Duyet don dang ky tai xe tu khach hang.',
+    title: 'Đơn tài xế',
+    description: 'Duyệt đơn đăng ký tài xế từ khách hàng.',
     columns: [],
     fields: [],
     canCreate: false,
@@ -165,8 +165,8 @@ const resourceConfigs: ResourceConfig[] = [
       { key: 'fullName', label: 'Họ tên', type: 'text' },
       { key: 'phone', label: 'Số điện thoại', type: 'text' },
       { key: 'password', label: 'Mật khẩu', type: 'text', defaultValue: '123456' },
-      { key: 'vehicleType', label: 'Loai xe', type: 'text', defaultValue: 'Motorbike' },
-      { key: 'licensePlate', label: 'Bien so', type: 'text' },
+      { key: 'vehicleType', label: 'Loại xe', type: 'text', defaultValue: 'Motorbike' },
+      { key: 'licensePlate', label: 'Biển số', type: 'text' },
       { key: 'ratingAvg', label: 'Rating', type: 'number', defaultValue: 5 },
       { key: 'isOnline', label: 'Online', type: 'checkbox', defaultValue: false },
     ],
@@ -181,7 +181,7 @@ const resourceConfigs: ResourceConfig[] = [
       { key: 'phone', label: 'Số điện thoại', type: 'text' },
       {
         key: 'role',
-        label: 'Vai tro',
+        label: 'Vai trò',
         type: 'select',
         options: ['CUSTOMER', 'DRIVER', 'MERCHANT', 'ADMIN'],
         defaultValue: 'CUSTOMER',
@@ -287,21 +287,21 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
 
       if (editingRecord) {
         await updateRecord({ id: editingRecord.id, values })
-        setFeedback(`Da cap nhat ${config.title.toLowerCase()} #${editingRecord.id}`)
+        setFeedback(`Đã cập nhật ${config.title.toLowerCase()} #${editingRecord.id}`)
       } else {
         await createRecord({ values })
-        setFeedback(`Da tao ${config.title.toLowerCase()} moi`)
+        setFeedback(`Đã tạo ${config.title.toLowerCase()} mới`)
       }
 
       resetForm()
       await query.refetch()
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Thao tac that bai')
+      setFeedback(error instanceof Error ? error.message : 'Thao tác thất bại')
     }
   }
 
   async function handleDelete(record: AdminRecord) {
-    const confirmed = window.confirm(`Xoa ${config.title.toLowerCase()} #${record.id}?`)
+    const confirmed = window.confirm(`Xóa ${config.title.toLowerCase()} #${record.id}?`)
 
     if (!confirmed) {
       return
@@ -310,10 +310,10 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
     try {
       setFeedback(null)
       await deleteRecord({ resource: config.name, id: record.id })
-      setFeedback(`Da xoa #${record.id}`)
+      setFeedback(`Đã xóa #${record.id}`)
       await query.refetch()
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Khong the xoa')
+      setFeedback(error instanceof Error ? error.message : 'Không thể xóa')
     }
   }
 
@@ -326,7 +326,7 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
             <p>{config.description}</p>
           </div>
           <button type="button" className="button-secondary" onClick={() => void query.refetch()} disabled={query.isFetching}>
-            Reload
+            Tải lại
           </button>
         </div>
 
@@ -358,7 +358,7 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
                           setForm(getInitialForm(config.fields, record))
                         }}
                       >
-                        Edit
+                        Sửa
                       </button>
                       {canDelete ? (
                         <button
@@ -367,7 +367,7 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
                           onClick={() => void handleDelete(record)}
                           disabled={deleteMutation.isPending}
                         >
-                          Delete
+                          Xóa
                         </button>
                       ) : null}
                     </div>
@@ -377,7 +377,7 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
             </tbody>
           </table>
 
-          {query.isLoading ? <p className="empty-state">Dang tai du lieu...</p> : null}
+          {query.isLoading ? <p className="empty-state">Đang tải dữ liệu...</p> : null}
           {!query.isLoading && records.length === 0 ? <p className="empty-state">Chưa có dữ liệu.</p> : null}
         </div>
       </section>
@@ -386,7 +386,7 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
         <div className="driver-control-head">
           <span>{editingRecord ? `Edit #${editingRecord.id}` : 'Create'}</span>
           <h2>{config.title}</h2>
-          <p>{canCreate || editingRecord ? 'Nhap thong tin va luu vao backend.' : 'Resource nay chi cap nhat ban ghi co san.'}</p>
+          <p>{canCreate || editingRecord ? 'Nhập thông tin và lưu vào backend.' : 'Resource nay chỉ cập nhật bản ghi có sẵn.'}</p>
         </div>
 
         <form className="admin-form" onSubmit={handleSubmit}>
@@ -429,10 +429,10 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
 
           <div className="restaurant-form-actions">
             <button type="submit" className="button-primary" disabled={isSaving || (!canCreate && !editingRecord)}>
-              {isSaving ? 'Saving...' : editingRecord ? 'Save changes' : 'Create'}
+              {isSaving ? 'Đang lưu...' : editingRecord ? 'Lưu thay đổi' : 'Tạo mới'}
             </button>
             <button type="button" className="button-secondary" onClick={resetForm}>
-              Clear
+              Xóa
             </button>
           </div>
         </form>
@@ -523,7 +523,7 @@ function MenuManagerPanel() {
       setCategories(categoryData)
       setFoods(foodData)
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Khong the tai du lieu menu')
+      setFeedback(error instanceof Error ? error.message : 'Không thể tải dữ liệu menu')
     } finally {
       setIsLoading(false)
     }
@@ -586,34 +586,34 @@ function MenuManagerPanel() {
     const nextErrors: MenuFoodFormErrors = {}
 
     if (!name) {
-      nextErrors.name = 'Ten mon la bat buoc'
+      nextErrors.name = 'Tên món là bắt buộc'
     }
 
     if (!Number.isFinite(price) || price < 0) {
-      nextErrors.price = 'Gia phai la so khong am'
+      nextErrors.price = 'Giá phải là số không âm'
     }
 
     if (!Number.isInteger(defaultQuantity) || defaultQuantity < 0) {
-      nextErrors.defaultQuantity = 'So luong mac dinh phai la so nguyen khong am'
+      nextErrors.defaultQuantity = 'Số lượng mặc định phải là số nguyên không âm'
     }
 
     if (!Number.isInteger(currentQuantity) || currentQuantity < 0) {
-      nextErrors.currentQuantity = 'So luong hien tai phai la so nguyen khong am'
+      nextErrors.currentQuantity = 'Số lượng hiện tại phải là số nguyên không âm'
     } else if (Number.isInteger(defaultQuantity) && defaultQuantity >= 0 && currentQuantity > defaultQuantity) {
-      nextErrors.currentQuantity = 'So luong hien tai khong duoc lon hon so luong mac dinh'
+      nextErrors.currentQuantity = 'Số lượng hiện tại không được lớn hơn số lượng mặc định'
     }
 
     if (restaurantId === null) {
-      nextErrors.restaurantId = 'Phai chon nha hang'
+      nextErrors.restaurantId = 'Phải chọn nhà hàng'
     }
 
     if (categoryId === null) {
-      nextErrors.categoryId = 'Phai chon danh muc'
+      nextErrors.categoryId = 'Phải chọn danh mục'
     }
 
     const selectedCategory = categoryId !== null ? categories.find((category) => category.id === categoryId) : null
     if (selectedCategory && restaurantId !== null && selectedCategory.restaurantId !== restaurantId) {
-      nextErrors.categoryId = 'Danh muc khong thuoc nha hang da chon'
+      nextErrors.categoryId = 'Danh mục không thuộc nhà hàng đã chọn'
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -639,16 +639,16 @@ function MenuManagerPanel() {
 
       if (foodForm.id) {
         await updateFood(foodForm.id, payload)
-        setFeedback(`Da cap nhat mon #${foodForm.id}`)
+        setFeedback(`Đã cập nhật món #${foodForm.id}`)
       } else {
         await createFood(payload)
-        setFeedback('Da tao mon moi')
+        setFeedback('Đã tạo món mới')
       }
 
       resetFoodForm()
       await loadMenuData()
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Luu mon that bai')
+      setFeedback(error instanceof Error ? error.message : 'Lưu món thất bại')
     } finally {
       setIsSavingFood(false)
     }
@@ -662,11 +662,11 @@ function MenuManagerPanel() {
     const nextErrors: MenuCategoryFormErrors = {}
 
     if (!Number.isFinite(restaurantId) || !categoryForm.restaurantId) {
-      nextErrors.restaurantId = 'Phai chon nha hang'
+      nextErrors.restaurantId = 'Phải chọn nhà hàng'
     }
 
     if (!name) {
-      nextErrors.name = 'Ten danh muc la bat buoc'
+      nextErrors.name = 'Tên danh mục là bắt buộc'
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -682,23 +682,23 @@ function MenuManagerPanel() {
 
       if (categoryForm.id) {
         await updateCategory(categoryForm.id, { name, restaurantId })
-        setFeedback(`Da cap nhat danh muc #${categoryForm.id}`)
+        setFeedback(`Đã cập nhật danh mục #${categoryForm.id}`)
       } else {
         await createCategory({ name, restaurantId })
-        setFeedback('Da tao danh muc moi')
+        setFeedback('Đã tạo danh mục mới')
       }
 
       resetCategoryForm()
       await loadMenuData()
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Luu danh muc that bai')
+      setFeedback(error instanceof Error ? error.message : 'Lưu danh mục thất bại')
     } finally {
       setIsSavingCategory(false)
     }
   }
 
   async function handleDeleteFood(food: Food) {
-    const confirmed = window.confirm(`Xoa mon ${food.name}?`)
+    const confirmed = window.confirm(`Xóa món ${food.name}?`)
 
     if (!confirmed) {
       return
@@ -707,15 +707,15 @@ function MenuManagerPanel() {
     try {
       setFeedback(null)
       await deleteFood(food.id)
-      setFeedback(`Da xoa mon #${food.id}`)
+      setFeedback(`Đã xóa món #${food.id}`)
       await loadMenuData()
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Khong the xoa mon')
+      setFeedback(error instanceof Error ? error.message : 'Không thể xóa món')
     }
   }
 
   async function handleDeleteCategory(category: Category) {
-    const confirmed = window.confirm(`Xoa danh muc ${category.name}?`)
+    const confirmed = window.confirm(`Xóa danh mục ${category.name}?`)
 
     if (!confirmed) {
       return
@@ -724,10 +724,10 @@ function MenuManagerPanel() {
     try {
       setFeedback(null)
       await deleteCategory(category.id)
-      setFeedback(`Da xoa danh muc #${category.id}`)
+      setFeedback(`Đã xóa danh mục #${category.id}`)
       await loadMenuData()
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Khong the xoa danh muc')
+      setFeedback(error instanceof Error ? error.message : 'Không thể xóa danh mục')
     }
   }
 
@@ -737,35 +737,35 @@ function MenuManagerPanel() {
         <div>
           <span className="hero-badge">Nguoi 4</span>
           <h2>Quản lý menu theo nhà hàng</h2>
-          <p>CRUD danh muc, CRUD mon an va kiem tra API loc menu theo restaurant, category, ten mon, trang thai ban.</p>
+          <p>CRUD danh mục, CRUD món ăn và kiểm tra API lọc menu theo nhà hàng, danh mục, tên món, trạng thái bàn.</p>
         </div>
         <div className="menu-stat-grid">
           <div>
-            <span>Mon hien thi</span>
+            <span>Món hiển thị</span>
             <strong>{foods.length}</strong>
           </div>
           <div>
-            <span>Dang ban</span>
+            <span>Đang bán</span>
             <strong>{stats.available}</strong>
           </div>
           <div>
-            <span>Het/tam dung</span>
+            <span>Hết/Tạm dừng</span>
             <strong>{stats.soldOut}</strong>
           </div>
           <div>
-            <span>Ton kho</span>
+            <span>Tồn kho</span>
             <strong>{stats.totalStock}</strong>
           </div>
         </div>
       </section>
 
-      {feedback ? <p className={feedback.includes('that bai') || feedback.includes('Khong') ? 'app-feedback error' : 'restaurant-feedback success'}>{feedback}</p> : null}
+      {feedback ? <p className={feedback.includes('thất bại') || feedback.includes('Không') ? 'app-feedback error' : 'restaurant-feedback success'}>{feedback}</p> : null}
 
       <form className="menu-filter-bar" onSubmit={(event) => void applyFilters(event)}>
         <label>
           <span>Nhà hàng</span>
           <select value={restaurantFilter} onChange={(event) => setRestaurantFilter(event.target.value)}>
-            <option value="">Tat ca nha hang</option>
+            <option value="">Tất cả nhà hàng</option>
             {restaurants.map((restaurant) => (
               <option key={restaurant.id} value={restaurant.id}>
                 #{restaurant.id} - {restaurant.name}
@@ -774,9 +774,9 @@ function MenuManagerPanel() {
           </select>
         </label>
         <label>
-          <span>Danh muc</span>
+          <span>Danh mục</span>
           <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-            <option value="">Tat ca danh muc</option>
+            <option value="">Tất cả danh mục</option>
             {visibleCategories.map((category) => (
               <option key={category.id} value={category.id}>
                 #{category.id} - {category.name}
@@ -785,19 +785,19 @@ function MenuManagerPanel() {
           </select>
         </label>
         <label>
-          <span>Tim mon</span>
-          <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Nhap ten mon" />
+          <span>Tìm món</span>
+          <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Nhập tên món" />
         </label>
         <label>
-          <span>Trang thai</span>
+          <span>Trạng thái</span>
           <select value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value)}>
-            <option value="all">Tat ca</option>
-            <option value="true">Dang ban</option>
-            <option value="false">Tam dung</option>
+            <option value="all">Tất cả</option>
+            <option value="true">Đang bán</option>
+            <option value="false">Tạm dừng</option>
           </select>
         </label>
         <button type="submit" className="button-primary" disabled={isLoading}>
-          {isLoading ? 'Dang tai...' : 'Loc menu'}
+          {isLoading ? 'Đang tải...' : 'Lọc menu'}
         </button>
       </form>
 
@@ -805,11 +805,11 @@ function MenuManagerPanel() {
         <section className="admin-panel menu-list-panel">
           <div className="admin-panel-head">
             <div>
-              <h2>Danh sach mon an</h2>
-              <p>Ket qua lay tu GET /api/foods voi query filter dang chon.</p>
+              <h2>Danh sách món ăn</h2>
+              <p>Kết quả lấy từ GET /api/foods với query filter đang chọn.</p>
             </div>
             <button type="button" className="button-secondary" onClick={() => void loadMenuData()} disabled={isLoading}>
-              Reload
+              Tải lại
             </button>
           </div>
 
@@ -833,11 +833,11 @@ function MenuManagerPanel() {
                     <strong>{formatMoney(Number(food.price))} VND</strong>
                   </div>
                   <div className="menu-admin-meta">
-                    <span>{restaurant ? restaurant.name : 'Chua gan nha hang'}</span>
+                    <span>{restaurant ? restaurant.name : 'Chưa gắn nhà hàng'}</span>
                     <span>{category ? category.name : 'Chưa có danh mục'}</span>
-                    <span>{food.isAvailable ? 'Dang ban' : 'Tam dung'}</span>
+                    <span>{food.isAvailable ? 'Đang bán' : 'Tạm dừng'}</span>
                     <span>
-                      {food.currentQuantity}/{food.defaultQuantity} mon
+                      {food.currentQuantity}/{food.defaultQuantity} món
                     </span>
                   </div>
                   <div className="admin-actions">
@@ -859,10 +859,10 @@ function MenuManagerPanel() {
                         })
                       }}
                     >
-                      Edit
+                      Sửa
                     </button>
                     <button type="button" className="button-danger" onClick={() => void handleDeleteFood(food)}>
-                      Delete
+                      Xóa
                     </button>
                   </div>
                 </article>
@@ -870,30 +870,30 @@ function MenuManagerPanel() {
             })}
           </div>
 
-          {!isLoading && foods.length === 0 ? <p className="empty-state">Khong co mon phu hop bo loc.</p> : null}
+          {!isLoading && foods.length === 0 ? <p className="empty-state">Không có món phù hợp với bộ lọc.</p> : null}
         </section>
 
         <aside className="menu-editor-stack">
           <section className="admin-form-panel">
             <div className="driver-control-head">
-              <span>{foodForm.id ? `Edit mon #${foodForm.id}` : 'Create food'}</span>
-              <h2>Form them/sua mon</h2>
-              <p>Gui truc tiep vao POST/PUT /api/foods.</p>
+              <span>{foodForm.id ? `Sửa món #${foodForm.id}` : 'Tạo món'}</span>
+              <h2>Form thêm/sửa món</h2>
+              <p>Gửi trực tiếp vào POST/PUT /api/foods.</p>
             </div>
             <form className="admin-form" noValidate onSubmit={(event) => void handleFoodSubmit(event)}>
               <label className="restaurant-field">
-                <span>Ten mon</span>
+                <span>Tên món</span>
                 <input value={foodForm.name} onChange={(event) => updateFoodFormField('name', event.target.value)} />
                 {foodFormErrors.name ? <p className="field-error">{foodFormErrors.name}</p> : null}
               </label>
               <ImageUrlField
                 id="adminFoodImageUrl"
-                label="Link hinh anh mon"
+                label="Link hình ảnh món"
                 value={foodForm.imageUrl}
                 onChange={(value) => updateFoodFormField('imageUrl', value)}
               />
               <label className="restaurant-field">
-                <span>Gia</span>
+                <span>Giá</span>
                 <input
                   type="number"
                   value={foodForm.price}
@@ -910,7 +910,7 @@ function MenuManagerPanel() {
                     updateFoodFormField('categoryId', '')
                   }}
                 >
-                  <option value="">Chon nha hang</option>
+                  <option value="">Chọn nhà hàng</option>
                   {restaurants.map((restaurant) => (
                     <option key={restaurant.id} value={restaurant.id}>
                       #{restaurant.id} - {restaurant.name}
@@ -920,9 +920,9 @@ function MenuManagerPanel() {
                 {foodFormErrors.restaurantId ? <p className="field-error">{foodFormErrors.restaurantId}</p> : null}
               </label>
               <label className="restaurant-field">
-                <span>Danh muc</span>
+                <span>Danh mục</span>
                 <select value={foodForm.categoryId} onChange={(event) => updateFoodFormField('categoryId', event.target.value)}>
-                  <option value="">{foodForm.restaurantId ? 'Chon danh muc' : 'Chon nha hang de hien danh muc'}</option>
+                  <option value="">{foodForm.restaurantId ? 'Chọn danh mục' : 'Chọn nhà hàng để hiển thị danh mục'}</option>
                   {categoryOptions.map((category) => (
                     <option key={category.id} value={category.id}>
                       #{category.id} - {category.name}
@@ -933,14 +933,14 @@ function MenuManagerPanel() {
               </label>
               <div className="menu-form-note">
                 {foodForm.restaurantId === '' ? (
-                  <p>Chon nha hang truoc khi tao mon an.</p>
+                  <p>Chọn nhà hàng trước khi tạo món ăn.</p>
                 ) : categoryOptions.length === 0 ? (
-                  <p>Danh muc chua co cho nha hang da chon.</p>
+                  <p>Danh mục chưa có cho nhà hàng đã chọn.</p>
                 ) : null}
               </div>
               <div className="checkout-grid">
                 <label className="restaurant-field">
-                  <span>SL mac dinh</span>
+                  <span>Số lượng mặc định</span>
                   <input
                     type="number"
                     value={foodForm.defaultQuantity}
@@ -949,7 +949,7 @@ function MenuManagerPanel() {
                   {foodFormErrors.defaultQuantity ? <p className="field-error">{foodFormErrors.defaultQuantity}</p> : null}
                 </label>
                 <label className="restaurant-field">
-                  <span>SL hien tai</span>
+                  <span>Số lượng hiện tại</span>
                   <input
                     type="number"
                     value={foodForm.currentQuantity}
@@ -964,14 +964,14 @@ function MenuManagerPanel() {
                   checked={foodForm.isAvailable}
                   onChange={(event) => updateFoodFormField('isAvailable', event.target.checked)}
                 />
-                <span>Dang ban</span>
+                <span>Đang bán</span>
               </label>
               <div className="restaurant-form-actions">
                 <button type="submit" className="button-primary" disabled={isSavingFood || !canSubmitFood}>
-                  {isSavingFood ? 'Saving...' : foodForm.id ? 'Save food' : 'Create food'}
+                  {isSavingFood ? 'Đang lưu...' : foodForm.id ? 'Lưu món ăn' : 'Tạo món ăn'}
                 </button>
                 <button type="button" className="button-secondary" onClick={resetFoodForm}>
-                  Clear
+                  Làm mới
                 </button>
               </div>
             </form>
@@ -979,9 +979,9 @@ function MenuManagerPanel() {
 
           <section className="admin-form-panel">
             <div className="driver-control-head">
-              <span>{categoryForm.id ? `Edit danh muc #${categoryForm.id}` : 'Create category'}</span>
-              <h2>Danh muc</h2>
-              <p>Tao danh muc cho tung nha hang.</p>
+              <span>{categoryForm.id ? `Sửa danh mục #${categoryForm.id}` : 'Tạo danh mục'}</span>
+              <h2>Danh mục</h2>
+              <p>Tạo danh mục cho từng nhà hàng.</p>
             </div>
             <form className="admin-form" noValidate onSubmit={(event) => void handleCategorySubmit(event)}>
               <label className="restaurant-field">
@@ -993,7 +993,7 @@ function MenuManagerPanel() {
                     setCategoryFormErrors((current) => ({ ...current, restaurantId: undefined }))
                   }}
                 >
-                  <option value="">Chon nha hang</option>
+                  <option value="">Chọn nhà hàng</option>
                   {restaurants.map((restaurant) => (
                     <option key={restaurant.id} value={restaurant.id}>
                       #{restaurant.id} - {restaurant.name}
@@ -1003,7 +1003,7 @@ function MenuManagerPanel() {
                 {categoryFormErrors.restaurantId ? <p className="field-error">{categoryFormErrors.restaurantId}</p> : null}
               </label>
               <label className="restaurant-field">
-                <span>Ten danh muc</span>
+                <span>Tên danh mục</span>
                 <input
                   value={categoryForm.name}
                   onChange={(event) => {
@@ -1015,10 +1015,10 @@ function MenuManagerPanel() {
               </label>
               <div className="restaurant-form-actions">
                 <button type="submit" className="button-primary" disabled={isSavingCategory}>
-                  {isSavingCategory ? 'Saving...' : categoryForm.id ? 'Save category' : 'Create category'}
+                  {isSavingCategory ? 'Đang lưu...' : categoryForm.id ? 'Lưu danh mục' : 'Tạo danh mục'}
                 </button>
                 <button type="button" className="button-secondary" onClick={resetCategoryForm}>
-                  Clear
+                  Làm mới
                 </button>
               </div>
             </form>
@@ -1039,7 +1039,7 @@ function MenuManagerPanel() {
                     #{category.id} {category.name}
                   </button>
                   <button type="button" className="button-danger" onClick={() => void handleDeleteCategory(category)}>
-                    Delete
+                    Xóa
                   </button>
                 </div>
               ))}
@@ -1116,7 +1116,7 @@ export default function AdminPage() {
         }
       } catch (error) {
         if (!ignore) {
-          setDashboardError(error instanceof Error ? error.message : 'Khong the tai thong ke dashboard')
+          setDashboardError(error instanceof Error ? error.message : 'Không thể tải thống kê dashboard')
         }
       }
     }
@@ -1165,28 +1165,28 @@ export default function AdminPage() {
       <div className="admin-header">
         <div>
           <span className="hero-badge">Admin</span>
-          <h1>Quan tri he thong GrabFood</h1>
+          <h1>Quản trị hệ thống GrabFood</h1>
           <p>{user ? `${user.fullName || user.phone} đang đăng nhập với role ${user.role}` : 'Quản lý dữ liệu hệ thống.'}</p>
         </div>
         <div className="admin-kpis">
           <div>
-            <span>Tong nha hang</span>
+            <span>Tổng nhà hàng</span>
             <strong>{dashboardStats.restaurants}</strong>
           </div>
           <div>
-            <span>Don hom nay</span>
+            <span>Đơn hôm nay</span>
             <strong>{dashboardStats.todayOrders}</strong>
           </div>
           <div>
-            <span>Doanh thu hom nay</span>
+            <span>Doanh thu hôm nay</span>
             <strong>{formatMoney(dashboardStats.todayRevenue)}</strong>
           </div>
           <div>
-            <span>Don cho xu ly</span>
+            <span>Đơn chờ xử lý</span>
             <strong>{dashboardStats.waitingOrders}</strong>
           </div>
           <div>
-            <span>Driver online</span>
+            <span>Tài xế đang hoạt động</span>
             <strong>{dashboardStats.onlineDrivers}</strong>
           </div>
         </div>
