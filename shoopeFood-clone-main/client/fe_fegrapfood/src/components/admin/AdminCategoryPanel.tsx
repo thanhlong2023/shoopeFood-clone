@@ -48,7 +48,7 @@ export default function AdminCategoryPanel() {
       setRestaurants(restaurantData)
       setCategories(categoryData)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the tai danh muc')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể tải danh mục')
     } finally {
       setIsLoading(false)
     }
@@ -81,11 +81,11 @@ export default function AdminCategoryPanel() {
     const nextErrors: CategoryFormErrors = {}
 
     if (!form.restaurantId || !Number.isFinite(restaurantId)) {
-      nextErrors.restaurantId = 'Phai chon nha hang'
+      nextErrors.restaurantId = 'Phải chọn nhà hàng'
     }
 
     if (!name) {
-      nextErrors.name = 'Ten danh muc la bat buoc'
+      nextErrors.name = 'Tên danh mục la bat buoc'
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -102,33 +102,33 @@ export default function AdminCategoryPanel() {
 
       if (form.id) {
         await updateCategory(form.id, { name, restaurantId })
-        setFeedback(`Da cap nhat danh muc #${form.id}`)
+        setFeedback(`Da cap nhat danh mục #${form.id}`)
       } else {
         await createCategory({ name, restaurantId })
-        setFeedback(`Da tao danh muc "${name}" cho quan #${restaurantId}`)
+        setFeedback(`Da tao danh mục "${name}" cho quan #${restaurantId}`)
       }
 
       resetForm()
       await loadData()
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the luu danh muc')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể lưu danh mục')
     } finally {
       setIsSaving(false)
     }
   }
 
   async function handleDelete(category: Category) {
-    const confirmed = window.confirm(`Xoa danh muc "${category.name}"?`)
+    const confirmed = window.confirm(`Xóa danh mục "${category.name}"?`)
     if (!confirmed) return
 
     try {
       setErrorMessage(null)
       await deleteCategory(category.id)
-      setFeedback(`Da xoa danh muc #${category.id}`)
+      setFeedback(`Da xoa danh mục #${category.id}`)
       if (form.id === category.id) resetForm()
       await loadData()
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the xoa danh muc')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể xóa danh mục')
     }
   }
 
@@ -137,8 +137,8 @@ export default function AdminCategoryPanel() {
       <section className="admin-panel">
         <div className="admin-panel-head">
           <div>
-            <h2>Danh muc mon an</h2>
-            <p>Tao danh muc theo dung nha hang. Chủ quán se thay ngay tai trang quan ly mon.</p>
+            <h2>Danh mục mon an</h2>
+            <p>Tao danh mục theo dung nhà hàng. Chủ quán se thay ngay tai trang quan ly mon.</p>
           </div>
           <button type="button" className="button-secondary" onClick={() => void loadData()} disabled={isLoading}>
             Reload
@@ -147,9 +147,9 @@ export default function AdminCategoryPanel() {
 
         <div className="menu-filter-bar">
           <label className="restaurant-field">
-            <span>Loc theo nha hang</span>
+            <span>Loc theo nhà hàng</span>
             <select value={restaurantFilter} onChange={(event) => setRestaurantFilter(event.target.value)}>
-              <option value="">Tat ca nha hang</option>
+              <option value="">Tất cả nhà hàng</option>
               {restaurants.map((restaurant) => (
                 <option key={restaurant.id} value={restaurant.id}>
                   #{restaurant.id} - {restaurant.name}
@@ -198,7 +198,7 @@ export default function AdminCategoryPanel() {
                           Sua
                         </button>
                         <button type="button" className="button-danger" onClick={() => void handleDelete(category)}>
-                          Xoa
+                          Xóa
                         </button>
                       </div>
                     </td>
@@ -208,7 +208,7 @@ export default function AdminCategoryPanel() {
             </tbody>
           </table>
 
-          {isLoading ? <p className="empty-state">Dang tai...</p> : null}
+          {isLoading ? <p className="empty-state">Đang tải...</p> : null}
           {!isLoading && visibleCategories.length === 0 ? (
             <p className="empty-state">Chưa có danh mục phu hop.</p>
           ) : null}
@@ -217,9 +217,9 @@ export default function AdminCategoryPanel() {
 
       <aside className="admin-form-panel">
         <div className="driver-control-head">
-          <span>{form.id ? `Sua #${form.id}` : 'Tao danh muc'}</span>
-          <h2>{form.id ? 'Cap nhat danh muc' : 'Them danh muc moi'}</h2>
-          <p>Chon dung nha hang truoc khi tao. Neu chon sai ID, chu quan se khong thay.</p>
+          <span>{form.id ? `Sua #${form.id}` : 'Tao danh mục'}</span>
+          <h2>{form.id ? 'Cap nhat danh mục' : 'Them danh mục moi'}</h2>
+          <p>Chon dung nhà hàng trước khi tao. Nếu chọn sai ID, chủ quán se khong thay.</p>
         </div>
 
         <form className="admin-form" noValidate onSubmit={handleSubmit}>
@@ -232,7 +232,7 @@ export default function AdminCategoryPanel() {
                 setFormErrors((current) => ({ ...current, restaurantId: undefined }))
               }}
             >
-              <option value="">-- Chon nha hang --</option>
+              <option value="">-- Chon nhà hàng --</option>
               {restaurants.map((restaurant) => (
                 <option key={restaurant.id} value={restaurant.id}>
                   #{restaurant.id} - {restaurant.name}
@@ -243,7 +243,7 @@ export default function AdminCategoryPanel() {
           </label>
 
           <label className="restaurant-field">
-            <span>Ten danh muc</span>
+            <span>Tên danh mục</span>
             <input
               value={form.name}
               onChange={(event) => {
@@ -257,7 +257,7 @@ export default function AdminCategoryPanel() {
 
           <div className="restaurant-form-actions">
             <button type="submit" className="button-primary" disabled={isSaving}>
-              {isSaving ? 'Dang luu...' : form.id ? 'Luu thay doi' : 'Tao danh muc'}
+              {isSaving ? 'Dang luu...' : form.id ? 'Lưu thay doi' : 'Tao danh mục'}
             </button>
             <button type="button" className="button-secondary" onClick={resetForm}>
               Clear

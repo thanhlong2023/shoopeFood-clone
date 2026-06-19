@@ -222,8 +222,11 @@ export default function TrackingPage() {
   const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [reviewRating, setReviewRating] = useState(5)
-  const [reviewComment, setReviewComment] = useState('')
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [reviewRestaurantRating, setReviewRestaurantRating] = useState(5)
+  const [reviewRestaurantComment, setReviewRestaurantComment] = useState('')
+  const [reviewDriverRating, setReviewDriverRating] = useState(5)
+  const [reviewDriverComment, setReviewDriverComment] = useState('')
   const [reviewFeedback, setReviewFeedback] = useState<string | null>(null)
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [driverAssignedNotice, setDriverAssignedNotice] = useState<{ driverName: string; orderCode: string } | null>(null)
@@ -241,6 +244,13 @@ export default function TrackingPage() {
   const driverDeliveringNoticeShownRef = useRef<Set<number>>(new Set())
   const deliveryCompletedNoticeShownRef = useRef<Set<number>>(new Set())
 
+  const [orderRejectedNotice, setOrderRejectedNotice] = useState<{
+    orderCode: string
+    rejectReason: string
+    message: string
+  } | null>(null)
+  const orderRejectedNoticeShownRef = useRef<Set<number>>(new Set())
+
   const showDeliveryCompletedNotice = useCallback(
     (payload: {
       orderId: number
@@ -254,7 +264,7 @@ export default function TrackingPage() {
 
       deliveryCompletedNoticeShownRef.current.add(payload.orderId)
       setDeliveryCompletedNotice({
-        driverName: payload.driver?.fullName || 'Ti x?',
+        driverName: payload.driver?.fullName || 'Tài xế',
         orderCode: payload.orderCode,
         totalAmount: Number(payload.totalAmount ?? 0),
       })
@@ -262,20 +272,61 @@ export default function TrackingPage() {
     [],
   )
 
-  async function handleSubmitRestaurantReview() {
+  const showOrderRejectedNotice = useCallback(
+    (payload: {
+      orderId: number
+      orderCode: string
+      rejectReason: string
+      message: string
+    }) => {
+      if (orderRejectedNoticeShownRef.current.has(payload.orderId)) return
+      orderRejectedNoticeShownRef.current.add(payload.orderId)
+      setOrderRejectedNotice({
+        orderCode: payload.orderCode,
+        rejectReason: payload.rejectReason || 'Không có lý do',
+        message: payload.message,
+      })
+    },
+    [],
+  )
+
+  async function handleSubmitReview() {
     if (!tracking) return
 
     try {
       setIsSubmittingReview(true)
       setReviewFeedback(null)
-      await createReview({
-        orderId: tracking.order.id,
-        targetType: 'RESTAURANT',
-        rating: reviewRating,
-        comment: reviewComment,
-      })
-      setReviewFeedback(' đã gửi đánh giá nhà hàng. Cảm ơn bạn!')
-      setReviewComment('')
+
+      const promises = []
+
+      // Submit Restaurant Review
+      promises.push(
+        createReview({
+          orderId: tracking.order.id,
+          targetType: 'RESTAURANT',
+          rating: reviewRestaurantRating,
+          comment: reviewRestaurantComment,
+        })
+      )
+
+      // Submit Driver Review if applicable
+      if (tracking.order.driverId) {
+        promises.push(
+          createReview({
+            orderId: tracking.order.id,
+            targetType: 'DRIVER',
+            rating: reviewDriverRating,
+            comment: reviewDriverComment,
+          })
+        )
+      }
+
+      await Promise.all(promises)
+      setReviewFeedback('Đã gửi đánh giá thành công. Cảm ơn bạn!')
+      setTimeout(() => {
+        setIsReviewModalOpen(false)
+        setReviewFeedback(null)
+      }, 2000)
     } catch (error) {
       setReviewFeedback(error instanceof Error ? error.message : 'Không thể gửi đánh giá')
     } finally {
@@ -411,6 +462,19 @@ export default function TrackingPage() {
       }
     }
 
+    const handleOrderRejected = (payload: {
+      orderId: number
+      orderCode: string
+      rejectReason: string
+      message: string
+    }) => {
+      showOrderRejectedNotice(payload)
+      refreshOrders()
+      if (payload.orderId === selectedOrderId) {
+        void loadTracking(payload.orderId, true)
+      }
+    }
+
     void createSocket()
       .then((createdSocket) => {
         if (!isMounted) {
@@ -422,6 +486,7 @@ export default function TrackingPage() {
         socket.on(`customer:${user.id}:order-timeout`, refreshOrders)
         socket.on(`customer:${user.id}:driver-delivering`, handleCustomerDriverDelivering)
         socket.on(`customer:${user.id}:delivery-completed`, handleDeliveryCompleted)
+        socket.on(`customer:${user.id}:order-rejected`, handleOrderRejected)
         socket.on('order:timeout', refreshOrders)
         socket.on('order:updated', refreshOrders)
       })
@@ -435,12 +500,13 @@ export default function TrackingPage() {
         socket.off(`customer:${user.id}:order-timeout`, refreshOrders)
         socket.off(`customer:${user.id}:driver-delivering`, handleCustomerDriverDelivering)
         socket.off(`customer:${user.id}:delivery-completed`, handleDeliveryCompleted)
+        socket.off(`customer:${user.id}:order-rejected`, handleOrderRejected)
         socket.off('order:timeout', refreshOrders)
         socket.off('order:updated', refreshOrders)
         socket.disconnect()
       }
     }
-  }, [isCustomer, loadCustomerOrders, loadTracking, selectedOrderId, showDeliveryCompletedNotice, showDriverDeliveringNotice, user?.id])
+  }, [isCustomer, loadCustomerOrders, loadTracking, selectedOrderId, showDeliveryCompletedNotice, showDriverDeliveringNotice, showOrderRejectedNotice, user?.id])
 
   useEffect(() => {
     if (!isCustomer || selectedOrderId || customerOrders.length === 0) {
@@ -684,7 +750,7 @@ export default function TrackingPage() {
   if (isCustomer && ordersLoading && customerOrders.length === 0) {
     return (
       <section className="tracking-page">
-        <p className="empty-state">ang t?i don hang cua ban...</p>
+        <p className="empty-state">Đang tải đơn hàng của bạn...</p>
       </section>
     )
   }
@@ -708,12 +774,12 @@ export default function TrackingPage() {
     <section className="tracking-page">
       <Modal
         title="Tài xế đã nhận đơn"
-        subtitle={driverAssignedNotice ? `on ${driverAssignedNotice.orderCode}` : undefined}
+        subtitle={driverAssignedNotice ? `Đơn ${driverAssignedNotice.orderCode}` : undefined}
         isOpen={driverAssignedNotice !== null}
         onClose={() => setDriverAssignedNotice(null)}
         footer={
           <button type="button" className="button-primary" onClick={() => setDriverAssignedNotice(null)}>
-             hi?u
+            Đã hiểu
           </button>
         }
       >
@@ -726,12 +792,12 @@ export default function TrackingPage() {
 
       <Modal
         title="Tài xế đang giao đến bạn"
-        subtitle={driverDeliveringNotice ? `on ${driverDeliveringNotice.orderCode}` : undefined}
+        subtitle={driverDeliveringNotice ? `Đơn ${driverDeliveringNotice.orderCode}` : undefined}
         isOpen={driverDeliveringNotice !== null}
         onClose={() => setDriverDeliveringNotice(null)}
         footer={
           <button type="button" className="button-primary" onClick={() => setDriverDeliveringNotice(null)}>
-             hi?u
+            Đã hiểu
           </button>
         }
       >
@@ -748,13 +814,13 @@ export default function TrackingPage() {
       </Modal>
 
       <Modal
-        title=" giao hng thnh cng"
-        subtitle={deliveryCompletedNotice ? `on ${deliveryCompletedNotice.orderCode}` : undefined}
+        title="Đã giao hàng thành công"
+        subtitle={deliveryCompletedNotice ? `Đơn ${deliveryCompletedNotice.orderCode}` : undefined}
         isOpen={deliveryCompletedNotice !== null}
         onClose={() => setDeliveryCompletedNotice(null)}
         footer={
           <button type="button" className="button-primary" onClick={() => setDeliveryCompletedNotice(null)}>
-             hi?u
+            Đã hiểu
           </button>
         }
       >
@@ -767,6 +833,28 @@ export default function TrackingPage() {
               Tổng giá trị đơn: <strong>{formatPrice(deliveryCompletedNotice.totalAmount)} VND</strong>
             </p>
             <p>Cảm ơn bạn đã sử dụng dịch vụ!</p>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        title="Đơn hàng bị nhà hàng hủy"
+        subtitle={orderRejectedNotice ? `Đơn ${orderRejectedNotice.orderCode}` : undefined}
+        isOpen={orderRejectedNotice !== null}
+        onClose={() => setOrderRejectedNotice(null)}
+        footer={
+          <button type="button" className="button-primary" onClick={() => setOrderRejectedNotice(null)}>
+            Đã hiểu
+          </button>
+        }
+      >
+        {orderRejectedNotice ? (
+          <div className="tracking-completed-notice">
+            <p className="text-red-600 font-bold mb-2">Thành thật xin lỗi bạn vì sự cố này.</p>
+            <p>
+              Nhà hàng đã hủy đơn của bạn với lý do: <strong>{orderRejectedNotice.rejectReason}</strong>
+            </p>
+            <p className="mt-2 text-sm text-gray-600">Mong bạn thông cảm và đặt món ở nhà hàng khác nhé!</p>
           </div>
         ) : null}
       </Modal>
@@ -995,39 +1083,13 @@ export default function TrackingPage() {
             </button>
           )}
           {isCustomer && tracking?.order.statusCode === 'COMPLETED' ? (
-            <div className="mt-4 rounded-2xl border border-yellow-100 bg-yellow-50 p-4">
-              <h3 className="text-sm font-black text-gray-900">Đánh giá nhà hàng</h3>
-              <p className="mt-1 text-xs font-semibold text-gray-500">Đơn đã hoàn thành, bạn có thể đánh sao cho trải nghiệm vừa rồi.</p>
-              <div className="mt-3 flex gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    className={`text-2xl ${star <= reviewRating ? 'text-yellow-500' : 'text-gray-300'}`}
-                    onClick={() => setReviewRating(star)}
-                    aria-label={`${star} sao`}
-                  >
-                    ★
-                  </button>
-                ))}
-              </div>
-              <textarea
-                value={reviewComment}
-                onChange={(event) => setReviewComment(event.target.value)}
-                rows={3}
-                className="mt-3 w-full rounded-xl border border-yellow-100 bg-white p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-yellow-300"
-                placeholder="Nhận xét ngắn về nhà hàng..."
-              />
-              <button
-                type="button"
-                className="mt-3 w-full rounded-xl bg-yellow-500 px-4 py-2.5 text-xs font-black text-white disabled:bg-gray-200 disabled:text-gray-400"
-                onClick={() => void handleSubmitRestaurantReview()}
-                disabled={isSubmittingReview}
-              >
-                {isSubmittingReview ? 'Đang gửi...' : 'Gửi đánh giá'}
-              </button>
-              {reviewFeedback ? <p className="mt-2 text-xs font-bold text-gray-600">{reviewFeedback}</p> : null}
-            </div>
+            <button
+              type="button"
+              className="w-full mt-4 rounded-xl bg-yellow-500 hover:bg-yellow-600 px-4 py-3 text-sm font-black text-white shadow-sm transition-all"
+              onClick={() => setIsReviewModalOpen(true)}
+            >
+              Đánh giá đơn hàng
+            </button>
           ) : null}
         </aside>
       </div>
@@ -1035,7 +1097,7 @@ export default function TrackingPage() {
 
       {/* === ORDER LIST with pagination — below tracking === */}
       {isCustomer ? (
-        <section className="customer-orders-panel" aria-label="Danh sach don hang">
+        <section className="customer-orders-panel" aria-label="Danh sách đơn hàng">
           <div className="customer-orders-toolbar">
             <div className="customer-orders-head">
               <h2>Đơn đã đặt</h2>
@@ -1053,7 +1115,7 @@ export default function TrackingPage() {
             </button>
           </div>
 
-          <div className="customer-orders-filters" role="tablist" aria-label="Loc don hang">
+          <div className="customer-orders-filters" role="tablist" aria-label="Loc đơn hàng">
             <button
               type="button"
               role="tab"
@@ -1084,7 +1146,7 @@ export default function TrackingPage() {
               const restaurantName = order.restaurant?.name || `Quan #${order.restaurantId}`
               
               // Map friendly order status labels
-              let friendlyStatusLabel = order.statusLabel || order.statusCode || 'Khong ro'
+              let friendlyStatusLabel = order.statusLabel || order.statusCode || 'Không rõ'
               if (order.statusCode === 'COMPLETED' || order.statusCode === 'DELIVERED') {
                 friendlyStatusLabel = 'Đã giao'
               } else if (
@@ -1259,6 +1321,82 @@ export default function TrackingPage() {
       {!isCustomer && !selectedOrderId ? (
         <p className="empty-state">Chọn một đơn hàng để xem bản đồ theo dõi.</p>
       ) : null}
+
+      <Modal
+        title="Đánh giá trải nghiệm"
+        subtitle={tracking ? `Đơn hàng ${tracking.order.orderCode}` : undefined}
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        footer={
+          <button
+            type="button"
+            className="w-full mt-3 rounded-xl bg-yellow-500 px-4 py-3 text-sm font-black text-white disabled:bg-gray-200 disabled:text-gray-400"
+            onClick={() => void handleSubmitReview()}
+            disabled={isSubmittingReview}
+          >
+            {isSubmittingReview ? 'Đang gửi đánh giá...' : 'Gửi đánh giá'}
+          </button>
+        }
+      >
+        <div className="space-y-4">
+          {tracking?.order.driverId && tracking.driver ? (
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <h3 className="text-sm font-black text-gray-900">Đánh giá Tài xế: {tracking.driver.fullName}</h3>
+              <div className="mt-2 flex gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    className={`text-3xl ${star <= reviewDriverRating ? 'text-yellow-500' : 'text-gray-300'}`}
+                    onClick={() => setReviewDriverRating(star)}
+                    aria-label={`${star} sao`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={reviewDriverComment}
+                onChange={(event) => setReviewDriverComment(event.target.value)}
+                rows={2}
+                className="mt-3 w-full rounded-lg border border-gray-200 bg-white p-3 text-xs font-medium outline-none focus:ring-2 focus:ring-yellow-300"
+                placeholder="Nhận xét về tài xế (không bắt buộc)..."
+              />
+            </div>
+          ) : null}
+
+          {tracking?.order.restaurantId && tracking.restaurant ? (
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <h3 className="text-sm font-black text-gray-900">Đánh giá Nhà hàng: {tracking.restaurant.name}</h3>
+              <div className="mt-2 flex gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    className={`text-3xl ${star <= reviewRestaurantRating ? 'text-yellow-500' : 'text-gray-300'}`}
+                    onClick={() => setReviewRestaurantRating(star)}
+                    aria-label={`${star} sao`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={reviewRestaurantComment}
+                onChange={(event) => setReviewRestaurantComment(event.target.value)}
+                rows={2}
+                className="mt-3 w-full rounded-lg border border-gray-200 bg-white p-3 text-xs font-medium outline-none focus:ring-2 focus:ring-yellow-300"
+                placeholder="Nhận xét về món ăn (không bắt buộc)..."
+              />
+            </div>
+          ) : null}
+
+          {reviewFeedback && (
+            <p className="mt-2 text-center text-sm font-bold text-green-600">{reviewFeedback}</p>
+          )}
+        </div>
+      </Modal>
+
     </section>
   )
 }

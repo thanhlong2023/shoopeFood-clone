@@ -29,41 +29,41 @@ export default function PartnerSection() {
         <div className="partner-section-head">
           <span className="hero-badge">Hop tac</span>
           <h2>Ban muon gia nhap GrabFood?</h2>
-          <p>Đăng ký lam tai xe hoac mo nha hang. Don se duoc Admin xet duyet truoc khi kich hoat.</p>
+          <p>Đăng ký lam tài xế hoac mo nhà hàng. Don se duoc Admin xét duyệt trước khi kích hoạt.</p>
         </div>
 
         <div className="partner-card-grid">
           <article className="partner-card partner-card--driver">
             <div className="partner-card-icon">🛵</div>
-            <h3>Đăng ký tai xe</h3>
-            <p>Nhan don giao hang linh hoat. Can bien so xe va so CCCD.</p>
+            <h3>Đăng ký tài xế</h3>
+            <p>Nhan don giao hàng linh hoat. Can bien so xe va so CCCD.</p>
             <ul>
               <li>Thu nhap theo don</li>
               <li>Tu chon ca lam viec</li>
-              <li>Duyet trong 24h</li>
+              <li>Duyệt trong 24h</li>
             </ul>
             <button type="button" className="button-primary" onClick={() => requireLogin(() => setDriverOpen(true))}>
-              Đăng ký tai xe
+              Đăng ký tài xế
             </button>
             <Link to="/driver/login" className="partner-card-link">
-              Da duoc duyet? Đăng nhập tai xe
+              Da duoc duyệt? Đăng nhập tài xế
             </Link>
           </article>
 
           <article className="partner-card partner-card--merchant">
             <div className="partner-card-icon">🏪</div>
-            <h3>Mo nha hang</h3>
-            <p>Đăng ký quan an, tiep can khach hang moi tren ung dung.</p>
+            <h3>Mo nhà hàng</h3>
+            <p>Đăng ký quan an, tiep can khách hang moi tren ung dung.</p>
             <ul>
               <li>Quản lý thực đơn online</li>
               <li>Nhan don tu khach</li>
-              <li>Admin ho tro duyet quan</li>
+              <li>Admin ho tro duyệt quan</li>
             </ul>
             <button type="button" className="button-primary" onClick={() => requireLogin(() => setMerchantOpen(true))}>
-              Đăng ký mo quan
+              Đăng ký mở quán
             </button>
             <Link to="/merchant/login" className="partner-card-link">
-              Da duoc duyet? Đăng nhập chủ quán
+              Da duoc duyệt? Đăng nhập chủ quán
             </Link>
           </article>
         </div>

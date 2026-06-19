@@ -50,7 +50,7 @@ export default function ApplyMerchantModal({ isOpen, onClose }: ApplyMerchantMod
     const lat = Number(latitude)
     const lng = Number(longitude)
 
-    if (!trimmedName) nextErrors.name = 'Ten nha hang la bat buoc'
+    if (!trimmedName) nextErrors.name = 'Tên nhà hàng la bat buoc'
     if (!trimmedAddress) nextErrors.address = 'Dia chi la bat buoc'
     if (!Number.isFinite(lat)) nextErrors.latitude = 'Vi do khong hop le'
     if (!Number.isFinite(lng)) nextErrors.longitude = 'Kinh do khong hop le'
@@ -74,9 +74,9 @@ export default function ApplyMerchantModal({ isOpen, onClose }: ApplyMerchantMod
         closingTime: `${closingTime}:00`,
         imageUrl: imageUrl.trim() || null,
       })
-      setSuccessMessage('Da gui don mo nha hang. Admin se duyet quan cua ban.')
+      setSuccessMessage('Đã gửi don mo nhà hàng. Admin se duyệt quán của bạn.')
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Khong the gui don')
+      setFormError(error instanceof Error ? error.message : 'Không thể gửi đơn')
     } finally {
       setIsSubmitting(false)
     }
@@ -84,8 +84,8 @@ export default function ApplyMerchantModal({ isOpen, onClose }: ApplyMerchantMod
 
   return (
     <Modal
-      title="Đăng ký mo nha hang"
-      subtitle="Mo quan tren GrabFood. Don se duoc Admin kiem tra truoc khi hien thi."
+      title="Đăng ký mo nhà hàng"
+      subtitle="Mở quán tren GrabFood. Don se duoc Admin kiem tra trước khi hien thi."
       isOpen={isOpen}
       onClose={handleClose}
       footer={
@@ -116,7 +116,7 @@ export default function ApplyMerchantModal({ isOpen, onClose }: ApplyMerchantMod
           {formError ? <p className="app-feedback error">{formError}</p> : null}
 
           <label className="restaurant-field">
-            <span>Ten nha hang</span>
+            <span>Tên nhà hàng</span>
             <input
               value={name}
               onChange={(event) => {
@@ -167,7 +167,7 @@ export default function ApplyMerchantModal({ isOpen, onClose }: ApplyMerchantMod
 
           <ImageUrlField
             id="merchantApplyImage"
-            label="Anh bia nha hang"
+            label="Ảnh bìa nhà hàng"
             value={imageUrl}
             placeholder="https://example.com/quan.jpg"
             onChange={setImageUrl}

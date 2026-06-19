@@ -54,9 +54,9 @@ export default function ApplyDriverModal({ isOpen, onClose }: ApplyDriverModalPr
     try {
       setIsSubmitting(true)
       await applyDriver({ licensePlate: plate, idCardNumber: cccd, vehicleType })
-      setSuccessMessage('Da gui don dang ky tai xe. Vui long cho Admin duyet.')
+      setSuccessMessage('Đã gửi don dang ky tài xế. Vui long cho Admin duyệt.')
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Khong the gui don')
+      setFormError(error instanceof Error ? error.message : 'Không thể gửi đơn')
     } finally {
       setIsSubmitting(false)
     }
@@ -64,8 +64,8 @@ export default function ApplyDriverModal({ isOpen, onClose }: ApplyDriverModalPr
 
   return (
     <Modal
-      title="Đăng ký tro thanh tai xe"
-      subtitle="Dien thong tin that. Admin se xet duyet trong 1-2 ngay lam viec."
+      title="Đăng ký tro thanh tài xế"
+      subtitle="Dien thông tin that. Admin se xét duyệt trong 1-2 ngay lam viec."
       isOpen={isOpen}
       onClose={handleClose}
       footer={

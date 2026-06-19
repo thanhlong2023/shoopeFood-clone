@@ -23,5 +23,7 @@ public class Order {
     public DriverSummary driver;
     public List<OrderItem> items;
     public int version;
+    public String cancelReason;
+    public String cancelledByRole;
     public String createdAt;
 }

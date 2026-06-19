@@ -3,8 +3,12 @@ package com.shoopefood.mobile.ui;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.RatingBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -15,6 +19,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.google.android.material.button.MaterialButton;
 import com.shoopefood.mobile.R;
 import com.shoopefood.mobile.map.CustomerTrackingMapController;
+import com.shoopefood.mobile.model.ApiMessageResponse;
 import com.shoopefood.mobile.model.Driver;
 import com.shoopefood.mobile.model.DriverCompletedDelivery;
 import com.shoopefood.mobile.model.DriverProfileData;
@@ -24,6 +29,7 @@ import com.shoopefood.mobile.model.Order;
 import com.shoopefood.mobile.model.OrderResponse;
 import com.shoopefood.mobile.model.OrderTracking;
 import com.shoopefood.mobile.model.OrderTrackingResponse;
+import com.shoopefood.mobile.model.ReviewRequest;
 import com.shoopefood.mobile.model.RoutePoint;
 import com.shoopefood.mobile.model.TrackingDriverLocation;
 import com.shoopefood.mobile.model.TrackingRouteLeg;
@@ -69,6 +75,7 @@ public class OrderDetailActivity extends AppCompatActivity {
     private boolean driverAssignedDialogShown;
     private boolean driverDeliveringDialogShown;
     private boolean deliveryCompletedDialogShown;
+    private boolean orderRejectedDialogShown;
     private int orderId;
 
     private final Runnable pollRunnable = new Runnable() {
@@ -331,6 +338,7 @@ public class OrderDetailActivity extends AppCompatActivity {
                 maybeShowDriverAssignedDialog(response.body().data);
                 maybeShowDriverDeliveringDialog(response.body().data);
                 maybeShowDeliveryCompletedDialog(response.body().data);
+                maybeShowOrderRejectedDialog(response.body().data);
             }
 
             @Override
@@ -354,6 +362,7 @@ public class OrderDetailActivity extends AppCompatActivity {
                 maybeShowDriverAssignedDialog(order);
                 maybeShowDriverDeliveringDialog(order);
                 maybeShowDeliveryCompletedDialog(order);
+                maybeShowOrderRejectedDialog(order);
             }
 
             @Override
@@ -423,6 +432,7 @@ public class OrderDetailActivity extends AppCompatActivity {
             maybeShowDriverAssignedDialog(tracking.order);
             maybeShowDriverDeliveringDialog(tracking.order);
             maybeShowDeliveryCompletedDialog(tracking.order);
+            maybeShowOrderRejectedDialog(tracking.order);
 
             // Update cancel button visibility dynamically
             if (tracking.order.driver == null && ("PENDING".equalsIgnoreCase(tracking.order.statusCode) 
@@ -653,7 +663,123 @@ public class OrderDetailActivity extends AppCompatActivity {
                         order.orderCode,
                         CurrencyUtils.formatVnd(order.totalAmount)
                 ))
-                .setPositiveButton(R.string.customer_driver_assigned_ok, null)
+                .setPositiveButton(R.string.customer_driver_assigned_ok, (dialog, which) -> showReviewDialog(order))
+                .setCancelable(true)
+                .show();
+    }
+
+    private void showReviewDialog(Order order) {
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_review, null);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(view)
+                .setCancelable(true)
+                .create();
+
+        TextView tvDriverReviewTitle = view.findViewById(R.id.tvDriverReviewTitle);
+        RatingBar rbDriverRating = view.findViewById(R.id.rbDriverRating);
+        EditText etDriverComment = view.findViewById(R.id.etDriverComment);
+        View vDivider = view.findViewById(R.id.vDivider);
+        TextView tvRestaurantReviewTitle = view.findViewById(R.id.tvRestaurantReviewTitle);
+        RatingBar rbRestaurantRating = view.findViewById(R.id.rbRestaurantRating);
+        EditText etRestaurantComment = view.findViewById(R.id.etRestaurantComment);
+        Button btnSubmitReview = view.findViewById(R.id.btnSubmitReview);
+
+        boolean hasDriver = order.driver != null && order.driver.id > 0;
+        boolean hasRestaurant = order.restaurant != null && order.restaurant.id > 0;
+
+        if (hasDriver) {
+            tvDriverReviewTitle.setVisibility(View.VISIBLE);
+            tvDriverReviewTitle.setText("Đánh giá Tài xế: " + safeText(order.driver.fullName, "Tài xế"));
+            rbDriverRating.setVisibility(View.VISIBLE);
+            etDriverComment.setVisibility(View.VISIBLE);
+        }
+
+        if (hasDriver && hasRestaurant) {
+            vDivider.setVisibility(View.VISIBLE);
+        }
+
+        if (hasRestaurant) {
+            tvRestaurantReviewTitle.setVisibility(View.VISIBLE);
+            tvRestaurantReviewTitle.setText("Đánh giá Nhà hàng: " + safeText(order.restaurant.name, "Quán ăn"));
+            rbRestaurantRating.setVisibility(View.VISIBLE);
+            etRestaurantComment.setVisibility(View.VISIBLE);
+        }
+
+        btnSubmitReview.setOnClickListener(v -> {
+            btnSubmitReview.setEnabled(false);
+            btnSubmitReview.setText("Đang gửi...");
+
+            int requestsToMake = 0;
+            final int[] requestsCompleted = {0};
+            final boolean[] hasError = {false};
+
+            if (hasDriver) {
+                requestsToMake++;
+            }
+            if (hasRestaurant) {
+                requestsToMake++;
+            }
+
+            if (requestsToMake == 0) {
+                dialog.dismiss();
+                return;
+            }
+
+            retrofit2.Callback<ApiMessageResponse> callback = new retrofit2.Callback<ApiMessageResponse>() {
+                @Override
+                public void onResponse(retrofit2.Call<ApiMessageResponse> call, retrofit2.Response<ApiMessageResponse> response) {
+                    requestsCompleted[0]++;
+                    if (!response.isSuccessful()) {
+                        hasError[0] = true;
+                    }
+                    checkCompletion();
+                }
+
+                @Override
+                public void onFailure(retrofit2.Call<ApiMessageResponse> call, Throwable t) {
+                    requestsCompleted[0]++;
+                    hasError[0] = true;
+                    checkCompletion();
+                }
+
+                private void checkCompletion() {
+                    if (requestsCompleted[0] == (hasDriver && hasRestaurant ? 2 : 1)) {
+                        dialog.dismiss();
+                        if (hasError[0]) {
+                            Toast.makeText(OrderDetailActivity.this, "Gặp lỗi khi gửi một số đánh giá", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(OrderDetailActivity.this, "Đã gửi đánh giá thành công", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+            };
+
+            if (hasDriver) {
+                ReviewRequest req = new ReviewRequest(order.id, "DRIVER", (int) rbDriverRating.getRating(), etDriverComment.getText().toString());
+                apiService.createReview(req).enqueue(callback);
+            }
+
+            if (hasRestaurant) {
+                ReviewRequest req = new ReviewRequest(order.id, "RESTAURANT", (int) rbRestaurantRating.getRating(), etRestaurantComment.getText().toString());
+                apiService.createReview(req).enqueue(callback);
+            }
+        });
+
+        dialog.show();
+    }
+
+    private void maybeShowOrderRejectedDialog(Order order) {
+        if (orderRejectedDialogShown || order == null || !"CANCELLED".equals(order.statusCode) || !"MERCHANT".equals(order.cancelledByRole)) {
+            return;
+        }
+
+        orderRejectedDialogShown = true;
+        String reason = order.cancelReason != null ? order.cancelReason : "Không có lý do";
+
+        new AlertDialog.Builder(this)
+                .setTitle("Đơn hàng bị nhà hàng hủy")
+                .setMessage("Thành thật xin lỗi bạn vì sự cố này.\nNhà hàng đã hủy đơn của bạn với lý do: " + reason + "\nMong bạn thông cảm và đặt món ở nhà hàng khác nhé!")
+                .setPositiveButton("Đã hiểu", null)
                 .setCancelable(true)
                 .show();
     }

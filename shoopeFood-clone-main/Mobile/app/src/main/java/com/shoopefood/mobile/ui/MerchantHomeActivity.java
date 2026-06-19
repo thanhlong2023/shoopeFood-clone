@@ -58,6 +58,10 @@ public class MerchantHomeActivity extends AppCompatActivity implements MerchantO
     private TextView emptyText;
     private ProgressBar progressBar;
 
+    private TextView textTodayOrders;
+    private TextView textTodayRevenue;
+    private com.google.android.material.bottomnavigation.BottomNavigationView bottomNavMerchant;
+
     private final List<Restaurant> restaurants = new ArrayList<>();
     private final List<Order> allOrders = new ArrayList<>();
     private Integer selectedRestaurantId = null;
@@ -169,6 +173,25 @@ public class MerchantHomeActivity extends AppCompatActivity implements MerchantO
         recyclerView = findViewById(R.id.recyclerMerchantOrders);
         emptyText = findViewById(R.id.textEmptyMerchantOrders);
         progressBar = findViewById(R.id.progressMerchantOrders);
+        textTodayOrders = findViewById(R.id.textTodayOrders);
+        textTodayRevenue = findViewById(R.id.textTodayRevenue);
+        bottomNavMerchant = findViewById(R.id.bottomNavMerchant);
+
+        bottomNavMerchant.setOnItemSelectedListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.nav_inventory) {
+                Intent intent = new Intent(this, MerchantQuickInventoryActivity.class);
+                if (selectedRestaurantId != null) {
+                    intent.putExtra(MerchantQuickInventoryActivity.EXTRA_RESTAURANT_ID, selectedRestaurantId);
+                }
+                startActivity(intent);
+                return false; // Don't check the item, keep 'Orders' active here
+            } else if (itemId == R.id.nav_profile) {
+                startActivity(new Intent(this, MerchantRestaurantProfileActivity.class));
+                return false;
+            }
+            return true;
+        });
     }
 
     private void setupTabs() {
@@ -264,6 +287,7 @@ public class MerchantHomeActivity extends AppCompatActivity implements MerchantO
                 allOrders.clear();
                 allOrders.addAll(response.body().data);
                 updateTabBadges();
+                computeDashboardStats();
                 renderOrders();
             }
 
@@ -274,6 +298,24 @@ public class MerchantHomeActivity extends AppCompatActivity implements MerchantO
                 Toast.makeText(MerchantHomeActivity.this, R.string.network_error, Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    private void computeDashboardStats() {
+        int todayOrdersCount = 0;
+        double todayRevenue = 0.0;
+        java.text.SimpleDateFormat format = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault());
+        String todayStr = format.format(new java.util.Date());
+
+        for (Order order : allOrders) {
+            if (order.createdAt != null && order.createdAt.startsWith(todayStr)) {
+                todayOrdersCount++;
+                if (!"CANCELLED".equals(order.statusCode) && !"TIMEOUT".equals(order.statusCode)) {
+                    todayRevenue += order.totalAmount;
+                }
+            }
+        }
+        textTodayOrders.setText(String.valueOf(todayOrdersCount));
+        textTodayRevenue.setText(String.format(java.util.Locale.getDefault(), "%,.0f đ", todayRevenue));
     }
 
     private void renderOrders() {

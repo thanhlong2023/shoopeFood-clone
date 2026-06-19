@@ -167,6 +167,7 @@ export type Order = {
   restaurant?: Pick<Restaurant, 'id' | 'name' | 'address' | 'latitude' | 'longitude' | 'isOpen'> | null
   driverId: number | null
   driver?: Driver | null
+  driverName?: string | null
   receiverAddress: string
   receiverLat: number | null
   receiverLng: number | null

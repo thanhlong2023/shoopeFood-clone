@@ -31,7 +31,7 @@ function loadSocketScript() {
     script.src = `${API_BASE_URL}/socket.io/socket.io.js`
     script.async = true
     script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Khong the tai Socket.io client'))
+    script.onerror = () => reject(new Error('Không thể tải Socket.io client'))
     document.head.appendChild(script)
   })
 
