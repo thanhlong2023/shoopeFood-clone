@@ -322,12 +322,12 @@ export default function RestaurantDetailPage() {
     }))
     setSelectedDeliveryAddress(address)
     setIsDeliveryAddressConfirmed(hasValidCoordinates)
-    setMenuError(hasValidCoordinates ? null : 'Dia chi da chon chua co toa do hop le')
+    setMenuError(hasValidCoordinates ? null : 'Địa chỉ đã chọn chưa có tọa độ hợp lệ')
   }
 
   function useCurrentLocation() {
     if (!navigator.geolocation) {
-      setMenuError('Trinh duyệt khong ho tro lay vi tri')
+      setMenuError('Trình duyệt không hỗ trợ lấy vị trí')
       return
     }
 
@@ -345,7 +345,7 @@ export default function RestaurantDetailPage() {
         const resolvedAddress = await reverseGeocodeAddress(receiverLat, receiverLng)
 
         if (!resolvedAddress.formattedAddress) {
-          throw new Error('Khong the suy ra dia chi tu vi tri hien tai')
+          throw new Error('Không thể suy ra địa chỉ từ vị trí hiện tại')
         }
 
         setCheckout((current) => ({
@@ -363,7 +363,7 @@ export default function RestaurantDetailPage() {
         setIsDeliveryAddressConfirmed(true)
         setIsLocating(false)
         })().catch((error) => {
-          setMenuError(error instanceof Error ? error.message : 'Khong the suy ra dia chi tu vi tri hien tai')
+          setMenuError(error instanceof Error ? error.message : 'Không thể suy ra địa chỉ từ vị trí hiện tại')
           setIsDeliveryAddressConfirmed(false)
           setIsLocating(false)
         })
@@ -378,19 +378,19 @@ export default function RestaurantDetailPage() {
 
   function validateOrder() {
     if (!restaurant) return 'Không tìm thấy nhà hàng'
-    if (!canOrder) return 'Nhà hàng hien chua nhan don'
-    if (!isAuthenticated || user?.role !== 'CUSTOMER') return 'Vui long dang nhap tài khoản khách hang de dat mon'
-    if (cartItems.length === 0) return 'Gio hang dang trong'
-    if (!checkout.receiverAddress.trim()) return 'Vui long nhap dia chi giao hang'
-    if (!isDeliveryAddressConfirmed) return 'Vui long chon dia chi giao hang tu danh sach goi y'
+    if (!canOrder) return 'Nhà hàng hiện chưa nhận đơn'
+    if (!isAuthenticated || user?.role !== 'CUSTOMER') return 'Vui lòng đăng nhập tài khoản khách hàng để đặt món'
+    if (cartItems.length === 0) return 'Giỏ hàng đang trống'
+    if (!checkout.receiverAddress.trim()) return 'Vui lòng nhập địa chỉ giao hàng'
+    if (!isDeliveryAddressConfirmed) return 'Vui lòng chọn địa chỉ giao hàng từ danh sách gợi ý'
     const receiverLat = toNullableCoordinate(checkout.receiverLat)
     const receiverLng = toNullableCoordinate(checkout.receiverLng)
 
     if (receiverLat === null || receiverLng === null || !isValidCoordinate(receiverLat, receiverLng)) {
-      return 'Toa do giao hang khong hop le'
+      return 'Tọa độ giao hàng không hợp lệ'
     }
     if (!Number.isFinite(Number(checkout.distanceKm)) || Number(checkout.distanceKm) <= 0) {
-      return 'Khoang cach giao hàng khong hop le'
+      return 'Khoảng cách giao hàng không hợp lệ'
     }
 
     return null
