@@ -504,7 +504,7 @@ export default function DriverPage() {
       <div className="driver-header">
         <div>
           <span className="hero-badge">Driver</span>
-          <h1>Đơn hàng quanh bạn</h1>
+          <h1>Đơn hàng quánh bạn</h1>
           <p>{driver ? `${driver.fullName} - ${driver.licensePlate || driver.vehicleType}` : user?.fullName || 'Tài xế'}</p>
         </div>
 

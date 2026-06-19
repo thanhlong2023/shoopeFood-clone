@@ -20,7 +20,7 @@ export default function MerchantMenuPage() {
         const items = await getMyRestaurants()
         setRestaurants(items)
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'Khong the tai quan')
+        setErrorMessage(error instanceof Error ? error.message : 'Không thể tải quán')
       } finally {
         setIsLoading(false)
       }
@@ -32,16 +32,16 @@ export default function MerchantMenuPage() {
       <div className="restaurant-page-header">
         <div>
           <span className="hero-badge">Chủ quán</span>
-          <h1>Quan cua toi & thuc don</h1>
+          <h1>Quan của tôi & thực đơn</h1>
           <p>Chon quan de them/sua mon. Tao quan moi do admin thuc hien.</p>
         </div>
         <Link to="/merchant/orders" className="button-secondary">
-          Xem don hang
+          Xem đơn hàng
         </Link>
       </div>
 
       {errorMessage ? <p className="restaurant-feedback error">{errorMessage}</p> : null}
-      {isLoading ? <p className="empty-state">Dang tai...</p> : null}
+      {isLoading ? <p className="empty-state">Đang tải...</p> : null}
 
       {!isLoading && restaurants.length === 0 ? (
         <div className="empty-state">
@@ -59,10 +59,10 @@ export default function MerchantMenuPage() {
                 <span className="restaurant-manage-id">#{restaurant.id}</span>
                 <span className={`approval-tag approval-${(restaurant.approvalStatus || 'pending').toLowerCase()}`}>
                   {restaurant.approvalStatus === 'APPROVED'
-                    ? 'Da duyet'
+                    ? 'Da duyệt'
                     : restaurant.approvalStatus === 'REJECTED'
-                      ? 'Tu choi'
-                      : 'Cho duyet'}
+                      ? 'Từ chối'
+                      : 'Cho duyệt'}
                 </span>
               </div>
               <h3>{restaurant.name}</h3>

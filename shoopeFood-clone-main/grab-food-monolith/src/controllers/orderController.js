@@ -1096,6 +1096,14 @@ exports.rejectOrder = async (req, res) => {
     try {
       emitOrderUpdated("order:updated", orderData);
 
+      if (orderData.customerId) {
+        socketManager.getIO().to(`customer:${orderData.customerId}`).emit(`customer:${orderData.customerId}:order-rejected`, {
+          orderId: orderData.id,
+          orderCode: orderData.orderCode,
+          rejectReason: orderData.cancelReason,
+          message: "Đơn hàng của bạn đã bị nhà hàng từ chối."
+        });
+      }
     } catch (error) {
       console.log("Socket not ready or err", error.message);
     }

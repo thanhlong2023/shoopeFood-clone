@@ -21,6 +21,7 @@ import com.shoopefood.mobile.model.MerchantApplicationRequest;
 import com.shoopefood.mobile.model.OrderResponse;
 import com.shoopefood.mobile.model.RejectOrderRequest;
 import com.shoopefood.mobile.model.UpdateOrderStatusRequest;
+import com.shoopefood.mobile.model.ReviewRequest;
 import com.shoopefood.mobile.model.OrderTrackingResponse;
 import com.shoopefood.mobile.model.OrdersResponse;
 import com.shoopefood.mobile.model.RestaurantResponse;
@@ -68,6 +69,9 @@ public interface ApiService {
 
     @GET("api/foods")
     Call<FoodsResponse> getFoods(@Query("restaurantId") int restaurantId);
+
+    @PUT("api/foods/{id}")
+    Call<com.shoopefood.mobile.model.FoodResponse> updateFood(@Path("id") int id, @Body com.shoopefood.mobile.model.FoodPayload request);
 
     @POST("api/orders")
     Call<OrderResponse> createOrder(@Body CreateOrderRequest request);
@@ -141,4 +145,7 @@ public interface ApiService {
 
     @PUT("api/drivers/{id}/online/off")
     Call<DriverResponse> setDriverOffline(@Path("id") int id);
+
+    @POST("api/reviews")
+    Call<ApiMessageResponse> createReview(@Body ReviewRequest request);
 }

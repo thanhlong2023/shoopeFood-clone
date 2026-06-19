@@ -46,6 +46,11 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.MerchantQuickInventoryActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MerchantHomeActivity" />
+
+        <activity
             android:name=".ui.MerchantRestaurantProfileActivity"
             android:exported="false"
             android:parentActivityName=".ui.MerchantHomeActivity" />

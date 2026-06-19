@@ -160,7 +160,7 @@ export default function RestaurantFormPage() {
     }
 
     if (!Number.isFinite(ownerId) || ownerId <= 0) {
-      nextErrors.ownerId = isAdmin ? 'Phai chon chu quan (MERCHANT)' : 'ID chu quan phai la so duong'
+      nextErrors.ownerId = isAdmin ? 'Phải chọn chủ quán (MERCHANT)' : 'ID chủ quán phai la so duong'
     }
 
     // Validate coordinates
@@ -254,8 +254,8 @@ export default function RestaurantFormPage() {
         <h1>{isEditMode ? 'Sửa nhà hàng' : 'Tạo quán cho chủ quán'}</h1>
         <p>
           {isAdmin
-            ? 'Admin tao quan va gan cho chu quan (MERCHANT). Quan se duoc tu dong duyet (APPROVED).'
-            : 'Nhap day du thong tin nha hang va gui len backend.'}
+            ? 'Admin tao quan va gan cho chủ quán (MERCHANT). Quan se duoc tu dong duyệt (APPROVED).'
+            : 'Nhập đầy đủ thông tin nhà hàng va gui len backend.'}
         </p>
       </div>
 
@@ -278,7 +278,7 @@ export default function RestaurantFormPage() {
                     onChange={(event) => handleFieldChange('ownerId', event.target.value)}
                     disabled={isEditMode}
                   >
-                    <option value="">-- Chon chu quan --</option>
+                    <option value="">-- Chon chủ quán --</option>
                     {merchants.map((merchant) => (
                       <option key={merchant.id} value={merchant.id}>
                         #{merchant.id} - {merchant.fullName} ({merchant.phone})

@@ -3379,6 +3379,7 @@ img {
 }
 
 .menu-admin-meta {
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
@@ -3607,4 +3608,88 @@ img {
   .site-footer {
     flex-direction: column;
   }
+}
+
+/* Premium Order Card Refactor for Merchant Orders Page */
+.premium-order-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.premium-order-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+
+.card-top-zone {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #e0e0e0;
+}
+
+.card-top-zone h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 8px;
+}
+
+.status-chip {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-chip.pending { background: #FFF3E0; color: #E65100; }
+.status-chip.delivering { background: #E3F2FD; color: #1565C0; }
+.status-chip.completed { background: #E8F5E9; color: #2E7D32; }
+.status-chip.cancelled { background: #FFEBEE; color: #C62828; }
+.status-chip.neutral { background: #F5F5F5; color: #616161; }
+
+.card-middle-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.order-meta-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.order-meta-text.address-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-bottom-zone {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.order-price {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--primary);
 }

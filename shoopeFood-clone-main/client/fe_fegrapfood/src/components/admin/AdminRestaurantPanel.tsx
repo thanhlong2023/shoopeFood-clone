@@ -58,9 +58,9 @@ function restaurantToForm(restaurant: Restaurant): RestaurantFormState {
 }
 
 function formatApproval(status: Restaurant['approvalStatus']) {
-  if (status === 'APPROVED') return 'Da duyet'
-  if (status === 'REJECTED') return 'Tu choi'
-  return 'Cho duyet'
+  if (status === 'APPROVED') return 'Da duyệt'
+  if (status === 'REJECTED') return 'Từ chối'
+  return 'Cho duyệt'
 }
 
 export default function AdminRestaurantPanel() {
@@ -96,7 +96,7 @@ export default function AdminRestaurantPanel() {
       setErrorMessage(
         restaurantResult.reason instanceof Error
           ? restaurantResult.reason.message
-          : 'Khong the tai danh sach quan',
+          : 'Không thể tải danh sách quán',
       )
     }
 
@@ -105,7 +105,7 @@ export default function AdminRestaurantPanel() {
     } else {
       setMerchants([])
       const merchantError =
-        merchantResult.reason instanceof Error ? merchantResult.reason.message : 'Khong the tai chu quan'
+        merchantResult.reason instanceof Error ? merchantResult.reason.message : 'Không thể tải chủ quán'
       setErrorMessage((current) =>
         current ? `${current}. ${merchantError}` : `${merchantError}. Đăng nhập lai voi role ADMIN (0900000005).`,
       )
@@ -167,10 +167,10 @@ export default function AdminRestaurantPanel() {
     const longitude = Number(formData.longitude)
     const ratingAvg = Number(formData.ratingAvg)
 
-    if (!trimmedName) nextErrors.name = 'Ten quan la bat buoc'
+    if (!trimmedName) nextErrors.name = 'Tên quan la bat buoc'
     if (!trimmedAddress) nextErrors.address = 'Dia chi la bat buoc'
     if (!Number.isFinite(ownerId) || ownerId <= 0) {
-      nextErrors.ownerId = 'Phai chon chu quan (MERCHANT)'
+      nextErrors.ownerId = 'Phải chọn chủ quán (MERCHANT)'
     }
     if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
       nextErrors.latitude = 'Vi do khong hop le'
@@ -229,20 +229,20 @@ export default function AdminRestaurantPanel() {
         )
       } else {
         await createRestaurant(payload)
-        setFeedback('Da tao quan moi (tu dong duyet)')
+        setFeedback('Da tao quan moi (tu dong duyệt)')
         resetForm()
       }
 
       await loadData()
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the luu quan')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể lưu quán')
     } finally {
       setIsSaving(false)
     }
   }
 
   async function handleDelete(restaurant: Restaurant) {
-    const confirmed = window.confirm(`Xoa quan "${restaurant.name}"?`)
+    const confirmed = window.confirm(`Xóa quan "${restaurant.name}"?`)
     if (!confirmed) return
 
     try {
@@ -252,7 +252,7 @@ export default function AdminRestaurantPanel() {
       if (editingId === restaurant.id) resetForm()
       await loadData()
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the xoa quan')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể xóa quán')
     } finally {
       setActioningId(null)
     }
@@ -262,10 +262,10 @@ export default function AdminRestaurantPanel() {
     try {
       setActioningId(restaurantId)
       await approveRestaurant(restaurantId, user?.id)
-      setFeedback(`Da duyet quan #${restaurantId}`)
+      setFeedback(`Da duyệt quan #${restaurantId}`)
       await loadData()
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the duyet quan')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể duyệt quán')
     } finally {
       setActioningId(null)
     }
@@ -275,12 +275,12 @@ export default function AdminRestaurantPanel() {
     try {
       setActioningId(restaurantId)
       await rejectRestaurant(restaurantId, rejectReason)
-      setFeedback(`Da tu choi quan #${restaurantId}`)
+      setFeedback(`Da từ chối quan #${restaurantId}`)
       setRejectTargetId(null)
       setRejectReason('')
       await loadData()
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the tu choi quan')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể từ chối quán')
     } finally {
       setActioningId(null)
     }
@@ -294,7 +294,7 @@ export default function AdminRestaurantPanel() {
         <div className="admin-panel-head">
           <div>
             <h2>Nhà hàng</h2>
-            <p>Tao quan cho chu quan, duyet quan cho, sua hoac xoa. Mot form duy nhat ben phai.</p>
+            <p>Tao quan cho chủ quán, duyệt quan cho, sua hoac xoa. Mot form duy nhat ben phai.</p>
           </div>
           <div className="admin-actions">
             <button type="button" className="button-primary" onClick={startCreate}>
@@ -317,7 +317,7 @@ export default function AdminRestaurantPanel() {
                 <th>Anh</th>
                 <th>Ten</th>
                 <th>Chủ quán</th>
-                <th>Trang thai</th>
+                <th>Trạng thái</th>
                 <th>Dia chi</th>
                 <th>Mo cua</th>
                 <th>Danh gia</th>
@@ -365,7 +365,7 @@ export default function AdminRestaurantPanel() {
                             onClick={() => void handleApprove(restaurant.id)}
                             disabled={actioningId === restaurant.id}
                           >
-                            Duyet
+                            Duyệt
                           </button>
                           <button
                             type="button"
@@ -373,7 +373,7 @@ export default function AdminRestaurantPanel() {
                             onClick={() => setRejectTargetId(restaurant.id)}
                             disabled={actioningId === restaurant.id}
                           >
-                            Tu choi
+                            Từ chối
                           </button>
                         </>
                       ) : null}
@@ -383,7 +383,7 @@ export default function AdminRestaurantPanel() {
                         onClick={() => void handleDelete(restaurant)}
                         disabled={actioningId === restaurant.id}
                       >
-                        Xoa
+                        Xóa
                       </button>
                     </div>
                   </td>
@@ -392,20 +392,20 @@ export default function AdminRestaurantPanel() {
             </tbody>
           </table>
 
-          {isLoading ? <p className="empty-state">Dang tai du lieu...</p> : null}
+          {isLoading ? <p className="empty-state">Đang tải du lieu...</p> : null}
           {!isLoading && restaurants.length === 0 ? <p className="empty-state">Chưa có quán nào.</p> : null}
         </div>
 
         {rejectTargetId !== null ? (
           <div className="restaurant-form-card" style={{ marginTop: '1rem' }}>
-            <h3>Tu choi quan #{rejectTargetId}</h3>
+            <h3>Từ chối quan #{rejectTargetId}</h3>
             <label className="restaurant-field">
-              <span>Ly do</span>
+              <span>Lý do</span>
               <input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} />
             </label>
             <div className="restaurant-form-actions">
               <button type="button" className="button-danger" onClick={() => void handleReject(rejectTargetId)}>
-                Xac nhan tu choi
+                Xác nhận từ chối
               </button>
               <button type="button" className="button-secondary" onClick={() => setRejectTargetId(null)}>
                 Huy
@@ -418,11 +418,11 @@ export default function AdminRestaurantPanel() {
       <aside className="admin-form-panel">
         <div className="driver-control-head">
           <span>{editingId ? `Sua quan #${editingId}` : 'Tao quan moi'}</span>
-          <h2>{isCreateMode ? 'Tao quan cho chu quan' : 'Cap nhat quan'}</h2>
+          <h2>{isCreateMode ? 'Tao quan cho chủ quán' : 'Cap nhat quan'}</h2>
           <p>
             {isCreateMode
-              ? 'Chon chu quan MERCHANT. Quan admin tao se tu dong duyet (APPROVED).'
-              : 'Cap nhat thong tin quan, bao gom link hinh anh ben duoi.'}
+              ? 'Chon chủ quán MERCHANT. Quan admin tao se tu dong duyệt (APPROVED).'
+              : 'Cap nhat thông tin quan, bao gom link hinh anh ben duoi.'}
           </p>
         </div>
 
@@ -434,7 +434,7 @@ export default function AdminRestaurantPanel() {
               onChange={(event) => handleFieldChange('ownerId', event.target.value)}
               disabled={editingId !== null}
             >
-              <option value="">-- Chon chu quan --</option>
+              <option value="">-- Chon chủ quán --</option>
               {merchants.map((merchant) => (
                 <option key={merchant.id} value={merchant.id}>
                   #{merchant.id} - {merchant.fullName} ({merchant.phone})
@@ -451,7 +451,7 @@ export default function AdminRestaurantPanel() {
           </label>
 
           <label className="restaurant-field">
-            <span>Ten quan</span>
+            <span>Tên quan</span>
             <input value={formData.name} onChange={(event) => handleFieldChange('name', event.target.value)} />
             {errors.name ? <p className="field-error">{errors.name}</p> : null}
           </label>
@@ -510,7 +510,7 @@ export default function AdminRestaurantPanel() {
             value={formData.imageUrl}
             hint={
               editingId
-                ? 'Dan URL anh moi va bam Luu thay doi. Anh hien ngay tren trang dat mon.'
+                ? 'Dan URL anh moi va bam Lưu thay doi. Anh hien ngay tren trang dat mon.'
                 : 'Dan link anh cong khai (URL). Chi hien anh ban gan.'
             }
             onChange={(value) => handleFieldChange('imageUrl', value)}
@@ -540,10 +540,10 @@ export default function AdminRestaurantPanel() {
 
           <div className="restaurant-form-actions">
             <button type="submit" className="button-primary" disabled={isSaving}>
-              {isSaving ? 'Dang luu...' : editingId ? 'Luu thay doi' : 'Tao quan'}
+              {isSaving ? 'Dang luu...' : editingId ? 'Lưu thay doi' : 'Tao quan'}
             </button>
             <button type="button" className="button-secondary" onClick={resetForm}>
-              {editingId ? 'Huy sua' : 'Xoa form'}
+              {editingId ? 'Huy sua' : 'Xóa form'}
             </button>
           </div>
         </form>

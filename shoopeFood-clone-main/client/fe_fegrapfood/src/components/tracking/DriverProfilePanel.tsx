@@ -69,7 +69,7 @@ export default function DriverProfilePanel({ driverId }: DriverProfilePanelProps
   const initial = (driver?.fullName || 'T').trim().charAt(0).toUpperCase()
 
   return (
-    <section className="driver-profile-panel" aria-label="Thong tin tai xe">
+    <section className="driver-profile-panel" aria-label="Thông tin tài xế">
       <div className="driver-profile-panel__head">
         <h2>Thông tin tài xế</h2>
         {profile ? <span>{profile.completedCount} đơn đã giao</span> : null}

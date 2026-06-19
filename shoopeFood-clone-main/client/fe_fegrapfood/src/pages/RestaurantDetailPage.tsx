@@ -169,7 +169,7 @@ export default function RestaurantDetailPage() {
     restaurant && user && user.role === 'MERCHANT' && restaurant.ownerId === user.id,
   )
   const backPath = isMerchantOwner ? '/merchant/menu' : isAdmin ? '/admin?tab=restaurants' : '/'
-  const backLabel = isMerchantOwner ? 'Quay lai thuc don' : isAdmin ? 'Quay lai quan ly' : 'Quay lai dat mon'
+  const backLabel = isMerchantOwner ? 'Quay lai thực đơn' : isAdmin ? 'Quay lai quan ly' : 'Quay lai dat mon'
   const canManageFoods = Boolean(
     restaurant && user && (user.role === 'ADMIN' || isMerchantOwner),
   )
@@ -310,7 +310,7 @@ export default function RestaurantDetailPage() {
 
   function useCurrentLocation() {
     if (!navigator.geolocation) {
-      setMenuError('Trinh duyet khong ho tro lay vi tri')
+      setMenuError('Trinh duyệt khong ho tro lay vi tri')
       return
     }
 
@@ -334,7 +334,7 @@ export default function RestaurantDetailPage() {
         setIsLocating(false)
       },
       (error) => {
-        setMenuError(error.message || 'Khong the lay vi tri hien tai')
+        setMenuError(error.message || 'Không thể lấy vị trí hiện tại')
         setIsLocating(false)
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
@@ -342,16 +342,16 @@ export default function RestaurantDetailPage() {
   }
 
   function validateOrder() {
-    if (!restaurant) return 'Khong tim thay nha hang'
+    if (!restaurant) return 'Không tìm thấy nhà hàng'
     if (!canOrder) return 'Nhà hàng hien chua nhan don'
-    if (!isAuthenticated || user?.role !== 'CUSTOMER') return 'Vui long dang nhap tai khoan khach hang de dat mon'
+    if (!isAuthenticated || user?.role !== 'CUSTOMER') return 'Vui long dang nhap tài khoản khách hang de dat mon'
     if (cartItems.length === 0) return 'Gio hang dang trong'
-    if (!checkout.receiverAddress.trim()) return 'Vui long nhap dia chi giao hang'
+    if (!checkout.receiverAddress.trim()) return 'Vui long nhap dia chi giao hàng'
     if (!Number.isFinite(Number(checkout.receiverLat)) || !Number.isFinite(Number(checkout.receiverLng))) {
-      return 'Toa do giao hang khong hop le'
+      return 'Toa do giao hàng khong hop le'
     }
     if (!Number.isFinite(Number(checkout.distanceKm)) || Number(checkout.distanceKm) <= 0) {
-      return 'Khoang cach giao hang khong hop le'
+      return 'Khoang cach giao hàng khong hop le'
     }
 
     return null
@@ -392,7 +392,7 @@ export default function RestaurantDetailPage() {
       setCart({})
       await loadMenu()
     } catch (error) {
-      setMenuError(error instanceof Error ? error.message : 'Khong the tao don hang')
+      setMenuError(error instanceof Error ? error.message : 'Không thể tạo đơn hàng')
     } finally {
       setIsSubmittingOrder(false)
     }
@@ -547,6 +547,20 @@ export default function RestaurantDetailPage() {
     )
   }
 
+  // Strict check: MERCHANTS can only access their own restaurant
+  if (user?.role === 'MERCHANT' && restaurant.ownerId !== user.id) {
+    return (
+      <section className="restaurant-page">
+        <div className="error-state">
+          <p>Bạn không có quyền truy cập cửa hàng của đối tác khác.</p>
+          <Link to="/merchant/menu" className="button-primary">
+            Quay về cửa hàng của bạn
+          </Link>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className="restaurant-page">
       <div className="restaurant-page-header">
@@ -640,7 +654,7 @@ export default function RestaurantDetailPage() {
           {categoryFeedback ? <p className="restaurant-feedback success">{categoryFeedback}</p> : null}
           {orderFeedback ? (
             <p className="restaurant-feedback success">
-              Da dat don {orderFeedback.orderCode}. <Link to={`/tracking?orderId=${orderFeedback.id}`}>Theo doi don</Link>
+              Da dat don {orderFeedback.orderCode}. <Link to={`/tracking?orderId=${orderFeedback.id}`}>Theo dõi don</Link>
             </p>
           ) : null}
 

@@ -49,7 +49,7 @@ export function useRegisterForm() {
 
     if (touched.confirmPassword || touched.password) {
       if (confirmPassword && confirmPassword !== password) {
-        nextErrors.confirmPassword = 'Mật khẩu xac nhan khong khop'
+        nextErrors.confirmPassword = 'Mật khẩu xác nhận khong khop'
       }
     }
 

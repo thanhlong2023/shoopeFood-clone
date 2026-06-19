@@ -46,8 +46,8 @@ export function getRoleName(role?: string | null): string {
     case 'MERCHANT':
       return 'Chủ quán'
     case 'ADMIN':
-      return 'Quan tri vien'
+      return 'Quản trị viên'
     default:
-      return role || 'Khong ro'
+      return role || 'Không rõ'
   }
 }

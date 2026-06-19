@@ -110,7 +110,7 @@ export default function RegisterPage() {
         </div>
 
         <button type="submit" className={`checkout-button ${!isValid ? 'disabled' : ''}`} disabled={isSubmitting || !isValid}>
-          {isSubmitting ? 'Dang xu ly...' : 'Đăng ký'}
+          {isSubmitting ? 'Đang xử lý...' : 'Đăng ký'}
         </button>
 
         <p className="login-register-hint">

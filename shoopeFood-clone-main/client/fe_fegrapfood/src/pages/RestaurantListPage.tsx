@@ -174,7 +174,7 @@ export default function RestaurantListPage() {
       <div className="restaurant-page-header">
         <div>
           <h1>Quản lý nhà hàng</h1>
-          <p>Admin tao quan cho chu quan. Quan tu dong duyet va hien cho khach dat mon.</p>
+          <p>Admin tao quan cho chủ quán. Quan tu dong duyệt va hien cho khách dat mon.</p>
         </div>
 
         {isAdmin ? (
