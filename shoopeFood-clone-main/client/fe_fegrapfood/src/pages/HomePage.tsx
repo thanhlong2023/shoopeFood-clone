@@ -739,13 +739,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {errorMessage ? (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]">
-          <p className="bg-red-50 text-red-600 px-6 py-4 rounded-2xl border border-red-200 shadow-2xl font-bold text-center min-w-[300px]">
-            {errorMessage}
-          </p>
-        </div>
-      ) : null}
+
 
       {isAuthenticated && hasTrackableOrder ? (
         <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-brand-light bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
@@ -1034,7 +1028,14 @@ export default function HomePage() {
         </main>
 
         {/* Right: Checkout Panel */}
-        <aside className="tw-checkout-panel bg-white border-0 rounded-2xl shadow-sm p-4 sticky top-20" id="checkout" aria-label="Giỏ hàng">
+        <aside className="tw-checkout-panel bg-white border-0 rounded-2xl shadow-sm p-4 sticky top-20 relative" id="checkout" aria-label="Giỏ hàng">
+          {errorMessage ? (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%]">
+              <div className="bg-red-50 text-red-600 p-4 rounded-xl border-2 border-red-200 shadow-[0_10px_40px_rgba(239,68,68,0.3)] text-base font-bold text-center">
+                {errorMessage}
+              </div>
+            </div>
+          ) : null}
           <div className="tw-checkout-head flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
             <div>
               <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider">Giỏ hàng của bạn</span>

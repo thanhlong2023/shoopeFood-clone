@@ -97,7 +97,7 @@ export default function Navbar() {
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Tìm món ăn, nhà hàng..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent text-sm bg-gray-50 transition-all"
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent text-sm bg-gray-50 transition-all font-sans leading-normal"
               />
             </div>
           )}
