@@ -18,6 +18,11 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.app.AlertDialog;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.view.LayoutInflater;
+
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.shoopefood.mobile.R;
@@ -294,7 +299,7 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
                 setLoading(false);
 
                 if (!response.isSuccessful() || response.body() == null || response.body().data == null) {
-                    Toast.makeText(CartActivity.this, ApiClient.parseErrorMessage(response.raw()), Toast.LENGTH_LONG).show();
+                    showErrorDialog(ApiClient.parseErrorMessage(response));
                     return;
                 }
 
@@ -318,5 +323,24 @@ public class CartActivity extends AppCompatActivity implements CartAdapter.OnCar
     private void setLoading(boolean loading) {
         progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         checkoutButton.setEnabled(!loading && !cartManager.isEmpty());
+    }
+
+    private void showErrorDialog(String message) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_error, null);
+        builder.setView(dialogView);
+        
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+
+        TextView textMessage = dialogView.findViewById(R.id.textErrorMessage);
+        textMessage.setText(message);
+
+        MaterialButton btnClose = dialogView.findViewById(R.id.buttonCloseDialog);
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 }

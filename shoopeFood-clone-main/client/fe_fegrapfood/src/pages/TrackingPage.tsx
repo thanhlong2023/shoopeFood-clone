@@ -1069,6 +1069,47 @@ export default function TrackingPage() {
             </div>
           ) : null}
 
+          {tracking && tracking.order.statusCode === 'COMPLETED' ? (
+            <div className="order-reviews-section mt-6">
+              <h2 className="text-lg font-extrabold text-gray-800 mb-4 border-b border-gray-100 pb-2">Đánh giá đơn hàng</h2>
+              <div className="flex flex-col gap-4">
+                {(() => {
+                  const visibleReviews = (tracking.reviews || []).filter((review) => {
+                    if (user?.role === 'DRIVER' && review.targetType !== 'DRIVER') return false;
+                    if (user?.role === 'MERCHANT' && review.targetType !== 'RESTAURANT') return false;
+                    return true;
+                  });
+
+                  if (visibleReviews.length === 0) {
+                    return (
+                      <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-center">
+                        <span className="text-gray-500 text-sm italic">Chưa có đánh giá từ khách hàng.</span>
+                      </div>
+                    );
+                  }
+
+                  return visibleReviews.map((review) => {
+                    const targetLabel = review.targetType === 'DRIVER' ? 'Tài xế' : 'Nhà hàng';
+                    return (
+                      <div key={review.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-bold text-gray-800 text-sm">{user?.role === 'CUSTOMER' ? `Bạn đánh giá ${targetLabel}` : `Đánh giá của khách hàng`}</span>
+                          <div className="text-yellow-500 font-bold tracking-widest">{Array.from({ length: review.rating }).map(() => '★').join('')}</div>
+                        </div>
+                        {review.comment ? (
+                          <p className="text-gray-600 text-sm italic">"{review.comment}"</p>
+                        ) : (
+                          <p className="text-gray-400 text-sm italic">Không có nhận xét</p>
+                        )}
+                        <span className="text-xs text-gray-400 block mt-2">{formatDateTime(review.createdAt)}</span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          ) : null}
+
           <Link className="button-secondary block text-center w-full mt-6 py-3.5 px-4 bg-white border-2 border-brand text-brand font-extrabold rounded-xl hover:bg-brand-light transition-colors" to="/food">
             Đặt thêm món
           </Link>

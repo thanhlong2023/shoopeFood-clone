@@ -1,13 +1,47 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
+import { useNavigate } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { getMyDriverOrderFeed, updateDriverLocation } from '../services/api/drivers'
+import { getMyDriverOrderFeed, getMyCompletedOrders, updateDriverLocation } from '../services/api/drivers'
 import { acceptOrder, getOrderTracking, updateOrderStatus } from '../services/api/orders'
 import { createSocket } from '../services/socket'
-import type { Driver, Order, OrderTracking, RouteLeg, RoutePoint } from '../types'
+import type { Driver, DriverCompletedDelivery, Order, OrderTracking, RouteLeg, RoutePoint } from '../types'
+
+const SESSION_KEY_POINT = 'driver_last_point'
+const SESSION_KEY_HEADING = 'driver_last_heading'
+
+function savePointToSession(point: RoutePoint, heading: number) {
+  try {
+    sessionStorage.setItem(SESSION_KEY_POINT, JSON.stringify(point))
+    sessionStorage.setItem(SESSION_KEY_HEADING, String(heading))
+  } catch {/* ignore */}
+}
+
+function readPointFromSession(): { point: RoutePoint; heading: number } | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY_POINT)
+    if (!raw) return null
+    const point = JSON.parse(raw) as RoutePoint
+    const heading = Number(sessionStorage.getItem(SESSION_KEY_HEADING) || 0)
+    if (!Number.isFinite(point.latitude) || !Number.isFinite(point.longitude)) return null
+    return { point, heading }
+  } catch { return null }
+}
+
+function StarRating({ rating, max = 5 }: { rating: number; max?: number }) {
+  return (
+    <span className="driver-star-rating" aria-label={`${rating} sao`}>
+      {Array.from({ length: max }, (_, i) => (
+        <span key={i} className={i < Math.round(rating) ? 'star filled' : 'star'}>
+          ★
+        </span>
+      ))}
+    </span>
+  )
+}
 
 const defaultCenter: [number, number] = [10.7769, 106.7009]
 const NEARBY_RADIUS_KM = 10
@@ -149,7 +183,7 @@ function DriverMapFit({ points }: { points: RoutePoint[] }) {
   const map = useMap()
 
   useEffect(() => {
-    const validPoints = points.filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude))
+    const validPoints = points.filter((point) => point && Number.isFinite(point.latitude) && Number.isFinite(point.longitude))
     if (validPoints.length === 0) {
       return
     }
@@ -168,7 +202,7 @@ function RouteLegSummary({ leg }: { leg: RouteLeg }) {
         <span>{leg.ok ? `${formatDistance(leg.distanceKm)} - ${formatDuration(leg.durationMinutes)}` : leg.error || 'Chưa có lộ trình'}</span>
       </div>
       <ol>
-        {leg.steps.slice(0, 5).map((step, index) => (
+        {(leg.steps || []).slice(0, 5).map((step, index) => (
           <li key={`${leg.key}-${index}`}>
             {step.instruction}
             {step.name ? ` - ${step.name}` : ''}
@@ -181,6 +215,7 @@ function RouteLegSummary({ leg }: { leg: RouteLeg }) {
 
 export default function DriverPage() {
   useDocumentTitle(`${APP_NAME} | Tài xế`)
+  const navigate = useNavigate()
   const { user } = useAuth()
   const driverId = user?.id ?? null
 
@@ -189,14 +224,21 @@ export default function DriverPage() {
   const [myOrders, setMyOrders] = useState<Order[]>([])
   const [activeOrderId, setActiveOrderId] = useState<number | null>(null)
   const [tracking, setTracking] = useState<OrderTracking | null>(null)
-  const [currentPoint, setCurrentPoint] = useState<RoutePoint | null>(null)
-  const [heading, setHeading] = useState(0)
+  const sessionSeed = useRef(readPointFromSession())
+  const [currentPoint, setCurrentPoint] = useState<RoutePoint | null>(sessionSeed.current?.point ?? null)
+  const [heading, setHeading] = useState(sessionSeed.current?.heading ?? 0)
   const [gpsStatus, setGpsStatus] = useState('Đang lấy vị trí GPS...')
   const [isLoading, setIsLoading] = useState(true)
   const [isActioning, setIsActioning] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isSimulating, setIsSimulating] = useState(true)
+  const [activeTab, setActiveTab] = useState<'live' | 'history'>('live')
+  const [completedOrders, setCompletedOrders] = useState<DriverCompletedDelivery[]>([])
+  const [completedTotal, setCompletedTotal] = useState(0)
+  const [completedPage, setCompletedPage] = useState(1)
+  const [isLoadingCompleted, setIsLoadingCompleted] = useState(false)
+  const [selectedReview, setSelectedReview] = useState<DriverCompletedDelivery | null>(null)
   const lastGpsPointRef = useRef<RoutePoint | null>(null)
   const simulationReachedRef = useRef<Record<string, boolean>>({})
   const simStateRef = useRef<{ stateKey: string; index: number; point: RoutePoint | null }>({ stateKey: '', index: 0, point: null })
@@ -217,7 +259,7 @@ export default function DriverPage() {
     [myOrders],
   )
   const routeLegs = tracking?.route?.legs || []
-  const routePolylinePoints = useMemo(() => routeLegs.flatMap((leg) => leg.geometry), [routeLegs])
+  const routePolylinePoints = useMemo(() => routeLegs.flatMap((leg) => leg.geometry || []), [routeLegs])
   const mapPoints = useMemo(() => {
     const points = [...routePolylinePoints]
     if (currentPoint) points.push(currentPoint)
@@ -227,22 +269,49 @@ export default function DriverPage() {
   }, [currentPoint, routePolylinePoints, tracking])
   const mapCenter = currentPoint ? toLatLng(currentPoint) : mapPoints[0] ? toLatLng(mapPoints[0]) : defaultCenter
   const isSelectedMine = Boolean(driverId && activeOrder?.driverId === driverId)
+  const isAtRestaurant = tracking?.restaurant && currentPoint ? haversineKm(currentPoint, tracking.restaurant) <= 0.2 : false
+  const isAtCustomer = tracking?.destination && currentPoint ? haversineKm(currentPoint, tracking.destination) <= 0.2 : false
+
   const canAcceptSelected = Boolean(activeOrder && !activeOrder.driverId && activeOrder.statusCode === 'CONFIRMED')
   const canStartPickup = Boolean(isSelectedMine && activeOrder?.statusCode === 'DRIVER_ACCEPTED')
-  const canStartDelivery = Boolean(isSelectedMine && activeOrder?.statusCode === 'PICKING_UP')
-  const canCompleteDelivery = Boolean(isSelectedMine && activeOrder?.statusCode === 'DELIVERING')
+  const canStartDelivery = Boolean(isSelectedMine && activeOrder?.statusCode === 'PICKING_UP' && isAtRestaurant)
+  const canCompleteDelivery = Boolean(isSelectedMine && activeOrder?.statusCode === 'DELIVERING' && isAtCustomer)
 
   const loadTracking = useCallback(async (orderId: number, quiet = false) => {
     try {
       if (!quiet) setErrorMessage(null)
       const data = await getOrderTracking(orderId)
       setTracking(data)
-      if (!lastGpsPointRef.current && data.driverLocation) {
-        setCurrentPoint({ latitude: data.driverLocation.latitude, longitude: data.driverLocation.longitude })
-        setHeading(data.driverLocation.heading || 0)
-      }
+      setCurrentPoint((prev) => {
+        if (!prev) {
+          if (data.driverLocation) {
+            setHeading(data.driverLocation.heading || 0)
+            return { latitude: data.driverLocation.latitude, longitude: data.driverLocation.longitude }
+          } else if (data.route?.legs?.[0]?.geometry?.[0]) {
+            setHeading(0)
+            return data.route.legs[0].geometry[0]
+          } else if (lastGpsPointRef.current) {
+            return lastGpsPointRef.current
+          }
+        }
+        return prev
+      })
     } catch (error) {
       if (!quiet) setErrorMessage(error instanceof Error ? error.message : 'Không thể tải tracking')
+    }
+  }, [])
+
+  const loadCompletedOrders = useCallback(async (page: number) => {
+    try {
+      setIsLoadingCompleted(true)
+      const result = await getMyCompletedOrders(page, 20)
+      setCompletedOrders((prev) => page === 1 ? result.items : [...prev, ...result.items])
+      setCompletedTotal(result.total)
+      setCompletedPage(page)
+    } catch {
+      // silently fail – non-critical
+    } finally {
+      setIsLoadingCompleted(false)
     }
   }, [])
 
@@ -264,16 +333,19 @@ export default function DriverPage() {
         }
         return feed.active[0]?.id ?? visibleAvailable[0]?.id ?? null
       })
+      // Proactively refresh completed list to ensure sync
+      void loadCompletedOrders(1)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Không thể tải bảng tài xế')
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [loadCompletedOrders])
 
   useEffect(() => {
     void loadFeed()
-  }, [loadFeed])
+    void loadCompletedOrders(1)
+  }, [loadFeed, loadCompletedOrders])
 
   useEffect(() => {
     if (!activeOrderId) {
@@ -309,6 +381,7 @@ export default function DriverPage() {
         if (!isSimulating) {
           setCurrentPoint(nextPoint)
           setHeading(nextHeading)
+          savePointToSession(nextPoint, nextHeading)
           setGpsStatus('GPS đang cập nhật')
 
           void updateDriverLocation(driverId, {
@@ -362,6 +435,7 @@ export default function DriverPage() {
       simStateRef.current.index = result.index;
 
       setCurrentPoint(result.point);
+      savePointToSession(result.point, result.heading || heading);
       if (result.heading) setHeading(result.heading);
 
       // Push to server
@@ -470,6 +544,9 @@ export default function DriverPage() {
       setActiveOrderId(updated.id)
       await loadFeed()
       await loadTracking(updated.id)
+      if (statusCode === 'COMPLETED' || statusCode === 'CANCELLED') {
+        void loadCompletedOrders(1)
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Không thể cập nhật trạng thái')
     } finally {
@@ -523,6 +600,29 @@ export default function DriverPage() {
       {errorMessage ? <p className="app-feedback error">{errorMessage}</p> : null}
       {successMessage ? <p className="restaurant-feedback success">{successMessage}</p> : null}
 
+      {/* Tab switcher */}
+      <div className="driver-tab-bar">
+        <button
+          type="button"
+          className={`driver-tab-btn ${activeTab === 'live' ? 'active' : ''}`}
+          onClick={() => setActiveTab('live')}
+        >
+          🚀 Giao hàng
+        </button>
+        <button
+          type="button"
+          className={`driver-tab-btn ${activeTab === 'history' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('history')
+            if (completedOrders.length === 0) void loadCompletedOrders(1)
+          }}
+        >
+          📦 Đơn đã giao
+          {completedTotal > 0 ? <span className="driver-tab-badge">{completedTotal}</span> : null}
+        </button>
+      </div>
+
+      {activeTab === 'live' ? (
       <div className="driver-layout">
         <aside className="driver-orders">
           <div className="driver-panel-head">
@@ -563,10 +663,10 @@ export default function DriverPage() {
             />
             <DriverMapFit points={mapPoints} />
             {routeLegs.map((leg) =>
-              leg.geometry.length > 0 ? (
+              (leg.geometry || []).length > 0 ? (
                 <Polyline
                   key={leg.key}
-                  positions={leg.geometry.map(toLatLng)}
+                  positions={(leg.geometry || []).map(toLatLng)}
                   pathOptions={{
                     color: leg.key === 'driver_to_restaurant' ? '#ff8a00' : '#00b14f',
                     weight: 6,
@@ -640,10 +740,10 @@ export default function DriverPage() {
                   Đang lấy hàng
                 </button>
                 <button type="button" className="button-primary" onClick={() => void handleStatus('DELIVERING')} disabled={!canStartDelivery || isActioning}>
-                  Đang giao hàng
+                  {activeOrder?.statusCode === 'PICKING_UP' && !isAtRestaurant ? 'Đang giao (Đợi tới quán)' : 'Đang giao hàng'}
                 </button>
                 <button type="button" className="button-secondary" onClick={() => void handleStatus('COMPLETED')} disabled={!canCompleteDelivery || isActioning}>
-                  Hoàn thành
+                  {activeOrder?.statusCode === 'DELIVERING' && !isAtCustomer ? 'Hoàn thành (Đợi tới khách)' : 'Hoàn thành'}
                 </button>
                 <button type="button" className="button-danger" onClick={() => void handleStatus('CANCELLED')} disabled={!isSelectedMine || isActioning}>
                   Hủy đơn
@@ -716,6 +816,188 @@ export default function DriverPage() {
           )}
         </aside>
       </div>
+      ) : (
+        /* ===== HISTORY TAB ===== */
+        <div className="driver-history-section">
+          <div className="driver-history-header">
+            <div>
+              <h2>Đơn đã giao</h2>
+              <p>{isLoadingCompleted && completedOrders.length === 0 ? 'Đang tải...' : `${completedTotal} đơn hoàn thành`}</p>
+            </div>
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => { setCompletedOrders([]); void loadCompletedOrders(1) }}
+              disabled={isLoadingCompleted}
+            >
+              🔄 Tải lại
+            </button>
+          </div>
+
+          {isLoadingCompleted && completedOrders.length === 0 ? (
+            <div className="driver-history-loading">
+              <div className="driver-spinner" />
+              <span>Đang tải lịch sử giao hàng...</span>
+            </div>
+          ) : !isLoadingCompleted && completedOrders.length === 0 ? (
+            <div className="driver-history-empty">
+              <span className="driver-history-empty-icon">📦</span>
+              <p>Bạn chưa hoàn thành đơn nào.</p>
+              <small>Các đơn đã giao xong sẽ hiển thị ở đây cùng với đánh giá của khách hàng.</small>
+            </div>
+          ) : (
+            <>
+              <div className="driver-history-grid">
+                {completedOrders.map((order) => (
+                  <article
+                    key={order.id}
+                    className="driver-history-card hover:border-brand cursor-pointer transition-colors duration-200"
+                    onClick={() => navigate(`/tracking?orderId=${order.id}`)}
+                  >
+                    <div className="driver-history-card-header">
+                      <div className="driver-history-code">
+                        <span className="history-badge">✅ Hoàn thành</span>
+                        <strong>{order.orderCode}</strong>
+                      </div>
+                      <span className="driver-history-amount">
+                        {formatPrice(order.cashToCollect || order.totalAmount)} <small>VND</small>
+                      </span>
+                    </div>
+
+                    <div className="driver-history-card-body">
+                      <div className="driver-history-row">
+                        <span className="history-label">🏪 Nhà hàng</span>
+                        <span>{order.restaurantName}</span>
+                      </div>
+                      {order.customerName ? (
+                        <div className="driver-history-row">
+                          <span className="history-label">👤 Khách hàng</span>
+                          <span>{order.customerName}</span>
+                        </div>
+                      ) : null}
+                      <div className="driver-history-row">
+                        <span className="history-label">📍 Giao đến</span>
+                        <span>{order.receiverAddress}</span>
+                      </div>
+                      <div className="driver-history-row">
+                        <span className="history-label">🕐 Hoàn thành</span>
+                        <span>
+                          {order.completedAt
+                            ? new Date(order.completedAt).toLocaleString('vi-VN')
+                            : '—'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="driver-history-review-placeholder pt-3 border-t border-gray-100 mt-2 text-center">
+                      <span className="text-brand font-bold text-sm">Xem chi tiết đơn & Đánh giá →</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {completedOrders.length < completedTotal ? (
+                <div className="driver-history-load-more">
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={() => void loadCompletedOrders(completedPage + 1)}
+                    disabled={isLoadingCompleted}
+                  >
+                    {isLoadingCompleted ? 'Đang tải...' : `Tải thêm (${completedTotal - completedOrders.length} còn lại)`}
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ===== REVIEW DETAIL MODAL ===== */}
+      {selectedReview ? (
+        <div
+          className="review-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Chi tiết đánh giá"
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedReview(null) }}
+        >
+          <div className="review-modal">
+            <div className="review-modal-header">
+              <div>
+                <span className="history-badge">📝 Đánh giá của khách hàng</span>
+                <h3>{selectedReview.orderCode}</h3>
+              </div>
+              <button
+                type="button"
+                className="review-modal-close"
+                onClick={() => setSelectedReview(null)}
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="review-modal-body">
+              {/* Order info */}
+              <div className="review-modal-order-info">
+                <div className="review-modal-info-row">
+                  <span>🏪 Nhà hàng</span>
+                  <strong>{selectedReview.restaurantName}</strong>
+                </div>
+                {selectedReview.customerName ? (
+                  <div className="review-modal-info-row">
+                    <span>👤 Khách hàng</span>
+                    <strong>{selectedReview.customerName}</strong>
+                  </div>
+                ) : null}
+                <div className="review-modal-info-row">
+                  <span>📍 Địa chỉ giao</span>
+                  <strong>{selectedReview.receiverAddress}</strong>
+                </div>
+                <div className="review-modal-info-row">
+                  <span>💰 Tiền thu</span>
+                  <strong className="review-modal-price">
+                    {formatPrice(selectedReview.cashToCollect || selectedReview.totalAmount)} VND
+                  </strong>
+                </div>
+              </div>
+
+              {/* Star rating big */}
+              {selectedReview.review ? (
+                <div className="review-modal-rating-section">
+                  <p className="review-modal-rating-label">Khách đánh giá tài xế</p>
+                  <div className="review-modal-stars">
+                    <StarRating rating={selectedReview.review.rating} />
+                    <span className="review-modal-rating-num">{selectedReview.review.rating} / 5</span>
+                  </div>
+
+                  {selectedReview.review.comment ? (
+                    <div className="review-modal-comment-box">
+                      <p className="review-modal-comment-label">💬 Tin nhắn của khách:</p>
+                      <blockquote className="review-modal-comment">
+                        {selectedReview.review.comment}
+                      </blockquote>
+                    </div>
+                  ) : (
+                    <p className="review-modal-no-comment">Khách không để lại bình luận.</p>
+                  )}
+
+                  <small className="review-modal-date">
+                    Đánh giá lúc {new Date(selectedReview.review.createdAt).toLocaleString('vi-VN')}
+                  </small>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="review-modal-footer">
+              <button type="button" className="button-primary" onClick={() => setSelectedReview(null)}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }

@@ -14,6 +14,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import android.app.AlertDialog;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.IntentSenderRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -532,7 +536,7 @@ public class CustomerCartFragment extends Fragment implements CartAdapter.OnCart
                 setLoading(false);
 
                 if (!response.isSuccessful() || response.body() == null || response.body().data == null) {
-                    Toast.makeText(requireContext(), ApiClient.parseErrorMessage(response.raw()), Toast.LENGTH_LONG).show();
+                    showErrorDialog(ApiClient.parseErrorMessage(response));
                     return;
                 }
 
@@ -565,6 +569,26 @@ public class CustomerCartFragment extends Fragment implements CartAdapter.OnCart
     private void setLoading(boolean loading) {
         progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         checkoutButton.setEnabled(!loading && !cartManager.isEmpty());
+    }
+
+    private void showErrorDialog(String message) {
+        if (getContext() == null) return;
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_error, null);
+        builder.setView(dialogView);
+        
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+
+        TextView textMessage = dialogView.findViewById(R.id.textErrorMessage);
+        textMessage.setText(message);
+
+        com.google.android.material.button.MaterialButton btnClose = dialogView.findViewById(R.id.buttonCloseDialog);
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 
     private void reverseGeocode(double lat, double lng) {

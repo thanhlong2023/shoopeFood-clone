@@ -9,6 +9,7 @@ import type { Order } from '../types'
 import { buildCreateOrderPayloadFromDraft, clearCheckoutDraft, getCheckoutDraft, notifyCartCleared, type CheckoutDraft } from '../utils/checkoutDraft'
 import { formatCurrency } from '../utils/formatters'
 import { setLastOrderId } from '../utils/orderStorage'
+import { ErrorModal } from '../components/ErrorModal'
 
 type PaymentMethod = 'CASH' | 'QR'
 
@@ -82,7 +83,7 @@ export default function PaymentPage() {
           </Link>
         </header>
 
-        {errorMessage ? <p className="payment-error">{errorMessage}</p> : null}
+        <ErrorModal isOpen={!!errorMessage} message={errorMessage || ''} onClose={() => setErrorMessage(null)} />
 
         <div className="payment-layout">
           <main className="payment-main">

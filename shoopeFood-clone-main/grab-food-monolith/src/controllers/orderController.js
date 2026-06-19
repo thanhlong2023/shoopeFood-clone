@@ -12,6 +12,7 @@ const {
   Food,
   Category,
   OrderItem,
+  Review,
 } = require("../models");
 const orderRepository = require("../repositories/orderRepository");
 const orderFactory = require("../factories/orderFactory");
@@ -410,7 +411,7 @@ exports.createOrder = async (req, res) => {
 
           const availableQuantity = Number(food.currentQuantity || 0);
           if (availableQuantity < requestedItem.quantity) {
-            throw createHttpError(409, `${food.name} only has ${availableQuantity} item(s) left today`);
+            throw createHttpError(409, `Đồ ăn không đủ. Món ${food.name} hiện chỉ còn ${availableQuantity} phần.`);
           }
 
           const priceAtOrder = Number(food.price || 0);
@@ -559,7 +560,7 @@ exports.getOrderTracking = async (req, res) => {
     const orderData = normalizeOrder(item);
     const trackingDriverId = orderData.driverId || (req.user?.role === "DRIVER" ? req.user.id : null);
 
-    const [restaurant, driver, orderLocation, latestAnyLocation] = await Promise.all([
+    const [restaurant, driver, orderLocation, latestAnyLocation, reviews] = await Promise.all([
       Restaurant.findByPk(orderData.restaurantId),
       trackingDriverId
         ? DriverDetail.findOne({
@@ -579,6 +580,10 @@ exports.getOrderTracking = async (req, res) => {
             order: [["created_at", "DESC"]],
           })
         : Promise.resolve(null),
+      Review.findAll({
+        where: { orderId: orderData.id },
+        raw: true,
+      }),
     ]);
 
     const restaurantData = normalizeRestaurantSummary(restaurant);
@@ -609,6 +614,14 @@ exports.getOrderTracking = async (req, res) => {
         route,
         routePoints: route.routePoints,
         routeProgress: calculateRouteProgress(locationData, route.routePoints),
+        reviews: reviews.map((r) => ({
+          id: Number(r.id),
+          targetType: r.targetType,
+          targetId: Number(r.targetId),
+          rating: Number(r.rating),
+          comment: r.comment || "",
+          createdAt: r.createdAt,
+        })),
       },
     });
   } catch (error) {

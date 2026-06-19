@@ -9,6 +9,7 @@ import type { Order } from '../types'
 import { buildCreateOrderPayloadFromDraft, clearCheckoutDraft, getCheckoutDraft, notifyCartCleared } from '../utils/checkoutDraft'
 import { formatCurrency } from '../utils/formatters'
 import { setLastOrderId } from '../utils/orderStorage'
+import { ErrorModal } from '../components/ErrorModal'
 
 type QrStage = 'ready' | 'processing' | 'success'
 
@@ -92,7 +93,7 @@ export default function QrPaymentPage() {
           ))}
         </div>
 
-        {errorMessage ? <p className="payment-error">{errorMessage}</p> : null}
+        <ErrorModal isOpen={!!errorMessage} message={errorMessage || ''} onClose={() => setErrorMessage(null)} />
 
         <main className="payment-qr-card">
           <MockQrCode seed={draft.idempotencyKey} />

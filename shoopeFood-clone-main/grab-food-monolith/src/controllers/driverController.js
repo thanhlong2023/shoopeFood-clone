@@ -1,5 +1,5 @@
 const { Op } = require("sequelize");
-const { DriverDetail, DriverLocation, Order, OrderStatus, User, sequelize } = require("../models");
+const { DriverDetail, DriverLocation, Order, OrderStatus, Review, User, sequelize } = require("../models");
 const socketManager = require("../sockets");
 const orderRepository = require("../repositories/orderRepository");
 const { normalizeOrder } = require("../utils/orderNormalizer");
@@ -583,6 +583,83 @@ exports.getLatestDriverLocation = async (req, res) => {
     }
 
     return res.json({ data: normalizeDriverLocation(item) });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * GET /api/drivers/me/completed
+ * Returns the driver's completed deliveries (paginated) with customer reviews.
+ * Architecture note: we JOIN Review in-memory after fetching orders to avoid
+ * a heavy SQL JOIN on large tables. For scale, consider a dedicated DB view.
+ */
+exports.getMyCompletedOrders = async (req, res) => {
+  try {
+    const driverId = Number(req.user?.id);
+    if (!Number.isFinite(driverId) || req.user.role !== "DRIVER") {
+      return res.status(403).json({ message: "Only DRIVER accounts can view this" });
+    }
+
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    const completedStatus = await OrderStatus.findOne({ where: { code: COMPLETED_STATUS_CODE } });
+    if (!completedStatus) {
+      return res.json({ data: { items: [], total: 0, page, limit } });
+    }
+
+    const [total, completedOrders] = await Promise.all([
+      Order.count({ where: { driverId, statusId: completedStatus.id } }),
+      Order.findAll({
+        where: { driverId, statusId: completedStatus.id },
+        include: orderRepository.getIncludes(),
+        order: [["created_at", "DESC"]],
+        limit,
+        offset,
+      }),
+    ]);
+
+    if (completedOrders.length === 0) {
+      return res.json({ data: { items: [], total, page, limit } });
+    }
+
+    const orderIds = completedOrders.map((o) => o.id);
+
+    // Fetch driver-target reviews for these orders
+    const reviews = await Review.findAll({
+      where: { orderId: { [Op.in]: orderIds }, targetType: "DRIVER", targetId: driverId },
+      raw: true,
+    });
+
+    const reviewByOrderId = new Map(reviews.map((r) => [Number(r.orderId), r]));
+
+    const items = completedOrders.map((order) => {
+      const payload = normalizeOrder(order);
+      const review = reviewByOrderId.get(payload.id) || null;
+      return {
+        id: payload.id,
+        orderCode: payload.orderCode,
+        restaurantName: payload.restaurant?.name || `Quán #${payload.restaurantId}`,
+        restaurantAddress: payload.restaurant?.address || "",
+        receiverAddress: payload.receiverAddress,
+        customerName: payload.customerName || "",
+        totalAmount: payload.totalAmount,
+        cashToCollect: payload.cashToCollect || payload.totalAmount,
+        completedAt: payload.statusChangedAt || payload.createdAt,
+        review: review
+          ? {
+              id: Number(review.id),
+              rating: Number(review.rating),
+              comment: review.comment || "",
+              createdAt: review.createdAt,
+            }
+          : null,
+      };
+    });
+
+    return res.json({ data: { items, total, page, limit } });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

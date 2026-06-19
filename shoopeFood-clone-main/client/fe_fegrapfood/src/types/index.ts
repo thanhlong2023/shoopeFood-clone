@@ -178,9 +178,25 @@ export type DriverCompletedDelivery = {
   id: number
   orderCode: string
   restaurantName: string
+  restaurantAddress: string
   totalAmount: number
+  cashToCollect: number
   receiverAddress: string
+  customerName: string
   completedAt: string
+  review: {
+    id: number
+    rating: number
+    comment: string
+    createdAt: string
+  } | null
+}
+
+export type DriverCompletedOrdersPage = {
+  items: DriverCompletedDelivery[]
+  total: number
+  page: number
+  limit: number
 }
 
 export type DriverPublicProfile = {
@@ -236,6 +252,17 @@ export type TrackingRoute = {
   routePoints: RoutePoint[]
 }
 
+export type Review = {
+  id: number
+  orderId?: number
+  customerId?: number
+  targetType: 'RESTAURANT' | 'DRIVER' | string
+  targetId: number
+  rating: number
+  comment: string
+  createdAt: string
+}
+
 export type OrderTracking = {
   order: Order
   restaurant: Pick<Restaurant, 'id' | 'name' | 'address' | 'latitude' | 'longitude' | 'isOpen'> | null
@@ -245,6 +272,7 @@ export type OrderTracking = {
   route: TrackingRoute
   routePoints: RoutePoint[]
   routeProgress: number
+  reviews?: Review[]
 }
 
 export type RestaurantReviewSummary = {

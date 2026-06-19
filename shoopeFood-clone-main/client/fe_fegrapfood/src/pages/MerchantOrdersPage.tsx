@@ -397,7 +397,7 @@ export default function MerchantOrdersPage() {
                       <strong className="order-price">{formatMoney(order.totalAmount)} đ</strong>
                       <div className="admin-actions">
                         <Link to={`/tracking?orderId=${order.id}`} className="button-secondary">
-                          Theo dõi
+                          {order.statusCode === 'COMPLETED' ? 'Chi tiết & Đánh giá' : 'Theo dõi'}
                         </Link>
                         {order.statusCode === 'PENDING' ? (
                           <>

@@ -89,16 +89,21 @@ public final class ApiClient {
         try {
             if (response.body() != null) {
                 String bodyString = response.body().string();
-                ApiError error = new Gson().fromJson(bodyString, ApiError.class);
-                if (error != null && error.message != null && !error.message.isEmpty()) {
-                    return error.message;
+                try {
+                    com.google.gson.JsonObject jsonObject = new com.google.gson.Gson().fromJson(bodyString, com.google.gson.JsonObject.class);
+                    if (jsonObject != null && jsonObject.has("message")) {
+                        return jsonObject.get("message").getAsString();
+                    }
+                } catch (Exception e) {
+                    if (bodyString != null && !bodyString.trim().isEmpty()) {
+                        return bodyString;
+                    }
                 }
             }
         } catch (Exception ignored) {
-            // Ignore IllegalStateException from converted body, IOException, etc.
         }
 
-        return "Loi " + response.code();
+        return "Lỗi " + response.code();
     }
 
     public static String parseErrorMessage(retrofit2.Response<?> response) {
@@ -122,14 +127,21 @@ public final class ApiClient {
         if (response.errorBody() != null) {
             try {
                 String errorStr = response.errorBody().string();
-                ApiError error = new Gson().fromJson(errorStr, ApiError.class);
-                if (error != null && error.message != null && !error.message.isEmpty()) {
-                    return error.message;
+                try {
+                    com.google.gson.JsonObject jsonObject = new com.google.gson.Gson().fromJson(errorStr, com.google.gson.JsonObject.class);
+                    if (jsonObject != null && jsonObject.has("message")) {
+                        return jsonObject.get("message").getAsString();
+                    }
+                } catch (Exception e) {
+                    // If it's not a JSON object, maybe it's a raw string?
+                    if (errorStr != null && !errorStr.trim().isEmpty()) {
+                        return errorStr;
+                    }
                 }
             } catch (Exception ignored) {
             }
         }
 
-        return "Loi " + response.code();
+        return "Lỗi " + response.code();
     }
 }

@@ -1,5 +1,5 @@
 const { fn, col } = require("sequelize");
-const { Order, OrderStatus, Review } = require("../models");
+const { Order, OrderStatus, Review, User, Restaurant } = require("../models");
 
 const normalizeReview = (review) => ({
   id: Number(review.id),
@@ -91,6 +91,19 @@ exports.createReview = async (req, res) => {
 
     if (!created) {
       await review.update({ rating, comment, targetId });
+    }
+
+    const avgResult = await Review.findOne({
+      where: { targetType, targetId },
+      attributes: [[fn("AVG", col("rating")), "ratingAvg"]],
+      raw: true,
+    });
+    const newRatingAvg = avgResult && avgResult.ratingAvg ? Number(Number(avgResult.ratingAvg).toFixed(2)) : 5.0;
+
+    if (targetType === "DRIVER") {
+      await User.update({ ratingAvg: newRatingAvg }, { where: { id: targetId } });
+    } else if (targetType === "RESTAURANT") {
+      await Restaurant.update({ ratingAvg: newRatingAvg }, { where: { id: targetId } });
     }
 
     return res.status(created ? 201 : 200).json({

@@ -12,6 +12,8 @@ import { createCategory, getCategories } from '../services/api/categories'
 import { foodPhotoStyle } from '../utils/foodImage'
 import { restaurantCoverStyle } from '../utils/restaurantImage'
 import { getCartDraft, saveCartDraft } from '../utils/cartDraft'
+import { calculateDistanceKm } from '../utils/geoUtils'
+import { ErrorModal } from '../components/ErrorModal'
 import { setLastOrderId } from '../utils/orderStorage'
 import type { Restaurant, Food, Category, CreateOrderPayload, Order } from '../types'
 
@@ -69,18 +71,6 @@ function formatDateTime(dateString: string | null | undefined): string {
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(value))
-}
-
-function calculateDistanceKm(fromLat: number, fromLng: number, toLat: number, toLng: number) {
-  const earthRadiusKm = 6371
-  const toRad = (value: number) => (value * Math.PI) / 180
-  const dLat = toRad(toLat - fromLat)
-  const dLng = toRad(toLng - fromLng)
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
-
-  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
 function isFoodInStock(food: Food) {
@@ -563,6 +553,7 @@ export default function RestaurantDetailPage() {
 
   return (
     <section className="restaurant-page">
+      <ErrorModal isOpen={!!menuError} message={menuError || ''} onClose={() => setMenuError(null)} />
       <div className="restaurant-page-header">
         <Link to={backPath} className="button-secondary">
           {backLabel}
@@ -649,7 +640,6 @@ export default function RestaurantDetailPage() {
             {canManageFoods ? <span className="owner-note">Them / sua mon cho quan</span> : null}
           </div>
 
-          {menuError ? <p className="restaurant-feedback error">{menuError}</p> : null}
           {foodFeedback ? <p className="restaurant-feedback success">{foodFeedback}</p> : null}
           {categoryFeedback ? <p className="restaurant-feedback success">{categoryFeedback}</p> : null}
           {orderFeedback ? (
@@ -883,7 +873,7 @@ export default function RestaurantDetailPage() {
                 </div>
               </div>
 
-              <div className="restaurant-form-actions">
+              <div className="flex justify-between items-center mb-4">
                 {foodForm.id ? (
                   <button type="button" className="button-secondary" onClick={resetFoodForm}>
                     Hủy sửa

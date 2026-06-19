@@ -13,6 +13,7 @@ const Food = require("./Food");
 const Category = require("./Category");
 const Payment = require("./Payment");
 const PaymentTransaction = require("./PaymentTransaction");
+const Review = require("./Review");
 
 User.belongsToMany(Role, { through: UserRole, foreignKey: "userId", otherKey: "roleId", as: "roles" });
 Role.belongsToMany(User, { through: UserRole, foreignKey: "roleId", otherKey: "userId", as: "users" });
@@ -65,6 +66,9 @@ Payment.belongsTo(Order, { foreignKey: "orderId", targetKey: "id" });
 Payment.hasMany(PaymentTransaction, { foreignKey: "paymentId", sourceKey: "id", as: "transactions" });
 PaymentTransaction.belongsTo(Payment, { foreignKey: "paymentId", targetKey: "id" });
 
+Order.hasMany(Review, { foreignKey: "orderId", sourceKey: "id", as: "reviews" });
+Review.belongsTo(Order, { foreignKey: "orderId", targetKey: "id", as: "order" });
+
 module.exports = {
   sequelize,
   User,
@@ -81,5 +85,5 @@ module.exports = {
   Food,
   Payment,
   PaymentTransaction,
- 
+  Review,
 };

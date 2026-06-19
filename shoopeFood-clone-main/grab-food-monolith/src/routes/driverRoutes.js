@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.get("/me/orders", auth, requireRole(["DRIVER"]), driverController.getMyOrderFeed);
 router.get("/me/route", auth, requireRole(["DRIVER"]), driverController.getDrivingRoute);
+router.get("/me/completed", auth, requireRole(["DRIVER"]), driverController.getMyCompletedOrders);
 router.get("/", auth, requireRole(["ADMIN", "DRIVER"]), driverController.getDrivers);
 router.get("/:id/info", auth, driverController.getDriverInfo);
 router.get("/:id/profile", auth, driverController.getDriverProfile);

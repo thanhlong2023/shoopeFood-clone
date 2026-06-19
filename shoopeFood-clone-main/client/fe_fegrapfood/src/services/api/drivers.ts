@@ -1,10 +1,11 @@
 import { httpGet, httpPost } from './http'
-import type { ApiResponse, Driver, DriverLocation, DriverPublicProfile, Order, UpdateDriverLocationPayload } from '../../types'
+import type { ApiResponse, Driver, DriverCompletedOrdersPage, DriverLocation, DriverPublicProfile, Order, UpdateDriverLocationPayload } from '../../types'
 
 export type DriverOrderFeed = {
   driver: Driver
   available: Order[]
   active: Order[]
+  completed?: Order[]
 }
 
 export async function getDrivers() {
@@ -19,6 +20,13 @@ export async function getDriverProfile(driverId: number) {
 
 export async function getMyDriverOrderFeed() {
   const response = await httpGet<ApiResponse<DriverOrderFeed>>('/api/drivers/me/orders')
+  return response.data
+}
+
+export async function getMyCompletedOrders(page = 1, limit = 20) {
+  const response = await httpGet<ApiResponse<DriverCompletedOrdersPage>>(
+    `/api/drivers/me/completed?page=${page}&limit=${limit}`
+  )
   return response.data
 }
 
