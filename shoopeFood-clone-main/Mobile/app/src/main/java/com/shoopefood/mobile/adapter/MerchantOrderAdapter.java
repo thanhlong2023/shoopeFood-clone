@@ -100,9 +100,9 @@ public class MerchantOrderAdapter extends RecyclerView.Adapter<MerchantOrderAdap
         void bind(Order order) {
             codeText.setText("#" + order.orderCode);
             bindStatusBadge(order);
-            restaurantText.setText(restaurantNames.getOrDefault(order.restaurantId, "Quan #" + order.restaurantId));
+            restaurantText.setText(restaurantNames.getOrDefault(order.restaurantId, "Quán #" + order.restaurantId));
             itemsText.setText(buildItemsSummary(order));
-            addressText.setText("Giao den: " + (order.receiverAddress != null ? order.receiverAddress : "-"));
+            addressText.setText("Giao đến: " + (order.receiverAddress != null ? order.receiverAddress : "-"));
             totalText.setText(CurrencyUtils.formatVnd(order.totalAmount));
             timeText.setText(formatCreatedAt(order.createdAt));
             bindActions(order);
@@ -156,7 +156,7 @@ public class MerchantOrderAdapter extends RecyclerView.Adapter<MerchantOrderAdap
 
         private String buildItemsSummary(Order order) {
             if (order.items == null || order.items.isEmpty()) {
-                return "Khong co mon trong don";
+                return "Không có món trong đơn";
             }
             StringBuilder builder = new StringBuilder();
             for (int i = 0; i < order.items.size(); i++) {
@@ -164,7 +164,7 @@ public class MerchantOrderAdapter extends RecyclerView.Adapter<MerchantOrderAdap
                 if (i > 0) {
                     builder.append("\n");
                 }
-                String name = item.foodName != null ? item.foodName : "Mon #" + item.foodId;
+                String name = item.foodName != null ? item.foodName : "Món #" + item.foodId;
                 builder.append(item.quantity).append(" x ").append(name);
             }
             return builder.toString();

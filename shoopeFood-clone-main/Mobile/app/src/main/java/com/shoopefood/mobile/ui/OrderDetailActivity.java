@@ -521,7 +521,7 @@ public class OrderDetailActivity extends AppCompatActivity {
         driverProfileSection.setVisibility(View.VISIBLE);
         driverProfileSummaryText.setText(getString(
                 R.string.customer_driver_profile_summary,
-                safeText(driver.fullName, "Tai xe"),
+                safeText(driver.fullName, "Tài xế"),
                 safeText(driver.phone, "-"),
                 "-",
                 driver.isOnline ? getString(R.string.customer_driver_online) : getString(R.string.customer_driver_offline),
@@ -544,7 +544,7 @@ public class OrderDetailActivity extends AppCompatActivity {
         driverProfileSection.setVisibility(View.VISIBLE);
         driverProfileSummaryText.setText(getString(
                 R.string.customer_driver_profile_summary,
-                safeText(driver.fullName, "Tai xe"),
+                safeText(driver.fullName, "Tài xế"),
                 safeText(driver.phone, "-"),
                 String.format(Locale.US, "%.1f", driver.ratingAvg),
                 driver.isOnline ? getString(R.string.customer_driver_online) : getString(R.string.customer_driver_offline),
@@ -570,7 +570,7 @@ public class OrderDetailActivity extends AppCompatActivity {
             builder.append(getString(
                     R.string.customer_driver_delivery_line,
                     safeText(delivery.orderCode, "#" + delivery.id),
-                    safeText(delivery.restaurantName, "Quan"),
+                    safeText(delivery.restaurantName, "Quán"),
                     CurrencyUtils.formatVnd(delivery.totalAmount)
             ));
         }
@@ -583,18 +583,18 @@ public class OrderDetailActivity extends AppCompatActivity {
 
     private String formatVehicleType(String vehicleType) {
         if (vehicleType == null || vehicleType.trim().isEmpty()) {
-            return "Chua cap nhat";
+            return "Chưa cập nhật";
         }
 
         String normalized = vehicleType.trim().toUpperCase(Locale.US);
         if ("MOTORBIKE".equals(normalized) || "MOTO".equals(normalized)) {
-            return "Xe may";
+            return "Xe máy";
         }
         if ("CAR".equals(normalized)) {
-            return "O to";
+            return "Ô tô";
         }
         if ("BICYCLE".equals(normalized)) {
-            return "Xe dap";
+            return "Xe đạp";
         }
         return vehicleType;
     }
@@ -606,7 +606,7 @@ public class OrderDetailActivity extends AppCompatActivity {
 
         String driverName = order.driver != null && order.driver.fullName != null && !order.driver.fullName.isEmpty()
                 ? order.driver.fullName
-                : "Tai xe";
+                : "Tài xế";
         driverAssignedDialogShown = true;
 
         new AlertDialog.Builder(this)
@@ -628,7 +628,7 @@ public class OrderDetailActivity extends AppCompatActivity {
 
         String driverName = order.driver != null && order.driver.fullName != null && !order.driver.fullName.isEmpty()
                 ? order.driver.fullName
-                : "Tai xe";
+                : "Tài xế";
         double cashAmount = order.cashToCollect > 0 ? order.cashToCollect : order.totalAmount;
         driverDeliveringDialogShown = true;
 
@@ -652,7 +652,7 @@ public class OrderDetailActivity extends AppCompatActivity {
 
         String driverName = order.driver != null && order.driver.fullName != null && !order.driver.fullName.isEmpty()
                 ? order.driver.fullName
-                : "Tai xe";
+                : "Tài xế";
         deliveryCompletedDialogShown = true;
 
         new AlertDialog.Builder(this)

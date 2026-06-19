@@ -76,7 +76,7 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
         void bind(Food food) {
             nameText.setText(food.name);
             priceText.setText(CurrencyUtils.formatVnd(food.price));
-            statusText.setText(food.isAvailable ? "Con hang" : "Het hang");
+            statusText.setText(food.isAvailable ? "Còn hàng" : "Hết hàng");
             addButton.setEnabled(food.isAvailable);
             addButton.setOnClickListener(v -> listener.onAddFood(food));
             

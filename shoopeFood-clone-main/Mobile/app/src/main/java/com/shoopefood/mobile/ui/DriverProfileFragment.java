@@ -135,7 +135,7 @@ public class DriverProfileFragment extends Fragment {
     }
 
     private void bindDriverBasics(Driver driver, int completedCount) {
-        binding.textProfileName.setText(safe(driver.fullName, "Tai xe"));
+        binding.textProfileName.setText(safe(driver.fullName, "Tài xế"));
         binding.textProfilePhone.setText(getString(R.string.driver_phone_label, safe(driver.phone, "-")));
         binding.textProfileRating.setText(getString(
                 R.string.driver_rating_label,
@@ -164,7 +164,7 @@ public class DriverProfileFragment extends Fragment {
             builder.append(getString(
                     R.string.customer_driver_delivery_line,
                     safe(delivery.orderCode, "#" + delivery.id),
-                    safe(delivery.restaurantName, "Quan"),
+                    safe(delivery.restaurantName, "Quán"),
                     CurrencyUtils.formatVnd(delivery.totalAmount)
             ));
         }
@@ -193,17 +193,17 @@ public class DriverProfileFragment extends Fragment {
 
     private String formatVehicleType(String vehicleType) {
         if (vehicleType == null || vehicleType.trim().isEmpty()) {
-            return "Chua cap nhat";
+            return "Chưa cập nhật";
         }
         String normalized = vehicleType.trim().toUpperCase(Locale.US);
         if ("MOTORBIKE".equals(normalized) || "MOTO".equals(normalized)) {
-            return "Xe may";
+            return "Xe máy";
         }
         if ("CAR".equals(normalized)) {
-            return "O to";
+            return "Ô tô";
         }
         if ("BICYCLE".equals(normalized)) {
-            return "Xe dap";
+            return "Xe đạp";
         }
         return vehicleType;
     }

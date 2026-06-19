@@ -35,12 +35,12 @@ public final class OperatingStatusUtils {
 
     public static String getStatusLabel(boolean isOpen, boolean isOpenToday) {
         if (isAcceptingOrders(isOpen, isOpenToday)) {
-            return "Dang nhan don";
+            return "Đang nhận đơn";
         }
         if (!isOpen) {
-            return "Tam dong quan";
+            return "Tạm đóng quán";
         }
-        return "Nghi hom nay";
+        return "Nghỉ hôm nay";
     }
 
     public static class StatusFlags {

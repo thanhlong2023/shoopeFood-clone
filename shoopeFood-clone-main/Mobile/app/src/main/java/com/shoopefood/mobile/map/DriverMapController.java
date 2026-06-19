@@ -205,7 +205,7 @@ public class DriverMapController {
         Marker marker = new Marker(mapView);
         marker.setPosition(point);
         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-        marker.setTitle(pin.name != null ? pin.name : ("Quan #" + pin.restaurantId));
+        marker.setTitle(pin.name != null ? pin.name : ("Quán #" + pin.restaurantId));
         marker.setSnippet(context.getString(
                 R.string.driver_map_restaurant_snippet,
                 pin.orderCount,
