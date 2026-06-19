@@ -7,13 +7,14 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getRestaurantById } from '../services/api/restaurants'
 import { createOrder } from '../services/api/orders'
 import ImageUrlField from '../components/common/ImageUrlField'
+import AddressAutocomplete from '../components/common/AddressAutocomplete'
 import { createFood, getFoods, updateFood, type FoodPayload } from '../services/api/foods'
 import { createCategory, getCategories } from '../services/api/categories'
 import { foodPhotoStyle } from '../utils/foodImage'
 import { restaurantCoverStyle } from '../utils/restaurantImage'
 import { getCartDraft, saveCartDraft } from '../utils/cartDraft'
 import { setLastOrderId } from '../utils/orderStorage'
-import type { Restaurant, Food, Category, CreateOrderPayload, Order } from '../types'
+import type { AddressDetail, Restaurant, Food, Category, CreateOrderPayload, Order } from '../types'
 
 type CartState = Record<number, number>
 
@@ -81,6 +82,15 @@ function calculateDistanceKm(fromLat: number, fromLng: number, toLat: number, to
     Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
 
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function isValidCoordinate(latitude: number, longitude: number) {
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    Math.abs(latitude) <= 90 &&
+    Math.abs(longitude) <= 180
+  )
 }
 
 function isFoodInStock(food: Food) {
@@ -160,6 +170,8 @@ export default function RestaurantDetailPage() {
   }, [cart, restaurantId])
 
   const [checkout, setCheckout] = useState<CheckoutState>(emptyCheckout)
+  const [isDeliveryAddressConfirmed, setIsDeliveryAddressConfirmed] = useState(false)
+  const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState<AddressDetail | null>(null)
   const [isLocating, setIsLocating] = useState(false)
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false)
   const [orderFeedback, setOrderFeedback] = useState<Order | null>(null)
@@ -308,6 +320,39 @@ export default function RestaurantDetailPage() {
     setOrderFeedback(null)
   }
 
+  function updateReceiverAddress(value: string) {
+    setCheckout((current) => ({
+      ...current,
+      receiverAddress: value,
+      receiverLat: '',
+      receiverLng: '',
+      distanceKm: '',
+    }))
+    setSelectedDeliveryAddress(null)
+    setIsDeliveryAddressConfirmed(false)
+  }
+
+  function selectDeliveryAddress(address: AddressDetail) {
+    const receiverLat = Number(address.latitude)
+    const receiverLng = Number(address.longitude)
+    const hasValidCoordinates = isValidCoordinate(receiverLat, receiverLng)
+    const nextDistance =
+      restaurant && hasValidCoordinates
+        ? calculateDistanceKm(restaurant.latitude, restaurant.longitude, receiverLat, receiverLng)
+        : Number(checkout.distanceKm)
+
+    setCheckout((current) => ({
+      ...current,
+      receiverAddress: address.formattedAddress,
+      receiverLat: hasValidCoordinates ? receiverLat.toFixed(6) : '',
+      receiverLng: hasValidCoordinates ? receiverLng.toFixed(6) : '',
+      distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
+    }))
+    setSelectedDeliveryAddress(address)
+    setIsDeliveryAddressConfirmed(hasValidCoordinates)
+    setMenuError(hasValidCoordinates ? null : 'Dia chi da chon chua co toa do hop le')
+  }
+
   function useCurrentLocation() {
     if (!navigator.geolocation) {
       setMenuError('Trinh duyet khong ho tro lay vi tri')
@@ -327,10 +372,13 @@ export default function RestaurantDetailPage() {
 
         setCheckout((current) => ({
           ...current,
+          receiverAddress: 'Vi tri hien tai da chon',
           receiverLat: receiverLat.toFixed(6),
           receiverLng: receiverLng.toFixed(6),
           distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
         }))
+        setSelectedDeliveryAddress(null)
+        setIsDeliveryAddressConfirmed(true)
         setIsLocating(false)
       },
       (error) => {
@@ -347,7 +395,8 @@ export default function RestaurantDetailPage() {
     if (!isAuthenticated || user?.role !== 'CUSTOMER') return 'Vui long dang nhap tai khoan khach hang de dat mon'
     if (cartItems.length === 0) return 'Gio hang dang trong'
     if (!checkout.receiverAddress.trim()) return 'Vui long nhap dia chi giao hang'
-    if (!Number.isFinite(Number(checkout.receiverLat)) || !Number.isFinite(Number(checkout.receiverLng))) {
+    if (!isDeliveryAddressConfirmed) return 'Vui long chon dia chi giao hang tu danh sach goi y'
+    if (!isValidCoordinate(Number(checkout.receiverLat), Number(checkout.receiverLng))) {
       return 'Toa do giao hang khong hop le'
     }
     if (!Number.isFinite(Number(checkout.distanceKm)) || Number(checkout.distanceKm) <= 0) {
@@ -666,39 +715,29 @@ export default function RestaurantDetailPage() {
               <div className="restaurant-form-grid">
                 <div className="restaurant-field full">
                   <label htmlFor="restaurantReceiverAddress">Dia chi giao hang</label>
-                  <input
+                  <AddressAutocomplete
                     id="restaurantReceiverAddress"
                     value={checkout.receiverAddress}
-                    onChange={(event) => setCheckout((current) => ({ ...current, receiverAddress: event.target.value }))}
+                    onTextChange={updateReceiverAddress}
+                    onSelect={selectDeliveryAddress}
+                    isSelectionConfirmed={isDeliveryAddressConfirmed}
                     placeholder="Nhap dia chi giao hang"
+                    inputClassName=""
                   />
+                  <span className={isDeliveryAddressConfirmed ? 'address-status success' : 'address-status'}>
+                    {isDeliveryAddressConfirmed
+                      ? selectedDeliveryAddress
+                        ? 'Da chon dia chi giao hang'
+                        : 'Da chon vi tri hien tai'
+                      : 'Vui long chon mot dia chi trong danh sach goi y'}
+                  </span>
                 </div>
 
                 <div className="restaurant-field">
-                  <label htmlFor="restaurantReceiverLat">Lat</label>
-                  <input
-                    id="restaurantReceiverLat"
-                    value={checkout.receiverLat}
-                    onChange={(event) => setCheckout((current) => ({ ...current, receiverLat: event.target.value }))}
-                  />
-                </div>
-
-                <div className="restaurant-field">
-                  <label htmlFor="restaurantReceiverLng">Lng</label>
-                  <input
-                    id="restaurantReceiverLng"
-                    value={checkout.receiverLng}
-                    onChange={(event) => setCheckout((current) => ({ ...current, receiverLng: event.target.value }))}
-                  />
-                </div>
-
-                <div className="restaurant-field">
-                  <label htmlFor="restaurantDistanceKm">Km</label>
-                  <input
-                    id="restaurantDistanceKm"
-                    value={checkout.distanceKm}
-                    onChange={(event) => setCheckout((current) => ({ ...current, distanceKm: event.target.value }))}
-                  />
+                  <label>Khoang cach</label>
+                  <span className="address-distance">
+                    {Number(checkout.distanceKm) > 0 ? `${Number(checkout.distanceKm).toFixed(2)} km` : 'Tinh sau khi chon dia chi'}
+                  </span>
                 </div>
 
                 <div className="restaurant-field">

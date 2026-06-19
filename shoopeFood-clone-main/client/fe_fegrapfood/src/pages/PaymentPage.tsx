@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import DriverWaitingOverlay from '../components/payment/DriverWaitingOverlay'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { createOrder } from '../services/api/orders'
-import type { Order } from '../types'
 import { buildCreateOrderPayloadFromDraft, clearCheckoutDraft, getCheckoutDraft, notifyCartCleared, type CheckoutDraft } from '../utils/checkoutDraft'
 import { formatCurrency } from '../utils/formatters'
 import { setLastOrderId } from '../utils/orderStorage'
@@ -25,11 +23,10 @@ export default function PaymentPage() {
   const [draft] = useState(() => getCheckoutDraft())
   const [method, setMethod] = useState<PaymentMethod>('CASH')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [waitingOrder, setWaitingOrder] = useState<Order | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   async function confirmOrder() {
-    if (!draft || isSubmitting || waitingOrder) {
+    if (!draft || isSubmitting) {
       return
     }
 

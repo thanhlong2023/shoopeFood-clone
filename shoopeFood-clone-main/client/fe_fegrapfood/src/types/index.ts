@@ -118,6 +118,26 @@ export type CreateOrderPayload = {
   items: OrderItemPayload[]
 }
 
+export type AddressSuggestion = {
+  placeId: string
+  description: string
+  mainText: string
+  secondaryText: string
+}
+
+export type AddressDetail = {
+  placeId: string
+  name: string
+  formattedAddress: string
+  latitude: number | null
+  longitude: number | null
+  province: string
+  district: string
+  ward: string
+  street: string
+  houseNumber: string
+}
+
 export type OrderItem = {
   id: number
   orderId: number

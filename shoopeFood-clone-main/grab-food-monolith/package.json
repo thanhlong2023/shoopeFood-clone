@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "seed:hcmc-demo": "node scripts/seed_hcmc_demo_data.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

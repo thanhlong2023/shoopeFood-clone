@@ -21,6 +21,14 @@ export type CheckoutDraft = {
     lat: number
     lng: number
     distanceKm: number
+    placeId?: string
+    formattedAddress?: string
+    province?: string
+    district?: string
+    ward?: string
+    street?: string
+    houseNumber?: string
+    provider?: string
   }
   shippingType: NonNullable<CreateOrderPayload['shippingType']>
   pricing: {

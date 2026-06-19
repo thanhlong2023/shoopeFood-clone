@@ -1,19 +1,18 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { APP_NAME } from '../constants/app'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useTrackableOrder } from '../hooks/useTrackableOrder'
+import AddressAutocomplete from '../components/common/AddressAutocomplete'
 import { getCategories } from '../services/api/categories'
 import { getFoods } from '../services/api/foods'
-import { createOrder } from '../services/api/orders'
 import { getRestaurants } from '../services/api/restaurants'
 import { foodPhotoStyle } from '../utils/foodImage'
-import { setLastOrderId } from '../utils/orderStorage'
 import { saveCheckoutDraft } from '../utils/checkoutDraft'
 import { getCartDraft, saveCartDraft } from '../utils/cartDraft'
 import { restaurantCoverStyle, restaurantThumbStyle } from '../utils/restaurantImage'
-import type { Category, CreateOrderPayload, Food, Order, Restaurant } from '../types'
+import type { AddressDetail, Category, CreateOrderPayload, Food, Order, Restaurant } from '../types'
 
 type CartState = Record<number, number>
 
@@ -25,14 +24,21 @@ type CheckoutState = {
   shippingType: NonNullable<CreateOrderPayload['shippingType']>
 }
 
+type DeliveryLocationSource = 'default' | 'current' | 'address'
+
+type DeliveryPoint = {
+  latitude: number
+  longitude: number
+}
+
 type IconName = 'search' | 'location' | 'cart' | 'plus' | 'minus' | 'trash' | 'store' | 'clock' | 'star' | 'receipt' | 'check'
 
 const quickFilters = ['Cơm trưa', 'Bún phở', 'Đồ uống', 'Ăn vặt', 'Chay', 'Giảm giá']
 const initialCheckoutState: CheckoutState = {
-  receiverAddress: '12 Nguyen Hue, Quan 1',
-  receiverLat: '10.7769',
-  receiverLng: '106.7009',
-  distanceKm: '3.2',
+  receiverAddress: '',
+  receiverLat: '',
+  receiverLng: '',
+  distanceKm: '',
   shippingType: 'STANDARD',
 }
 
@@ -72,6 +78,44 @@ function calculateDistanceKm(fromLat: number, fromLng: number, toLat: number, to
     Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
 
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function isValidCoordinate(latitude: number, longitude: number) {
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    Math.abs(latitude) <= 90 &&
+    Math.abs(longitude) <= 180
+  )
+}
+
+function getRestaurantDistanceKm(restaurant: Restaurant, deliveryPoint: DeliveryPoint | null) {
+  if (
+    !deliveryPoint ||
+    !isValidCoordinate(deliveryPoint.latitude, deliveryPoint.longitude) ||
+    !isValidCoordinate(Number(restaurant.latitude), Number(restaurant.longitude))
+  ) {
+    return null
+  }
+
+  return calculateDistanceKm(deliveryPoint.latitude, deliveryPoint.longitude, restaurant.latitude, restaurant.longitude)
+}
+
+function formatDistanceKm(value: number | null) {
+  if (value === null || !Number.isFinite(value)) {
+    return ''
+  }
+
+  return value < 1 ? `${Math.round(value * 1000)} m` : `${value.toFixed(1)} km`
+}
+
+function toEtaFromDistance(distanceKm: number | null, restaurantId: number) {
+  if (distanceKm === null || !Number.isFinite(distanceKm)) {
+    return toEta(restaurantId)
+  }
+
+  const baseMinute = Math.max(12, Math.round(10 + distanceKm * 4))
+  return `${baseMinute}-${baseMinute + 7} phút`
 }
 
 function normalizeSearchText(value: string) {
@@ -139,11 +183,13 @@ export default function HomePage() {
 
   const [checkout, setCheckout] = useState<CheckoutState>(initialCheckoutState)
   const [isLoading, setIsLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
+  const [deliveryLocationSource, setDeliveryLocationSource] = useState<DeliveryLocationSource>('default')
+  const [isDeliveryAddressConfirmed, setIsDeliveryAddressConfirmed] = useState(false)
+  const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState<AddressDetail | null>(null)
+  const [shouldFollowDeliveryLocation, setShouldFollowDeliveryLocation] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successOrder, setSuccessOrder] = useState<Order | null>(null)
-  const submitKeyRef = useRef<string | null>(null)
 
   // Search term synced with URL
   const searchTerm = searchParams.get('q') || ''
@@ -230,7 +276,34 @@ export default function HomePage() {
     () => restaurants.filter((restaurant) => restaurantSearchMatches.has(restaurant.id)),
     [restaurantSearchMatches, restaurants],
   )
-  const previewRestaurants = useMemo(() => visibleRestaurants.slice(0, 6), [visibleRestaurants])
+  const deliveryPoint = useMemo(() => {
+    const latitude = Number(checkout.receiverLat)
+    const longitude = Number(checkout.receiverLng)
+
+    return isValidCoordinate(latitude, longitude) ? { latitude, longitude } : null
+  }, [checkout.receiverLat, checkout.receiverLng])
+  const rankedRestaurants = useMemo(
+    () =>
+      visibleRestaurants
+        .map((restaurant) => ({
+          restaurant,
+          distanceKm: getRestaurantDistanceKm(restaurant, deliveryPoint),
+        }))
+        .sort((left, right) => {
+          const leftClosed = left.restaurant.isOpen && left.restaurant.isOpenToday ? 0 : 1
+          const rightClosed = right.restaurant.isOpen && right.restaurant.isOpenToday ? 0 : 1
+          if (leftClosed !== rightClosed) return leftClosed - rightClosed
+
+          const leftDistance = left.distanceKm ?? Number.POSITIVE_INFINITY
+          const rightDistance = right.distanceKm ?? Number.POSITIVE_INFINITY
+          if (leftDistance !== rightDistance) return leftDistance - rightDistance
+
+          return right.restaurant.ratingAvg - left.restaurant.ratingAvg
+        }),
+    [deliveryPoint, visibleRestaurants],
+  )
+  const previewRestaurants = useMemo(() => rankedRestaurants.slice(0, 6), [rankedRestaurants])
+  const hasCartQuantities = useMemo(() => Object.values(cart).some((quantity) => quantity > 0), [cart])
   const featuredRestaurants = useMemo(
     () =>
       restaurants
@@ -304,6 +377,7 @@ export default function HomePage() {
     setActiveCategoryId(food.categoryId ?? 'all')
     setSearchTerm('')
     setSuccessOrder(null)
+    setShouldFollowDeliveryLocation(false)
   }
 
   const cartItems = useMemo(
@@ -364,6 +438,19 @@ export default function HomePage() {
     setCheckout((current) => ({ ...current, distanceKm: nextDistance.toFixed(2) }))
   }, [activeRestaurant, checkout.receiverLat, checkout.receiverLng])
 
+  useEffect(() => {
+    if (!shouldFollowDeliveryLocation || hasCartQuantities) {
+      return
+    }
+
+    const nearestRestaurantId = rankedRestaurants[0]?.restaurant.id
+    if (!nearestRestaurantId) {
+      return
+    }
+
+    setActiveRestaurantId((current) => (current === nearestRestaurantId ? current : nearestRestaurantId))
+  }, [hasCartQuantities, rankedRestaurants, shouldFollowDeliveryLocation])
+
   function handleRestaurantSelect(restaurantId: number) {
     if (activeRestaurantId !== restaurantId) {
       setCart({})
@@ -372,6 +459,42 @@ export default function HomePage() {
     setActiveCategoryId('all')
     setSearchTerm('')
     setSuccessOrder(null)
+    setShouldFollowDeliveryLocation(false)
+  }
+
+  function updateReceiverAddress(value: string) {
+    setCheckout((current) => ({
+      ...current,
+      receiverAddress: value,
+      receiverLat: '',
+      receiverLng: '',
+      distanceKm: '',
+    }))
+    setSelectedDeliveryAddress(null)
+    setIsDeliveryAddressConfirmed(false)
+  }
+
+  function selectDeliveryAddress(address: AddressDetail) {
+    const receiverLat = Number(address.latitude)
+    const receiverLng = Number(address.longitude)
+    const hasValidCoordinates = isValidCoordinate(receiverLat, receiverLng)
+    const nextDistance =
+      activeRestaurant && hasValidCoordinates
+        ? calculateDistanceKm(activeRestaurant.latitude, activeRestaurant.longitude, receiverLat, receiverLng)
+        : Number(checkout.distanceKm)
+
+    setCheckout((current) => ({
+      ...current,
+      receiverAddress: address.formattedAddress,
+      receiverLat: hasValidCoordinates ? receiverLat.toFixed(6) : '',
+      receiverLng: hasValidCoordinates ? receiverLng.toFixed(6) : '',
+      distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
+    }))
+    setSelectedDeliveryAddress(address)
+    setDeliveryLocationSource('address')
+    setIsDeliveryAddressConfirmed(hasValidCoordinates)
+    setShouldFollowDeliveryLocation(true)
+    setErrorMessage(hasValidCoordinates ? null : 'Dia chi da chon chua co toa do hop le')
   }
 
   function updateFoodQuantity(food: Food, nextQuantity: number) {
@@ -410,10 +533,15 @@ export default function HomePage() {
 
         setCheckout((current) => ({
           ...current,
+          receiverAddress: 'Vi tri hien tai da chon',
           receiverLat: receiverLat.toFixed(6),
           receiverLng: receiverLng.toFixed(6),
           distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
         }))
+        setSelectedDeliveryAddress(null)
+        setDeliveryLocationSource('current')
+        setIsDeliveryAddressConfirmed(true)
+        setShouldFollowDeliveryLocation(true)
         setIsLocating(false)
       },
       (error) => {
@@ -437,11 +565,15 @@ export default function HomePage() {
       return 'Vui lòng nhập địa chỉ giao hàng'
     }
 
+    if (!isDeliveryAddressConfirmed) {
+      return 'Vui lòng chọn địa chỉ giao hàng từ danh sách gợi ý'
+    }
+
     if (!isAuthenticated || user?.role !== 'CUSTOMER') {
       return 'Vui lòng đăng nhập tài khoản khách hàng để đặt món'
     }
 
-    if (!Number.isFinite(Number(checkout.receiverLat)) || !Number.isFinite(Number(checkout.receiverLng))) {
+    if (!isValidCoordinate(Number(checkout.receiverLat), Number(checkout.receiverLng))) {
       return 'Tọa độ giao hàng không hợp lệ'
     }
 
@@ -484,6 +616,14 @@ export default function HomePage() {
         lat: Number(checkout.receiverLat),
         lng: Number(checkout.receiverLng),
         distanceKm: Number(checkout.distanceKm),
+        placeId: selectedDeliveryAddress?.placeId,
+        formattedAddress: selectedDeliveryAddress?.formattedAddress,
+        province: selectedDeliveryAddress?.province,
+        district: selectedDeliveryAddress?.district,
+        ward: selectedDeliveryAddress?.ward,
+        street: selectedDeliveryAddress?.street,
+        houseNumber: selectedDeliveryAddress?.houseNumber,
+        provider: selectedDeliveryAddress ? 'GOOGLE' : 'BROWSER_GEOLOCATION',
       },
       shippingType: checkout.shippingType,
       pricing: {
@@ -513,7 +653,7 @@ export default function HomePage() {
         <div className="hero-copy p-8 md:p-12">
           <span className="hero-badge bg-white/20 border border-white/30 text-white rounded-full text-xs px-3 py-1 font-bold">GrabFood</span>
           <h1 className="text-4xl md:text-5xl font-black text-white mt-4 leading-tight">Đặt món ngon quanh bạn</h1>
-          <p className="text-white/80 font-medium mt-2">Giao tới: {checkout.receiverAddress}</p>
+          <p className="text-white/80 font-medium mt-2">Giao tới: {checkout.receiverAddress || 'Chua chon dia chi'}</p>
 
           <div className="flex h-[58px] items-center gap-2.5 bg-white rounded-full px-4 shadow-[0_14px_30px_rgba(6,33,19,0.2)] mt-6 w-full max-w-[620px] md:hidden">
             <Icon name="search" />
@@ -576,9 +716,18 @@ export default function HomePage() {
               {visibleRestaurants.length} quán
             </span>
           </div>
+          {deliveryPoint ? (
+            <p className="mb-2 px-1 text-[10px] font-semibold text-gray-400">
+              {deliveryLocationSource === 'current'
+                ? 'Theo vị trí hiện tại'
+                : deliveryLocationSource === 'address'
+                  ? 'Theo địa chỉ đã chọn'
+                  : 'Theo toa do da chon'}
+            </p>
+          ) : null}
 
           <div className="tw-restaurant-stack flex flex-col gap-2.5 max-h-[60vh] overflow-y-auto px-1 pt-[20px]">
-            {previewRestaurants.map((restaurant) => {
+            {previewRestaurants.map(({ restaurant, distanceKm }) => {
               const isActive = activeRestaurant?.id === restaurant.id
               const thumbStyle = restaurantThumbStyle(restaurant.imageUrl, restaurant.id)
 
@@ -604,7 +753,13 @@ export default function HomePage() {
                         ★ {restaurant.ratingAvg.toFixed(1)}
                       </span>
                       <span>·</span>
-                      <span>{toEta(restaurant.id)}</span>
+                      {distanceKm !== null ? (
+                        <>
+                          <span>{formatDistanceKm(distanceKm)}</span>
+                          <span>·</span>
+                        </>
+                      ) : null}
+                      <span>{toEtaFromDistance(distanceKm, restaurant.id)}</span>
                     </span>
                   </span>
                 </button>
@@ -895,14 +1050,24 @@ export default function HomePage() {
                   </div>
                   <div className="mt-2 flex flex-col gap-1">
                     <label className="text-[10px] font-bold text-gray-400">Địa chỉ giao hàng</label>
-                    <textarea
-                      rows={2}
+                    <AddressAutocomplete
                       value={checkout.receiverAddress}
-                      onChange={(event) => setCheckout((current) => ({ ...current, receiverAddress: event.target.value }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium bg-gray-50 resize-none"
+                      onTextChange={updateReceiverAddress}
+                      onSelect={selectDeliveryAddress}
+                      isSelectionConfirmed={isDeliveryAddressConfirmed}
+                      inputMode="textarea"
+                      rows={2}
+                      inputClassName="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium bg-gray-50 resize-none"
                       placeholder="Nhập địa chỉ giao hàng..."
                     />
                   </div>
+                  <p className={`text-[10px] font-bold ${isDeliveryAddressConfirmed ? 'text-green-600' : 'text-amber-600'}`}>
+                    {isDeliveryAddressConfirmed
+                      ? selectedDeliveryAddress
+                        ? 'Da chon dia chi giao hang'
+                        : 'Da chon vi tri hien tai'
+                      : 'Vui long chon mot dia chi trong danh sach goi y'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -971,10 +1136,10 @@ export default function HomePage() {
             <button
               type="submit"
               className="tw-checkout-button w-full flex items-center justify-center gap-2 py-4 bg-brand hover:bg-brand-dark disabled:bg-gray-100 disabled:text-gray-400 text-white border-0 rounded-xl text-sm font-bold transition-colors cursor-pointer shadow-md mt-1"
-              disabled={isSubmitting || cartItems.length === 0}
+              disabled={cartItems.length === 0}
             >
               <Icon name="receipt" />
-              {isSubmitting ? 'Đang đặt hàng...' : 'Đặt đơn hàng'}
+              Đặt đơn hàng
             </button>
           </form>
 
