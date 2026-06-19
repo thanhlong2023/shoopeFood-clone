@@ -6,6 +6,16 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Foreground Service: bắt buộc để chạy tracking nền liên tục -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!-- API 34 (Android 14+): khai báo loại foreground service cụ thể -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- API 33 (Android 13+): hiển thị notification cho service -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+
     <application
         android:name=".ShoopeFoodApplication"
         android:allowBackup="true"
@@ -63,6 +73,16 @@
             android:name=".ui.OrderDetailActivity"
             android:exported="false"
             android:parentActivityName=".ui.HomeActivity" />
+
+        <!--
+            LocationTrackingService: Foreground Service đảm bảo GPS tracking
+            liên tục ngay cả khi app bị minimize hoặc màn hình bị khóa.
+            foregroundServiceType="location" bắt buộc trên Android 14+ (API 34).
+        -->
+        <service
+            android:name=".location.LocationTrackingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
     </application>
 </manifest>

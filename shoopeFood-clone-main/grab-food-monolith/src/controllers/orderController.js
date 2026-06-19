@@ -173,7 +173,7 @@ const buildTrackingRoute = async ({ driverLocation, restaurant, destination }) =
     routeLegs.push(
       await buildRouteLeg({
         key: "driver_to_restaurant",
-        label: "Tai xe den nha hang",
+        label: "Tài xế đến nhà hàng",
         from: toRoutePoint(driverLocation),
         to: toRoutePoint(restaurant),
       })
@@ -184,7 +184,7 @@ const buildTrackingRoute = async ({ driverLocation, restaurant, destination }) =
     routeLegs.push(
       await buildRouteLeg({
         key: "restaurant_to_customer",
-        label: "Nha hang den khach hang",
+        label: "Nhà hàng đến khách hàng",
         from: toRoutePoint(restaurant),
         to: toRoutePoint(destination),
       })

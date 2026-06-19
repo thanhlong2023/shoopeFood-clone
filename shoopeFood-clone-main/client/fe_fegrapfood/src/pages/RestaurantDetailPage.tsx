@@ -696,8 +696,8 @@ export default function RestaurantDetailPage() {
           {!canManageFoods ? (
             <form className="restaurant-order-panel" onSubmit={handleOrderSubmit}>
               <div className="section-heading-row">
-                <h3>Gio hang tu quan nay</h3>
-                <span className="owner-note">{cartCount} mon</span>
+                <h3>Giỏ hàng từ quán này</h3>
+                <span className="owner-note">{cartCount} món</span>
               </div>
 
               <div className="restaurant-cart-lines">
@@ -709,39 +709,39 @@ export default function RestaurantDetailPage() {
                     </strong>
                   </div>
                 ))}
-                {cartItems.length === 0 ? <p className="empty-state">Chon mon ben duoi de dat hang.</p> : null}
+                {cartItems.length === 0 ? <p className="empty-state">Chọn món bên dưới để đặt hàng.</p> : null}
               </div>
 
               <div className="restaurant-form-grid">
                 <div className="restaurant-field full">
-                  <label htmlFor="restaurantReceiverAddress">Dia chi giao hang</label>
+                  <label htmlFor="restaurantReceiverAddress">Địa chỉ giao hàng</label>
                   <AddressAutocomplete
                     id="restaurantReceiverAddress"
                     value={checkout.receiverAddress}
                     onTextChange={updateReceiverAddress}
                     onSelect={selectDeliveryAddress}
                     isSelectionConfirmed={isDeliveryAddressConfirmed}
-                    placeholder="Nhap dia chi giao hang"
+                    placeholder="Nhập địa chỉ giao hàng"
                     inputClassName=""
                   />
                   <span className={isDeliveryAddressConfirmed ? 'address-status success' : 'address-status'}>
                     {isDeliveryAddressConfirmed
                       ? selectedDeliveryAddress
-                        ? 'Da chon dia chi giao hang'
-                        : 'Da chon vi tri hien tai'
-                      : 'Vui long chon mot dia chi trong danh sach goi y'}
+                        ? 'Đã chọn địa chỉ giao hàng'
+                        : 'Đã chọn vị trí hiện tại'
+                      : 'Vui lòng chọn một địa chỉ trong danh sách gợi ý'}
                   </span>
                 </div>
 
                 <div className="restaurant-field">
-                  <label>Khoang cach</label>
+                  <label>Khoảng cách</label>
                   <span className="address-distance">
-                    {Number(checkout.distanceKm) > 0 ? `${Number(checkout.distanceKm).toFixed(2)} km` : 'Tinh sau khi chon dia chi'}
+                    {Number(checkout.distanceKm) > 0 ? `${Number(checkout.distanceKm).toFixed(2)} km` : 'Tính sau khi chọn địa chỉ'}
                   </span>
                 </div>
 
                 <div className="restaurant-field">
-                  <label htmlFor="restaurantShippingType">Giao hang</label>
+                  <label htmlFor="restaurantShippingType">Giao hàng</label>
                   <select
                     id="restaurantShippingType"
                     value={checkout.shippingType}
@@ -760,18 +760,18 @@ export default function RestaurantDetailPage() {
               </div>
 
               <div className="restaurant-order-summary">
-                <span>Tam tinh: {formatMoney(subtotal)} d</span>
+                <span>Tạm tính: {formatMoney(subtotal)} d</span>
                 <span>Ship: {formatMoney(shippingFee)} d</span>
-                <span>Uu dai: -{formatMoney(discountAmount)} d</span>
-                <strong>Tong: {formatMoney(totalAmount)} d</strong>
+                <span>Ưu đãi: -{formatMoney(discountAmount)} d</span>
+                <strong>Tổng: {formatMoney(totalAmount)} d</strong>
               </div>
 
               <div className="restaurant-form-actions">
                 <button type="button" className="button-secondary" onClick={useCurrentLocation} disabled={isLocating}>
-                  {isLocating ? 'Dang lay vi tri...' : 'Dung vi tri hien tai'}
+                  {isLocating ? 'Đang lấy vị trí...' : 'Dùng vị trí hiện tại'}
                 </button>
                 <button type="submit" className="button-primary" disabled={isSubmittingOrder || cartItems.length === 0}>
-                  {isSubmittingOrder ? 'Dang dat hang...' : 'Dat hang'}
+                  {isSubmittingOrder ? 'Đang đặt hàng...' : 'Đặt hàng'}
                 </button>
               </div>
             </form>
@@ -836,10 +836,10 @@ export default function RestaurantDetailPage() {
                 <div className="restaurant-field full">
                   <ImageUrlField
                     id="foodImageUrl"
-                    label="Link hinh anh mon"
+                    label="Link hình ảnh món ăn"
                     value={foodForm.imageUrl}
                     placeholder="https://example.com/mon-an.jpg"
-                    hint="Dan link anh mon an de hien thi cho khach dat hang."
+                    hint="Dán link hình ảnh món ăn để hiển thị cho khách đặt hàng."
                     onChange={(value) => updateFoodField('imageUrl', value)}
                   />
                 </div>
@@ -975,7 +975,7 @@ export default function RestaurantDetailPage() {
                                   onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
                                   disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
                                 >
-                                  Them
+                                  Thêm
                                 </button>
                               </div>
                             ) : null}
@@ -1030,7 +1030,7 @@ export default function RestaurantDetailPage() {
                               onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
                               disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
                             >
-                              Them
+                              Thêm
                             </button>
                           </div>
                         ) : null}

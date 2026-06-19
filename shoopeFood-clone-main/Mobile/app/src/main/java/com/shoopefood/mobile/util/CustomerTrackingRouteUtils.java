@@ -50,7 +50,7 @@ public final class CustomerTrackingRouteUtils {
                 && GeoUtils.isValidCoordinate(restaurantLat, restaurantLng)) {
             TrackingRouteLeg toRestaurant = new TrackingRouteLeg();
             toRestaurant.key = "driver_to_restaurant";
-            toRestaurant.label = "Tai xe den nha hang";
+            toRestaurant.label = "Tài xế đến nhà hàng";
             toRestaurant.ok = true;
             toRestaurant.geometry = GeoRouteUtils.buildStraightLine(
                     driverLocation.latitude,
@@ -65,7 +65,7 @@ public final class CustomerTrackingRouteUtils {
                 && GeoUtils.isValidCoordinate(customerLat, customerLng)) {
             TrackingRouteLeg toCustomer = new TrackingRouteLeg();
             toCustomer.key = "restaurant_to_customer";
-            toCustomer.label = "Nha hang den khach hang";
+            toCustomer.label = "Nhà hàng đến khách hàng";
             toCustomer.ok = true;
             toCustomer.geometry = GeoRouteUtils.buildStraightLine(
                     restaurantLat,

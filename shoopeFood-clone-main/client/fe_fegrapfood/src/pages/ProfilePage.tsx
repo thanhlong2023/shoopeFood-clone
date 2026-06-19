@@ -58,7 +58,7 @@ export default function ProfilePage() {
         }, {}),
       )
     } catch (error) {
-      setRestaurantError(error instanceof Error ? error.message : 'Khong the tai quan cua ban')
+      setRestaurantError(error instanceof Error ? error.message : 'Không thể tải quán của bạn')
     } finally {
       setIsLoadingRestaurants(false)
     }
@@ -75,7 +75,7 @@ export default function ProfilePage() {
     const trimmedPhone = phone.trim()
 
     if (!trimmedName || !trimmedPhone) {
-      setErrorMessage('Họ tên va so dien thoai la bat buoc')
+      setErrorMessage('Họ tên và số điện thoại là bắt buộc')
       return
     }
 
@@ -87,9 +87,9 @@ export default function ProfilePage() {
       const updated = await updateProfile({ fullName: trimmedName, phone: trimmedPhone })
       localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(updated))
       await refreshUser()
-      setFeedback('Da cap nhat thong tin ca nhan')
+      setFeedback('Đã cập nhật thông tin cá nhân')
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Khong the cap nhat ho so')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể cập nhật hồ sơ')
     } finally {
       setIsSaving(false)
     }
@@ -104,10 +104,10 @@ export default function ProfilePage() {
       const imageUrl = (imageUrls[restaurant.id] ?? '').trim() || null
       await updateRestaurant(restaurant.id, { imageUrl })
 
-      setRestaurantFeedback(`Da cap nhat hinh anh cho "${restaurant.name}"`)
+      setRestaurantFeedback(`Đã cập nhật hình ảnh cho "${restaurant.name}"`)
       await loadRestaurants()
     } catch (error) {
-      setRestaurantError(error instanceof Error ? error.message : 'Khong the cap nhat hinh anh quan')
+      setRestaurantError(error instanceof Error ? error.message : 'Không thể cập nhật hình ảnh quán')
     } finally {
       setSavingRestaurantId(null)
     }
@@ -119,27 +119,27 @@ export default function ProfilePage() {
     setPasswordError(null)
 
     if (!currentPassword) {
-      setPasswordError('Vui long nhap mat khau hien tai')
+      setPasswordError('Vui lòng nhập mật khẩu hiện tại')
       return
     }
 
     if (newPassword.length < 6 || newPassword.length > 72) {
-      setPasswordError('Mật khẩu moi phai co tu 6 den 72 ky tu')
+      setPasswordError('Mật khẩu mới phải có từ 6 đến 72 ký tự')
       return
     }
 
     if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
-      setPasswordError('Mật khẩu moi phai gom chu va so')
+      setPasswordError('Mật khẩu mới phải gồm chữ và số')
       return
     }
 
     if (newPassword === currentPassword) {
-      setPasswordError('Mật khẩu moi phai khac mat khau hien tai')
+      setPasswordError('Mật khẩu mới phải khác mật khẩu hiện tại')
       return
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError('Xác nhận mật khẩu moi khong khop')
+      setPasswordError('Xác nhận mật khẩu mới không khớp')
       return
     }
 
@@ -149,9 +149,9 @@ export default function ProfilePage() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      setPasswordFeedback('Da doi mat khau thanh cong')
+      setPasswordFeedback('Đã đổi mật khẩu thành công')
     } catch (error) {
-      setPasswordError(error instanceof Error ? error.message : 'Khong the doi mat khau')
+      setPasswordError(error instanceof Error ? error.message : 'Không thể đổi mật khẩu')
     } finally {
       setIsChangingPassword(false)
     }
@@ -161,8 +161,8 @@ export default function ProfilePage() {
     <section className="restaurant-page">
       <div className="restaurant-form-card">
         <span className="hero-badge">Tài khoản</span>
-        <h1>Thong tin ca nhan</h1>
-        <p>Cap nhat thong tin ca nhan va bao mat tai khoan.</p>
+        <h1>Thông tin cá nhân</h1>
+        <p>Cập nhật thông tin cá nhân và bảo mật tài khoản.</p>
       </div>
 
       <div className="restaurant-form-card">
@@ -192,7 +192,7 @@ export default function ProfilePage() {
                 id="profileFullName"
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
-                placeholder="Nhap ho ten"
+                placeholder="Nhập họ tên"
               />
             </div>
 
@@ -209,16 +209,16 @@ export default function ProfilePage() {
 
           <div className="restaurant-form-actions">
             <button type="submit" className="button-primary" disabled={isSaving}>
-              {isSaving ? 'Dang luu...' : 'Luu thong tin'}
+              {isSaving ? 'Đang lưu...' : 'Lưu thông tin'}
             </button>
           </div>
         </form>
       </div>
 
       <div className="restaurant-form-card profile-security-card">
-        <span className="hero-badge">Bao mat</span>
-        <h2>Doi mat khau</h2>
-        <p>Mật khẩu moi phai co tu 6 den 72 ky tu, gom chu va so.</p>
+        <span className="hero-badge">Bảo mật</span>
+        <h2>Đổi mật khẩu</h2>
+        <p>Mật khẩu mới phải có từ 6 đến 72 ký tự, gồm chữ và số.</p>
 
         {passwordFeedback ? <p className="restaurant-feedback success">{passwordFeedback}</p> : null}
         {passwordError ? <p className="restaurant-feedback error">{passwordError}</p> : null}
@@ -226,7 +226,7 @@ export default function ProfilePage() {
         <form className="restaurant-form" onSubmit={handleChangePassword}>
           <div className="restaurant-form-grid profile-password-grid">
             <div className="restaurant-field full">
-              <label htmlFor="currentPassword">Mật khẩu hien tai</label>
+              <label htmlFor="currentPassword">Mật khẩu hiện tại</label>
               <input
                 id="currentPassword"
                 type="password"
@@ -236,7 +236,7 @@ export default function ProfilePage() {
               />
             </div>
             <div className="restaurant-field">
-              <label htmlFor="newPassword">Mật khẩu moi</label>
+              <label htmlFor="newPassword">Mật khẩu mới</label>
               <input
                 id="newPassword"
                 type="password"
@@ -246,7 +246,7 @@ export default function ProfilePage() {
               />
             </div>
             <div className="restaurant-field">
-              <label htmlFor="confirmPassword">Xác nhận mật khẩu moi</label>
+              <label htmlFor="confirmPassword">Xác nhận mật khẩu mới</label>
               <input
                 id="confirmPassword"
                 type="password"
@@ -259,7 +259,7 @@ export default function ProfilePage() {
 
           <div className="restaurant-form-actions">
             <button type="submit" className="button-primary" disabled={isChangingPassword}>
-              {isChangingPassword ? 'Dang doi mat khau...' : 'Doi mat khau'}
+              {isChangingPassword ? 'Đang đổi mật khẩu...' : 'Đổi mật khẩu'}
             </button>
           </div>
         </form>
@@ -268,12 +268,12 @@ export default function ProfilePage() {
       {isMerchant ? (
         <div className="restaurant-form-card">
           <span className="hero-badge">Chủ quán</span>
-          <h2>Hinh anh quan cua toi</h2>
-          <p>Dan link URL hinh anh cho tung quan. Anh hien tren trang dat mon sau khi luu.</p>
+          <h2>Hình ảnh quán của tôi</h2>
+          <p>Dán link URL hình ảnh cho từng quán. Hình ảnh sẽ hiển thị trên trang đặt món sau khi lưu.</p>
 
           {restaurantFeedback ? <p className="restaurant-feedback success">{restaurantFeedback}</p> : null}
           {restaurantError ? <p className="restaurant-feedback error">{restaurantError}</p> : null}
-          {isLoadingRestaurants ? <p className="empty-state">Dang tai quan...</p> : null}
+          {isLoadingRestaurants ? <p className="empty-state">Đang tải quán...</p> : null}
 
           {!isLoadingRestaurants && restaurants.length === 0 ? (
             <p className="empty-state">Chưa có quán nào được gán. Liên hệ admin để được tạo quán.</p>
@@ -295,9 +295,9 @@ export default function ProfilePage() {
 
                 <ImageUrlField
                   id={`merchantRestaurantImage-${restaurant.id}`}
-                  label="Link hinh anh quan"
+                  label="Link hình ảnh quán"
                   value={imageUrls[restaurant.id] ?? ''}
-                  hint="Dan URL anh cong khai (jpg, png, webp...)."
+                  hint="Dán URL ảnh công khai (jpg, png, webp...)."
                   onChange={(value) =>
                     setImageUrls((current) => ({
                       ...current,
@@ -313,7 +313,7 @@ export default function ProfilePage() {
                     disabled={savingRestaurantId === restaurant.id}
                     onClick={() => void handleSaveRestaurantImage(restaurant)}
                   >
-                    {savingRestaurantId === restaurant.id ? 'Dang luu...' : 'Luu hinh anh quan'}
+                    {savingRestaurantId === restaurant.id ? 'Đang lưu...' : 'Lưu hình ảnh quán'}
                   </button>
                 </div>
               </article>

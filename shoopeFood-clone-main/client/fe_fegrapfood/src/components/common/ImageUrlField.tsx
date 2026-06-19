@@ -39,15 +39,15 @@ export default function ImageUrlField({
       <div className="image-url-preview" aria-live="polite">
         {previewUrl ? (
           <>
-            <img src={previewUrl} alt="Xem truoc hinh anh" onError={(event) => {
+            <img src={previewUrl} alt="Xem trước hình ảnh" onError={(event) => {
               event.currentTarget.style.display = 'none'
             }} />
-            <p className="field-hint">Xem truoc anh tu link da nhap</p>
+            <p className="field-hint">Xem trước ảnh từ link đã nhập</p>
           </>
         ) : (
           <div className="image-url-preview-empty">
             <span>Chưa có link ảnh</span>
-            <small>Dan link hinh (jpg, png, webp...) de hien thi tren trang dat mon</small>
+            <small>Dán link hình (jpg, png, webp...) để hiển thị trên trang đặt món</small>
           </div>
         )}
       </div>

@@ -4,11 +4,11 @@ import type { DriverPublicProfile } from '../../types'
 
 
 function vehicleLabel(vehicleType?: string) {
-  if (!vehicleType) return 'Chua cap nhat'
+  if (!vehicleType) return 'Chưa cập nhật'
   const normalized = vehicleType.trim().toUpperCase()
-  if (normalized === 'MOTORBIKE' || normalized === 'MOTO') return 'Xe may'
-  if (normalized === 'CAR') return 'O to'
-  if (normalized === 'BICYCLE') return 'Xe dap'
+  if (normalized === 'MOTORBIKE' || normalized === 'MOTO') return 'Xe máy'
+  if (normalized === 'CAR') return 'Ô tô'
+  if (normalized === 'BICYCLE') return 'Xe đạp'
   return vehicleType
 }
 
@@ -45,7 +45,7 @@ export default function DriverProfilePanel({ driverId }: DriverProfilePanelProps
       } catch (error) {
         if (!ignore) {
           setProfile(null)
-          setErrorMessage(error instanceof Error ? error.message : 'Khong the tai thong tin tai xe')
+          setErrorMessage(error instanceof Error ? error.message : 'Không thể tải thông tin tài xế')
         }
       } finally {
         if (!ignore) {
@@ -71,11 +71,11 @@ export default function DriverProfilePanel({ driverId }: DriverProfilePanelProps
   return (
     <section className="driver-profile-panel" aria-label="Thong tin tai xe">
       <div className="driver-profile-panel__head">
-        <h2>Thong tin tai xe</h2>
-        {profile ? <span>{profile.completedCount} don da giao</span> : null}
+        <h2>Thông tin tài xế</h2>
+        {profile ? <span>{profile.completedCount} đơn đã giao</span> : null}
       </div>
 
-      {isLoading ? <p className="driver-profile-panel__hint">Dang tai thong tin tai xe...</p> : null}
+      {isLoading ? <p className="driver-profile-panel__hint">Đang tải thông tin tài xế...</p> : null}
       {errorMessage ? <p className="app-feedback error">{errorMessage}</p> : null}
 
       {driver ? (
@@ -87,22 +87,22 @@ export default function DriverProfilePanel({ driverId }: DriverProfilePanelProps
             <div className="driver-profile-card__body">
               <strong>{driver.fullName || 'Tài xế'}</strong>
               <span>SDT: {driver.phone || '-'}</span>
-              <span>Danh gia: {(driver.ratingAvg ?? 0).toFixed(1)} / 5</span>
+              <span>Đánh giá: {(driver.ratingAvg ?? 0).toFixed(1)} / 5</span>
               <span className={`driver-profile-status ${driver.isOnline ? 'online' : 'offline'}`}>
-                {driver.isOnline ? 'Dang online' : 'Offline'}
+                {driver.isOnline ? 'Đang online' : 'Offline'}
               </span>
             </div>
           </div>
 
           <div className="driver-vehicle-card">
-            <h3>Phuong tien</h3>
+            <h3>Phương tiện</h3>
             <div className="driver-vehicle-grid">
               <div>
-                <span>Loai xe</span>
+                <span>Loại xe</span>
                 <strong>{vehicleLabel(driver.vehicleType)}</strong>
               </div>
               <div>
-                <span>Bien so</span>
+                <span>Biển số</span>
                 <strong>{driver.licensePlate || '-'}</strong>
               </div>
             </div>

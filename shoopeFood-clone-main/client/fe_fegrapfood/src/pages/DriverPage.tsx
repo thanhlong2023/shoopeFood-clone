@@ -100,7 +100,7 @@ function formatDistance(value?: number) {
 
 function formatDuration(value?: number) {
   if (!value) return '-'
-  return `${Math.round(value)} phut`
+  return `${Math.round(value)} phút`
 }
 
 function statusText(order: Order | null) {
@@ -165,7 +165,7 @@ function RouteLegSummary({ leg }: { leg: RouteLeg }) {
     <div className="driver-route-leg">
       <div>
         <strong>{leg.label}</strong>
-        <span>{leg.ok ? `${formatDistance(leg.distanceKm)} - ${formatDuration(leg.durationMinutes)}` : leg.error || 'Chua c� l? tr�nh'}</span>
+        <span>{leg.ok ? `${formatDistance(leg.distanceKm)} - ${formatDuration(leg.durationMinutes)}` : leg.error || 'Chưa có lộ trình'}</span>
       </div>
       <ol>
         {leg.steps.slice(0, 5).map((step, index) => (
@@ -180,7 +180,7 @@ function RouteLegSummary({ leg }: { leg: RouteLeg }) {
 }
 
 export default function DriverPage() {
-  useDocumentTitle(`${APP_NAME} | T�i x?`)
+  useDocumentTitle(`${APP_NAME} | Tài xế`)
   const { user } = useAuth()
   const driverId = user?.id ?? null
 
@@ -191,7 +191,7 @@ export default function DriverPage() {
   const [tracking, setTracking] = useState<OrderTracking | null>(null)
   const [currentPoint, setCurrentPoint] = useState<RoutePoint | null>(null)
   const [heading, setHeading] = useState(0)
-  const [gpsStatus, setGpsStatus] = useState('�ang l?y v? tr� GPS...')
+  const [gpsStatus, setGpsStatus] = useState('Đang lấy vị trí GPS...')
   const [isLoading, setIsLoading] = useState(true)
   const [isActioning, setIsActioning] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -242,7 +242,7 @@ export default function DriverPage() {
         setHeading(data.driverLocation.heading || 0)
       }
     } catch (error) {
-      if (!quiet) setErrorMessage(error instanceof Error ? error.message : 'Khong the tai tracking')
+      if (!quiet) setErrorMessage(error instanceof Error ? error.message : 'Không thể tải tracking')
     }
   }, [])
 
@@ -265,7 +265,7 @@ export default function DriverPage() {
         return feed.active[0]?.id ?? visibleAvailable[0]?.id ?? null
       })
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Kh�ng th? t?i b?ng t�i x?')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể tải bảng tài xế')
     } finally {
       setIsLoading(false)
     }
@@ -286,7 +286,7 @@ export default function DriverPage() {
 
   useEffect(() => {
     if (!driverId || !navigator.geolocation) {
-      setGpsStatus('Tr�nh duy?t kh�ng h? tr? GPS, d�ng v? tr� cu?i c�ng n?u c�.')
+      setGpsStatus('Trình nhúng không hỗ trợ GPS, dùng vị trí cuối cùng nếu có.')
       return undefined
     }
 
@@ -309,7 +309,7 @@ export default function DriverPage() {
         if (!isSimulating) {
           setCurrentPoint(nextPoint)
           setHeading(nextHeading)
-          setGpsStatus('GPS dang c?p nh?t')
+          setGpsStatus('GPS đang cập nhật')
 
           void updateDriverLocation(driverId, {
             ...(activeOrderForLocation ? { orderId: activeOrder.id } : {}),
@@ -318,12 +318,12 @@ export default function DriverPage() {
             heading: nextHeading,
             speedKmh: Number.isFinite(position.coords.speed) && position.coords.speed ? Number(position.coords.speed) * 3.6 : 28,
           }).catch((error) => {
-            setGpsStatus(error instanceof Error ? error.message : 'Kh�ng th? g?i v? tr�')
+            setGpsStatus(error instanceof Error ? error.message : 'Không thể gửi vị trí')
           })
         }
       },
       () => {
-        setGpsStatus('Chua du?c c?p quy?n GPS, d�ng v? tr� cu?i c�ng tr�n h? th?ng.')
+        setGpsStatus('Chưa được cấp quyền GPS, dùng vị trí cuối cùng trên hệ thống.')
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 12000 },
     )
@@ -439,7 +439,7 @@ export default function DriverPage() {
 
   async function handleAcceptOrder(order: Order) {
     if (hasActiveDelivery) {
-      setErrorMessage('B?n dang c� don dang giao. Ho�n th�nh don hi?n t?i tru?c khi nh?n don m?i.')
+      setErrorMessage('Bạn đang có đơn đang giao. Hoàn thành đơn hiện tại trước khi nhận đơn mới.')
       return
     }
 
@@ -448,12 +448,12 @@ export default function DriverPage() {
       setErrorMessage(null)
       setSuccessMessage(null)
       const updated = await acceptOrder(order.id)
-      setSuccessMessage(`Da nhan don ${updated.orderCode}`)
+      setSuccessMessage(`Đã nhận đơn ${updated.orderCode}`)
       setActiveOrderId(updated.id)
       await loadFeed()
       await loadTracking(updated.id)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Kh�ng th? nh?n don')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể nhận đơn')
     } finally {
       setIsActioning(false)
     }
@@ -466,12 +466,12 @@ export default function DriverPage() {
       setIsActioning(true)
       setErrorMessage(null)
       const updated = await updateOrderStatus(activeOrder.id, statusCode, activeOrder.version)
-      setSuccessMessage(`Da cap nhat ${updated.orderCode}: ${updated.statusLabel || updated.statusCode}`)
+      setSuccessMessage(`Đã cập nhật ${updated.orderCode}: ${updated.statusLabel || updated.statusCode}`)
       setActiveOrderId(updated.id)
       await loadFeed()
       await loadTracking(updated.id)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Kh�ng th? c?p nh?t tr?ng th�i')
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể cập nhật trạng thái')
     } finally {
       setIsActioning(false)
     }
@@ -482,8 +482,8 @@ export default function DriverPage() {
       <article key={order.id} className={`driver-order-card ${order.id === activeOrderId ? 'active' : ''}`}>
         <button type="button" onClick={() => setActiveOrderId(order.id)}>
           <strong>{order.orderCode}</strong>
-          <span>{order.restaurant?.name || `Quan #${order.restaurantId}`}</span>
-          <small>{order.receiverAddress || `Don #${order.id}`} - {formatPrice(order.cashToCollect || order.totalAmount)} VND</small>
+          <span>{order.restaurant?.name || `Quán #${order.restaurantId}`}</span>
+          <small>{order.receiverAddress || `Đơn #${order.id}`} - {formatPrice(order.cashToCollect || order.totalAmount)} VND</small>
         </button>
         {mode === 'available' ? (
           <button
@@ -492,7 +492,7 @@ export default function DriverPage() {
             disabled={isActioning || hasActiveDelivery}
             onClick={() => void handleAcceptOrder(order)}
           >
-            {hasActiveDelivery ? '�ang giao don kh�c' : 'Nh?n don'}
+            {hasActiveDelivery ? 'Đang giao đơn khác' : 'Nhận đơn'}
           </button>
         ) : null}
       </article>
@@ -504,8 +504,8 @@ export default function DriverPage() {
       <div className="driver-header">
         <div>
           <span className="hero-badge">Driver</span>
-          <h1>�on h�ng quanh b?n</h1>
-          <p>{driver ? `${driver.fullName} - ${driver.licensePlate || driver.vehicleType}` : user?.fullName || 'T�i x?'}</p>
+          <h1>Đơn hàng quanh bạn</h1>
+          <p>{driver ? `${driver.fullName} - ${driver.licensePlate || driver.vehicleType}` : user?.fullName || 'Tài xế'}</p>
         </div>
 
         <div className="driver-gps-pill">
@@ -528,30 +528,30 @@ export default function DriverPage() {
           <div className="driver-panel-head">
             <h2>
               {isLoading
-                ? 'Dang tai...'
+                ? 'Đang tải...'
                 : isShowingAllConfirmed
-                  ? `${availableOrders.length} don da xac nhan`
-                  : `${nearbyAvailableOrders.length}/${availableOrders.length} don trong ${NEARBY_RADIUS_KM}km`}
+                  ? `${availableOrders.length} đơn đã xác nhận`
+                  : `${nearbyAvailableOrders.length}/${availableOrders.length} đơn trong ${NEARBY_RADIUS_KM}km`}
             </h2>
             <button type="button" className="button-secondary" onClick={() => void loadFeed()} disabled={isLoading}>
-              T?i l?i don
+              Tải lại đơn
             </button>
           </div>
 
           <div className="driver-order-list">
-            <h3>{isShowingAllConfirmed ? '�on m?i d� x�c nh?n' : `�on m?i g?n b?n (${NEARBY_RADIUS_KM}km)`}</h3>
+            <h3>{isShowingAllConfirmed ? 'Đơn mới đã xác nhận' : `Đơn mới gần bạn (${NEARBY_RADIUS_KM}km)`}</h3>
             {visibleAvailableOrders.map((order) => renderOrderCard(order, 'available'))}
             {!isLoading && visibleAvailableOrders.length === 0 ? (
               <p className="empty-state">
                 {currentPoint
-                  ? `Chua co don moi trong ban kinh ${NEARBY_RADIUS_KM}km. Neu can demo, kiem tra toa do nha hang va vi tri tai xe.`
-                  : 'Chua c� don CONFIRMED n�o. H�y ch? merchant x�c nh?n don tru?c.'}
+                  ? `Chưa có đơn mới trong bán kính ${NEARBY_RADIUS_KM}km. Nếu cần demo, kiểm tra tọa độ nhà hàng và vị trí tài xế.`
+                  : 'Chưa có đơn CONFIRMED nào. Hãy cho merchant xác nhận đơn trước.'}
               </p>
             ) : null}
 
-            <h3>�on c?a t�i</h3>
+            <h3>Đơn của tôi</h3>
             {myOrders.map((order) => renderOrderCard(order, 'mine'))}
-            {!isLoading && myOrders.length === 0 ? <p className="empty-state">B?n chua nh?n don n�o.</p> : null}
+            {!isLoading && myOrders.length === 0 ? <p className="empty-state">Bạn chưa nhận đơn nào.</p> : null}
           </div>
         </aside>
 
@@ -587,7 +587,7 @@ export default function DriverPage() {
             ) : null}
             {currentPoint ? (
               <Marker position={toLatLng(currentPoint)} icon={makeDriverMotoIcon(heading)}>
-                <Popup>{driver?.fullName || 'T�i x?'}</Popup>
+                <Popup>{driver?.fullName || 'Tài xế'}</Popup>
               </Marker>
             ) : null}
           </MapContainer>
@@ -595,29 +595,29 @@ export default function DriverPage() {
 
         <aside className="driver-control-panel">
           <div className="driver-control-head">
-            <span>�on dang ch?n</span>
+            <span>Đơn đang chọn</span>
             <h2>{activeOrder?.orderCode || '-'}</h2>
             {activeOrder ? <strong className="driver-status-pill">{statusText(activeOrder)}</strong> : null}
-            <p>{activeOrder?.receiverAddress || 'Ch?n don d? xem chi ti?t'}</p>
+            <p>{activeOrder?.receiverAddress || 'Chọn đơn để xem chi tiết'}</p>
           </div>
 
           {activeOrder ? (
             <>
               <div className="driver-detail-grid">
                 <div>
-                  <span>Nh� h�ng</span>
-                  <strong>{activeOrder.restaurant?.name || tracking?.restaurant?.name || `Quan #${activeOrder.restaurantId}`}</strong>
+                  <span>Nhà hàng</span>
+                  <strong>{activeOrder.restaurant?.name || tracking?.restaurant?.name || `Quán #${activeOrder.restaurantId}`}</strong>
                 </div>
                 <div>
-                  <span>Kh�ch h�ng</span>
-                  <strong>{activeOrder.customerName || `Khach #${activeOrder.customerId}`}</strong>
+                  <span>Khách hàng</span>
+                  <strong>{activeOrder.customerName || `Khách #${activeOrder.customerId}`}</strong>
                 </div>
                 <div>
-                  <span>S�T kh�ch</span>
+                  <span>SĐT khách</span>
                   <strong>{activeOrder.customerPhone || '-'}</strong>
                 </div>
                 <div>
-                  <span>Ti?n c?n thu</span>
+                  <span>Tiền cần thu</span>
                   <strong>{formatPrice(activeOrder.cashToCollect || activeOrder.totalAmount)} VND</strong>
                 </div>
                 <div>
@@ -625,7 +625,7 @@ export default function DriverPage() {
                   <strong>{formatDuration(tracking?.route?.totalDurationMinutes)}</strong>
                 </div>
                 <div>
-                  <span>Qu�ng du?ng</span>
+                  <span>Quãng đường</span>
                   <strong>{formatDistance(tracking?.route?.totalDistanceKm)}</strong>
                 </div>
               </div>
@@ -633,20 +633,20 @@ export default function DriverPage() {
               <div className="driver-actions-grid">
                 {canAcceptSelected ? (
                   <button type="button" className="button-primary" onClick={() => void handleAcceptOrder(activeOrder)} disabled={isActioning}>
-                    Nh?n don
+                    Nhận đơn
                   </button>
                 ) : null}
                 <button type="button" className="button-secondary" onClick={() => void handleStatus('PICKING_UP')} disabled={!canStartPickup || isActioning}>
-                  �?n nh� h�ng
+                  Đang lấy hàng
                 </button>
                 <button type="button" className="button-primary" onClick={() => void handleStatus('DELIVERING')} disabled={!canStartDelivery || isActioning}>
-                  �� l?y m�n
+                  Đang giao hàng
                 </button>
                 <button type="button" className="button-secondary" onClick={() => void handleStatus('COMPLETED')} disabled={!canCompleteDelivery || isActioning}>
-                  Ho�n th�nh
+                  Hoàn thành
                 </button>
                 <button type="button" className="button-danger" onClick={() => void handleStatus('CANCELLED')} disabled={!isSelectedMine || isActioning}>
-                  H?y don
+                  Hủy đơn
                 </button>
               </div>
 
@@ -654,65 +654,65 @@ export default function DriverPage() {
                 {routeLegs.map((leg) => (
                   <RouteLegSummary key={leg.key} leg={leg} />
                 ))}
-                {tracking && routeLegs.length === 0 ? <p className="empty-state">Chua c� route OSRM cho don n�y.</p> : null}
+                {tracking && routeLegs.length === 0 ? <p className="empty-state">Chưa có route OSRM cho đơn này.</p> : null}
               </div>
 
               <div className="driver-invoice-card">
                 <div className="driver-invoice-head">
                   <div>
-                    <span>H�a don</span>
+                    <span>Hóa đơn</span>
                     <h2>{activeOrder.orderCode}</h2>
                   </div>
                   <strong>{statusText(activeOrder)}</strong>
                 </div>
 
                 <div className="tracking-items">
-                  <h2>M�n c?n l?y</h2>
+                  <h2>Món cần lấy</h2>
                   {(activeOrder.items || []).length > 0 ? (
                     (activeOrder.items || []).map((item) => (
                       <div key={item.id} className="tracking-item driver-invoice-item">
                         <div>
                           <span>{item.quantity} x {item.foodName || `Mon #${item.foodId}`}</span>
-                          <small>{formatPrice(item.priceAtOrder)} VND / mon</small>
+                          <small>{formatPrice(item.priceAtOrder)} VND / món</small>
                         </div>
                         <strong>{formatPrice(item.lineTotal)} VND</strong>
                       </div>
                     ))
                   ) : (
-                    <p className="empty-state">�on n�y chua c� chi ti?t m�n trong d? li?u tr? v?.</p>
+                    <p className="empty-state">Đơn này chưa có chi tiết món trong dữ liệu trả về.</p>
                   )}
                 </div>
 
                 <div className="bill-box driver-invoice-totals">
                   <div>
-                    <span>Ti?n m�n</span>
+                    <span>Tiền món</span>
                     <strong>{formatPrice(activeOrder.subtotalAmount)} VND</strong>
                   </div>
                   <div>
-                    <span>Ph� giao h�ng</span>
+                    <span>Phí giao hàng</span>
                     <strong>{formatPrice(activeOrder.shippingFee)} VND</strong>
                   </div>
                   <div>
-                    <span>Thu?</span>
+                    <span>Thuế</span>
                     <strong>{formatPrice(activeOrder.taxAmount)} VND</strong>
                   </div>
                   <div>
-                    <span>Gi?m gi�</span>
+                    <span>Giảm giá</span>
                     <strong>-{formatPrice(activeOrder.discountAmount)} VND</strong>
                   </div>
                   <div className="bill-total">
-                    <span>T?ng don</span>
+                    <span>Tổng đơn</span>
                     <strong>{formatPrice(activeOrder.totalAmount)} VND</strong>
                   </div>
                   <div className="bill-total driver-cash-total">
-                    <span>T�i x? thu</span>
+                    <span>Tiền cần thu</span>
                     <strong>{formatPrice(activeOrder.cashToCollect || activeOrder.totalAmount)} VND</strong>
                   </div>
                 </div>
               </div>
             </>
           ) : (
-            <p className="empty-state">Kh�ng c� don dang ch?n.</p>
+            <p className="empty-state">Không có đơn đang chọn.</p>
           )}
         </aside>
       </div>

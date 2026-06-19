@@ -54,7 +54,7 @@ function formatPrice(value: number) {
 
 function formatDuration(value?: number) {
   if (!value) return '-'
-  return `${Math.round(value)} phut`
+  return `${Math.round(value)} phút`
 }
 
 function formatDistance(value?: number) {
@@ -997,7 +997,7 @@ export default function TrackingPage() {
           {isCustomer && tracking?.order.statusCode === 'COMPLETED' ? (
             <div className="mt-4 rounded-2xl border border-yellow-100 bg-yellow-50 p-4">
               <h3 className="text-sm font-black text-gray-900">Đánh giá nhà hàng</h3>
-              <p className="mt-1 text-xs font-semibold text-gray-500">on da hoan thanh, ban co the cham sao cho trai nghiem vua roi.</p>
+              <p className="mt-1 text-xs font-semibold text-gray-500">Đơn đã hoàn thành, bạn có thể đánh sao cho trải nghiệm vừa rồi.</p>
               <div className="mt-3 flex gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -1049,7 +1049,7 @@ export default function TrackingPage() {
               onClick={() => void loadCustomerOrders()}
               disabled={ordersLoading}
             >
-              {ordersLoading ? 'Đang tải...' : 'Tai lai'}
+              {ordersLoading ? 'Đang tải...' : 'Tải lại'}
             </button>
           </div>
 

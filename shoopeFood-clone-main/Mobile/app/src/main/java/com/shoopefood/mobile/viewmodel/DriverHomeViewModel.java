@@ -23,6 +23,7 @@ import com.shoopefood.mobile.util.DriverNearbyOrderUtils;
 import com.shoopefood.mobile.util.DriverWorkPhaseUtils;
 import com.shoopefood.mobile.util.GeoUtils;
 import com.shoopefood.mobile.util.RouteInterpolator;
+import com.shoopefood.mobile.viewmodel.DriverLocationState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +44,15 @@ public class DriverHomeViewModel extends AndroidViewModel {
     private final MutableLiveData<DriverUiState> uiState = new MutableLiveData<>(DriverUiState.initial());
     private final MutableLiveData<String> toastMessage = new MutableLiveData<>();
 
+    /**
+     * locationState — LiveData<DriverLocationState> expose GPS state về UI.
+     *
+     * <p>Tương đương Kotlin: StateFlow<DriverLocationState> trong ViewModel.
+     * Activity observe LiveData này để update map icon, tọa độ hiển thị, v.v.
+     */
+    private final MutableLiveData<DriverLocationState> locationState =
+            new MutableLiveData<>(DriverLocationState.idle());
+
     private long lastLocationSyncAtMs = 0L;
     private Double lastSyncedLatitude;
     private Double lastSyncedLongitude;
@@ -62,6 +72,10 @@ public class DriverHomeViewModel extends AndroidViewModel {
         osrmRouteClient = new OsrmRouteClient(ApiClient.getService(application));
     }
 
+    public LiveData<DriverLocationState> getLocationState() {
+        return locationState;
+    }
+
     public LiveData<DriverUiState> getUiState() {
         return uiState;
     }
@@ -74,10 +88,58 @@ public class DriverHomeViewModel extends AndroidViewModel {
         return sessionManager.getUser() != null ? sessionManager.getUser().id : -1;
     }
 
+    // ─── Location Tracking Bridge ─────────────────────────────────────────────
+
+    /**
+     * Gọi từ DriverHomeActivity khi Service broadcast LocationUpdate.
+     * Bridge pattern: Service → ViewModel → LiveData → UI.
+     *
+     * <p>Đồng thời forward vào applyGpsLocation() để sync với DriverUiState cũ.
+     */
+    public void onLocationUpdate(
+            double latitude,
+            double longitude,
+            float bearing,
+            float accuracy,
+            float speedKmh
+    ) {
+        // Cập nhật DriverLocationState cho UI mới
+        locationState.setValue(
+                DriverLocationState.tracking(latitude, longitude, bearing, accuracy, speedKmh)
+        );
+        // Forward sang legacy applyGpsLocation để không phá vỡ logic cũ
+        applyGpsLocation(latitude, longitude, accuracy);
+    }
+
+    /**
+     * Gọi từ DriverHomeActivity khi Service broadcast LocationError.
+     *
+     * @param errorType tên của LocationException.Type enum
+     * @param message   message lỗi từ Service
+     */
+    public void onLocationError(String errorType, String message) {
+        DriverLocationState errorState;
+        if ("GPS_DISABLED".equals(errorType)) {
+            errorState = DriverLocationState.gpsDisabled();
+        } else if ("PERMISSION_DENIED".equals(errorType)) {
+            errorState = DriverLocationState.permissionDenied();
+        } else {
+            errorState = DriverLocationState.error(message);
+        }
+        locationState.setValue(errorState);
+    }
+
+    /** Reset về IDLE khi tracking bị dừng */
+    public void onTrackingStopped() {
+        locationState.setValue(DriverLocationState.idle());
+    }
+
     @Override
     protected void onCleared() {
         stopSimulation();
         stopFeedPolling();
+        // Reset location state khi ViewModel bị destroy
+        locationState.setValue(DriverLocationState.idle());
         super.onCleared();
     }
 
@@ -415,8 +477,8 @@ public class DriverHomeViewModel extends AndroidViewModel {
 
                     @Override
                     public void onError(String message) {
-                        DriverUiState latest = uiState.getValue();
-                        uiState.setValue(latest.copy(
+                        DriverUiState latestState = uiState.getValue();
+                        uiState.setValue(latestState.copy(
                                 null, null, null, null, null, null, null, null, false, null, message, null,
                                 DriverWorkPhaseUtils.AT_RESTAURANT,
                                 null, null, null, null, null, null, null, null, false, null
@@ -453,8 +515,8 @@ public class DriverHomeViewModel extends AndroidViewModel {
                 new OsrmRouteClient.RouteCallback() {
                     @Override
                     public void onSuccess(List<RoutePoint> points) {
-                        DriverUiState latest = uiState.getValue();
-                        if (latest == null || deliveryOrder == null || deliveryOrder.id != order.id) {
+                        DriverUiState latestState = uiState.getValue();
+                        if (latestState == null || deliveryOrder == null || deliveryOrder.id != order.id) {
                             return;
                         }
 
@@ -475,9 +537,9 @@ public class DriverHomeViewModel extends AndroidViewModel {
                                             ? new RoutePoint(restaurantLat, restaurantLng)
                                             : simulationRoute.get(simulationRoute.size() - 1);
 
-                                    DriverUiState latest = uiState.getValue();
-                                    if (latest != null) {
-                                        uiState.setValue(latest.copy(
+                                    DriverUiState arrivedState = uiState.getValue();
+                                    if (arrivedState != null) {
+                                        uiState.setValue(arrivedState.copy(
                                                 null, null, null, null, null, end.latitude, end.longitude, null, null, null, null, null,
                                                 DriverWorkPhaseUtils.AT_RESTAURANT,
                                                 null, null, null, null, null, null, simulationRoute,

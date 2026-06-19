@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 
+import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.common.api.ResolvableApiException;
@@ -81,13 +82,33 @@ public class DriverLocationHelper {
             return;
         }
 
-        stopFetch();
-        fetchCallback = callback;
-        fetchDelivered = false;
-        bestFetchLocation = null;
+        try {
+            LocationRequest request = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+                    .setMaxUpdates(1)
+                    .setDurationMillis(15000)
+                    .build();
 
-        mainHandler.postDelayed(this::finishFetchWithBestOrError, FETCH_TIMEOUT_MS);
-        startFetchUpdates();
+            LocationCallback singleUpdateCallback = new LocationCallback() {
+                @Override
+                public void onLocationResult(@NonNull LocationResult locationResult) {
+                    Location location = locationResult.getLastLocation();
+                    if (location != null) {
+                        callback.onSuccess(location.getLatitude(), location.getLongitude(),
+                                location.hasAccuracy() ? location.getAccuracy() : 0f);
+                    } else {
+                        callback.onError("Khong the lay vi tri hien tai.");
+                    }
+                }
+            };
+
+            fusedLocationClient.requestLocationUpdates(request, singleUpdateCallback, Looper.getMainLooper());
+        } catch (SecurityException e) {
+            callback.onError("Khong co quyen truy cap vi tri");
+        }
+    }
+
+    public void stopFetch() {
+        // Not needed with getCurrentLocation
     }
 
     public void startWatching(OnLocationResult callback) {
@@ -112,17 +133,6 @@ public class DriverLocationHelper {
             watchUpdatesCallback = null;
         }
         watchCallback = null;
-    }
-
-    public void stopFetch() {
-        mainHandler.removeCallbacksAndMessages(null);
-        if (fetchUpdatesCallback != null) {
-            fusedLocationClient.removeLocationUpdates(fetchUpdatesCallback);
-            fetchUpdatesCallback = null;
-        }
-        fetchCallback = null;
-        bestFetchLocation = null;
-        fetchDelivered = false;
     }
 
     private void startFetchUpdates() {
@@ -254,22 +264,9 @@ public class DriverLocationHelper {
             return false;
         }
 
-        if (isMockLocation(location)) {
-            return false;
-        }
-
         double lat = location.getLatitude();
         double lng = location.getLongitude();
         if (Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001) {
-            return false;
-        }
-
-        long ageMs = System.currentTimeMillis() - location.getTime();
-        if (ageMs > MAX_LOCATION_AGE_MS) {
-            return false;
-        }
-
-        if (location.hasAccuracy() && location.getAccuracy() > MAX_ACCEPTABLE_ACCURACY_METERS) {
             return false;
         }
 

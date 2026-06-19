@@ -151,7 +151,7 @@
     <string name="driver_status_offline">OFFLINE - Khong nhan don</string>
     <string name="driver_start_receiving">Bat nhan don (Online)</string>
     <string name="driver_stop_receiving">Tat nhan don (Offline)</string>
-    <string name="driver_fetching_location">Dang lay vi tri GPS...</string>
+    <string name="driver_fetching_location">Đang lấy vị trí của Driver hiện tại để lấy vị trí chính xác nhất...</string>
     <string name="driver_offline_hint">Tat che do nhan don. Bam nut ben duoi de bat Online va lay vi tri hien tai.</string>
     <string name="driver_online_hint">Dang bat che do nhan don. He thong da cap nhat vi tri cua ban.</string>
     <string name="driver_turn_on_to_receive">Bat nhan don de xem don cho nhan</string>
