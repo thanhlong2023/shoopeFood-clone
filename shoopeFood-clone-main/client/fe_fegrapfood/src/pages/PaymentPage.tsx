@@ -126,7 +126,7 @@ export default function PaymentPage() {
                 <h2>{shippingTypeLabel(draft.shippingType)}</h2>
                 <p>Khoảng cách {draft.receiver.distanceKm.toFixed(1)} km</p>
                 <div className="payment-soft-box">
-                  {draft.receiver.lat.toFixed(4)}, {draft.receiver.lng.toFixed(4)}
+                  {draft.receiver.address}
                 </div>
               </div>
             </section>

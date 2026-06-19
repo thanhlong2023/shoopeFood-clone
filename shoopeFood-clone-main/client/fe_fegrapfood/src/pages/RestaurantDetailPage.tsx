@@ -8,6 +8,7 @@ import { getRestaurantById } from '../services/api/restaurants'
 import { createOrder } from '../services/api/orders'
 import ImageUrlField from '../components/common/ImageUrlField'
 import AddressAutocomplete from '../components/common/AddressAutocomplete'
+import ShippingTypeSelect from '../components/common/ShippingTypeSelect'
 import { reverseGeocodeAddress } from '../services/api/addresses'
 import { createFood, getFoods, updateFood, type FoodPayload } from '../services/api/foods'
 import { createCategory, getCategories } from '../services/api/categories'
@@ -784,20 +785,17 @@ export default function RestaurantDetailPage() {
 
                 <div className="restaurant-field">
                   <label htmlFor="restaurantShippingType">Giao hàng</label>
-                  <select
+                  <ShippingTypeSelect
                     id="restaurantShippingType"
                     value={checkout.shippingType}
-                    onChange={(event) =>
+                    compact
+                    onChange={(shippingType) =>
                       setCheckout((current) => ({
                         ...current,
-                        shippingType: event.target.value as CheckoutState['shippingType'],
+                        shippingType,
                       }))
                     }
-                  >
-                    <option value="STANDARD">Standard</option>
-                    <option value="FAST">Fast</option>
-                    <option value="ECO">Eco</option>
-                  </select>
+                  />
                 </div>
               </div>
 

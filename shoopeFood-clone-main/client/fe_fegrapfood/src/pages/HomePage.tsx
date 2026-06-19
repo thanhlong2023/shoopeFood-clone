@@ -5,12 +5,13 @@ import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useTrackableOrder } from '../hooks/useTrackableOrder'
 import AddressAutocomplete from '../components/common/AddressAutocomplete'
+import ShippingTypeSelect from '../components/common/ShippingTypeSelect'
 import { reverseGeocodeAddress } from '../services/api/addresses'
 import { getCategories } from '../services/api/categories'
 import { getFoods } from '../services/api/foods'
 import { getRestaurants } from '../services/api/restaurants'
 import { foodPhotoStyle } from '../utils/foodImage'
-import { saveCheckoutDraft } from '../utils/checkoutDraft'
+import { saveCheckoutDraft, getCheckoutDraft } from '../utils/checkoutDraft'
 import { getCartDraft, saveCartDraft } from '../utils/cartDraft'
 import { restaurantCoverStyle, restaurantThumbStyle } from '../utils/restaurantImage'
 import type { AddressDetail, Category, CreateOrderPayload, Food, Order, Restaurant } from '../types'
@@ -191,11 +192,23 @@ export default function HomePage() {
     saveCartDraft({ restaurantId: activeRestaurantId, cart })
   }, [activeRestaurantId, cart])
 
-  const [checkout, setCheckout] = useState<CheckoutState>(initialCheckoutState)
+  const [checkout, setCheckout] = useState<CheckoutState>(() => {
+    const draft = getCheckoutDraft()
+    if (draft) {
+      return {
+        receiverAddress: draft.receiver.address,
+        receiverLat: String(draft.receiver.lat),
+        receiverLng: String(draft.receiver.lng),
+        distanceKm: String(draft.receiver.distanceKm),
+        shippingType: draft.shippingType,
+      }
+    }
+    return initialCheckoutState
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [isLocating, setIsLocating] = useState(false)
-  const [deliveryLocationSource, setDeliveryLocationSource] = useState<DeliveryLocationSource>('default')
-  const [isDeliveryAddressConfirmed, setIsDeliveryAddressConfirmed] = useState(false)
+  const [deliveryLocationSource, setDeliveryLocationSource] = useState<DeliveryLocationSource>(() => getCheckoutDraft() ? 'address' : 'default')
+  const [isDeliveryAddressConfirmed, setIsDeliveryAddressConfirmed] = useState(() => !!getCheckoutDraft())
   const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState<AddressDetail | null>(null)
   const [shouldFollowDeliveryLocation, setShouldFollowDeliveryLocation] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -674,6 +687,15 @@ export default function HomePage() {
     navigate('/payment')
   }
 
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage(null)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [errorMessage])
+
   return (
     <section className="order-page bg-slate-50 min-h-screen">
       {/* Premium Search Hero Banner */}
@@ -717,7 +739,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      {errorMessage ? <p className="app-feedback error bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 mb-4">{errorMessage}</p> : null}
+      {errorMessage ? (
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]">
+          <p className="bg-red-50 text-red-600 px-6 py-4 rounded-2xl border border-red-200 shadow-2xl font-bold text-center min-w-[300px]">
+            {errorMessage}
+          </p>
+        </div>
+      ) : null}
 
       {isAuthenticated && hasTrackableOrder ? (
         <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-brand-light bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
@@ -1112,7 +1140,16 @@ export default function HomePage() {
 
             <div className="flex flex-col gap-1.5">
               <span className="text-[11px] font-bold text-gray-500">Hình thức giao hàng</span>
-              <div className="relative">
+              <ShippingTypeSelect
+                value={checkout.shippingType}
+                onChange={(shippingType) =>
+                  setCheckout((current) => ({
+                    ...current,
+                    shippingType,
+                  }))
+                }
+              />
+              <div className="hidden">
                 <select
                   value={checkout.shippingType}
                   onChange={(event) =>
