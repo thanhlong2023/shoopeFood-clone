@@ -2,9 +2,16 @@ package com.shoopefood.mobile.ui;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -19,12 +26,15 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.material.tabs.TabLayout;
 import com.shoopefood.mobile.R;
 import com.shoopefood.mobile.cart.CartManager;
 import com.shoopefood.mobile.databinding.ActivityDriverHomeBinding;
 import com.shoopefood.mobile.location.DriverLocationHelper;
+import com.shoopefood.mobile.location.LocationTrackingService;
+import com.shoopefood.mobile.location.PermissionHelper;
 import com.shoopefood.mobile.map.DriverMapController;
 import com.shoopefood.mobile.util.DriverWorkPhaseUtils;
 import com.shoopefood.mobile.model.Driver;
@@ -36,6 +46,7 @@ import com.shoopefood.mobile.util.GeoUtils;
 import com.shoopefood.mobile.util.RoleRouter;
 import com.shoopefood.mobile.viewmodel.DriverHomeViewModel;
 import com.shoopefood.mobile.viewmodel.DriverHomeViewModelFactory;
+import com.shoopefood.mobile.viewmodel.DriverLocationState;
 import com.shoopefood.mobile.viewmodel.DriverUiState;
 
 import java.util.ArrayList;
@@ -56,10 +67,156 @@ public class DriverHomeActivity extends AppCompatActivity implements DriverHomeH
     private DriverMapController mapController;
     private SessionManager sessionManager;
 
+    // ─── Foreground Service Binding ──────────────────────────────────────────
+
+    /** Reference đến service khi đã bind — null khi chưa bind */
+    private LocationTrackingService trackingService;
+    private boolean isServiceBound = false;
+
+    /**
+     * ServiceConnection: callback khi bind/unbind service thành công.
+     * Pattern: Activity nắm IBinder, đút ra LocationTrackingService instance.
+     */
+    private final ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder binder) {
+            LocationTrackingService.LocationServiceBinder serviceBinder =
+                    (LocationTrackingService.LocationServiceBinder) binder;
+            trackingService = serviceBinder.getService();
+            isServiceBound = true;
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            trackingService = null;
+            isServiceBound = false;
+            if (viewModel != null) {
+                viewModel.onTrackingStopped();
+            }
+        }
+    };
+
+    /** Bind to the foreground location tracking service and start it */
+    private void bindLocationService() {
+        Intent intent = new Intent(this, LocationTrackingService.class);
+        // Start the service in foreground mode
+        intent.setAction(LocationTrackingService.ACTION_START);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
+        // Bind to receive direct calls if needed
+        bindService(new Intent(this, LocationTrackingService.class), serviceConnection, BIND_AUTO_CREATE);
+    }
+
+    /** Unbind and stop the location tracking service */
+    private void unbindLocationService() {
+        if (isServiceBound) {
+            unbindService(serviceConnection);
+            isServiceBound = false;
+        }
+        // Stop the foreground service
+        Intent stopIntent = new Intent(this, LocationTrackingService.class);
+        stopIntent.setAction(LocationTrackingService.ACTION_STOP);
+        stopService(stopIntent);
+    }
+
+
+    /**
+     * BroadcastReceiver: nhận location updates từ LocationTrackingService.
+     * Đây là communication bridge: Service → Activity → ViewModel.
+     *
+     * <p>Tương đương Kotlin: collectLatest { } trong LaunchedEffect.
+     */
+    private final BroadcastReceiver locationReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (viewModel == null) return;
+
+            String action = intent.getAction();
+            if (LocationTrackingService.BROADCAST_LOCATION_UPDATE.equals(action)) {
+                double lat    = intent.getDoubleExtra(LocationTrackingService.EXTRA_LATITUDE, 0);
+                double lng    = intent.getDoubleExtra(LocationTrackingService.EXTRA_LONGITUDE, 0);
+                float bearing = intent.getFloatExtra(LocationTrackingService.EXTRA_BEARING, 0);
+                float acc     = intent.getFloatExtra(LocationTrackingService.EXTRA_ACCURACY, 0);
+                float speed   = intent.getFloatExtra(LocationTrackingService.EXTRA_SPEED_KMH, 0);
+                viewModel.onLocationUpdate(lat, lng, bearing, acc, speed);
+
+            } else if (LocationTrackingService.BROADCAST_LOCATION_ERROR.equals(action)) {
+                String errorType = intent.getStringExtra(LocationTrackingService.EXTRA_ERROR_TYPE);
+                String errorMsg  = intent.getStringExtra(LocationTrackingService.EXTRA_ERROR_MSG);
+                viewModel.onLocationError(errorType, errorMsg);
+                handleLocationError(errorType, errorMsg);
+            }
+        }
+    };
+
     private boolean pendingGoOnline = false;
     private boolean locationWatchActive = false;
     private boolean pullRefreshActive = false;
 
+    private void handleLocationError(String errorType, String errorMsg) {
+        if ("PERMISSION_DENIED".equals(errorType)) {
+            android.widget.Toast.makeText(this, "Vui lòng cấp quyền vị trí để tiếp tục", android.widget.Toast.LENGTH_LONG).show();
+            PermissionHelper.requestLocationPermissions(this, multiPermissionLauncher, () -> {
+                // Permission granted
+            });
+        } else if ("GPS_DISABLED".equals(errorType)) {
+            PermissionHelper.showGpsDisabledDialog(this, () -> {
+                Intent intent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                startActivity(intent);
+            });
+        } else {
+            android.widget.Toast.makeText(this, "Lỗi vị trí: " + errorMsg, android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // ─── Permission Launchers ────────────────────────────────────────────────
+
+    /**
+     * Multi-permission launcher — xử lý cả ACCESS_FINE_LOCATION + POST_NOTIFICATIONS.
+     *
+     * <p>Kotlin tương đương:
+     * <pre>
+     *   val permState = rememberMultiplePermissionsState(permissions) { results -&gt;
+     *       if (results.all { it.value }) startService()
+     *       else showRationale()
+     *   }
+     * </pre>
+     */
+    private final ActivityResultLauncher<String[]> multiPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.RequestMultiplePermissions(),
+                    results -> {
+                        boolean locationGranted = Boolean.TRUE.equals(
+                                results.get(Manifest.permission.ACCESS_FINE_LOCATION)
+                        );
+                        if (locationGranted) {
+                            if (pendingGoOnline) {
+                                fetchLocationAndGoOnline();
+                            } else {
+                                bindLocationService();
+                            }
+                        } else {
+                            pendingGoOnline = false;
+                            // Kiểm tra có phải "Don't ask again" không
+                            boolean canAskAgain = shouldShowRequestPermissionRationale(
+                                    Manifest.permission.ACCESS_FINE_LOCATION
+                            );
+                            if (!canAskAgain) {
+                                PermissionHelper.showGoToSettingsDialog(this);
+                            } else {
+                                Toast.makeText(this,
+                                        R.string.driver_location_permission_denied,
+                                        Toast.LENGTH_LONG).show();
+                            }
+                            renderToggleButton(false, false);
+                        }
+                    }
+            );
+
+    /** Legacy single-permission launcher — giữ lại để backward compat */
     private final ActivityResultLauncher<String> locationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
                 if (granted) {
@@ -119,6 +276,12 @@ public class DriverHomeActivity extends AppCompatActivity implements DriverHomeH
         setupTabs();
         setupMap();
         setupViewModel();
+        // Bind to location tracking service and register broadcast receiver
+        if (PermissionHelper.hasLocationPermission(this)) {
+            bindLocationService();
+        }
+        LocalBroadcastManager.getInstance(this).registerReceiver(locationReceiver, new IntentFilter(LocationTrackingService.BROADCAST_LOCATION_UPDATE));
+        LocalBroadcastManager.getInstance(this).registerReceiver(locationReceiver, new IntentFilter(LocationTrackingService.BROADCAST_LOCATION_ERROR));
         setupToggleButton();
         setupReloadButton();
         setupSwipeRefresh();
@@ -246,6 +409,9 @@ public class DriverHomeActivity extends AppCompatActivity implements DriverHomeH
 
     @Override
     protected void onPause() {
+        // Unregister receivers and unbind service when activity is no longer visible
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(locationReceiver);
+        unbindLocationService();
         if (viewModel != null) {
             viewModel.stopFeedPolling();
         }
@@ -371,6 +537,9 @@ public class DriverHomeActivity extends AppCompatActivity implements DriverHomeH
                         binding.progressDriverOrders.setVisibility(View.GONE);
                         pendingGoOnline = false;
                         viewModel.goOnline(latitude, longitude);
+                        if (!isServiceBound) {
+                            bindLocationService();
+                        }
                     }
 
                     @Override
@@ -857,4 +1026,15 @@ public class DriverHomeActivity extends AppCompatActivity implements DriverHomeH
         startActivity(login);
         finish();
     }
+
+    @Override
+    protected void onDestroy() {
+        // Ensure we clean up any service bindings and receivers
+        try {
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(locationReceiver);
+        } catch (IllegalArgumentException ignored) {}
+        unbindLocationService();
+        super.onDestroy();
+    }
 }
+

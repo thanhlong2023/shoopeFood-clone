@@ -8,6 +8,7 @@ type AuthContextValue = {
   token: string | null
   isAuthenticated: boolean
   login: (payload: LoginPayload) => Promise<AuthUser>
+  register: (payload: any) => Promise<AuthUser>
   logout: () => void
   refreshUser: () => Promise<AuthUser | null>
   activateRole: (role: UserRole) => Promise<AuthUser>
@@ -42,6 +43,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   async function login(payload: LoginPayload) {
     const session = await loginRequest(payload)
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, session.token)
+    localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(session.user))
+    setToken(session.token)
+    setUser(session.user)
+    return session.user
+  }
+
+  async function register(payload: any) {
+    const { registerCustomer } = await import('../services/api/auth')
+    const session = await registerCustomer(payload)
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, session.token)
     localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(session.user))
     setToken(session.token)
@@ -104,6 +115,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       token,
       isAuthenticated: Boolean(token && user),
       login,
+      register,
       logout,
       refreshUser,
       activateRole,

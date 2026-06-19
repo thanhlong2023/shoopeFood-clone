@@ -7,9 +7,11 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.shoopefood.mobile.R;
 import com.shoopefood.mobile.model.LoginRequest;
@@ -118,17 +120,24 @@ public class LoginActivity extends AppCompatActivity {
                 setLoading(false);
 
                 if (!response.isSuccessful() || response.body() == null || response.body().data == null) {
-                    Toast.makeText(
-                            LoginActivity.this,
-                            ApiClient.parseErrorMessage(response.raw()),
-                            Toast.LENGTH_LONG
-                    ).show();
+                    // 401 Unauthorized → sai tài khoản hoặc mật khẩu
+                    if (response.code() == 401) {
+                        showErrorDialog(
+                                "Đăng nhập thất bại",
+                                "Sai tài khoản hoặc mật khẩu. Vui lòng kiểm tra lại."
+                        );
+                    } else {
+                        showErrorDialog(
+                                "Đăng nhập thất bại",
+                                ApiClient.parseErrorMessage(response.raw())
+                        );
+                    }
                     return;
                 }
 
                 String role = response.body().data.user.role;
                 if (RoleRouter.isBlockedOnMobile(role)) {
-                    Toast.makeText(LoginActivity.this, RoleRouter.getBlockedMessage(role), Toast.LENGTH_LONG).show();
+                    showErrorDialog("Không có quyền truy cập", RoleRouter.getBlockedMessage(role));
                     return;
                 }
 
@@ -139,7 +148,10 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<LoginResponse> call, Throwable t) {
                 setLoading(false);
-                Toast.makeText(LoginActivity.this, R.string.network_error, Toast.LENGTH_LONG).show();
+                showErrorDialog(
+                        "Lỗi kết nối",
+                        "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng và thử lại."
+                );
             }
         });
     }
@@ -152,5 +164,29 @@ public class LoginActivity extends AppCompatActivity {
     private void setLoading(boolean loading) {
         progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         loginButton.setEnabled(!loading);
+    }
+
+    /**
+     * Hiển thị dialog thông báo lỗi với tiêu đề và nội dung tùy chỉnh.
+     * Sử dụng MaterialAlertDialogBuilder để có giao diện Material Design nhất quán.
+     *
+     * @param title   Tiêu đề dialog (ví dụ: "Đăng nhập thất bại")
+     * @param message Nội dung thông báo lỗi
+     */
+    private void showErrorDialog(String title, String message) {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setPositiveButton("Thử lại", (dialog, which) -> {
+                    dialog.dismiss();
+                    passwordInput.requestFocus();
+                    passwordInput.selectAll();
+                })
+                .setCancelable(true)
+                .show();
     }
 }
