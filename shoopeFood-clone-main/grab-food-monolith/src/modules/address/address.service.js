@@ -50,6 +50,16 @@ const toEmptyDetail = (placeId) => ({
   raw: {},
 });
 
+const toCoordinateOnlyDetail = (latitude, longitude) => ({
+  placeId: `current-location:${latitude},${longitude}`,
+  formattedAddress: "",
+  latitude,
+  longitude,
+  ...normalizeAddress(""),
+  provider: "gps",
+  raw: {},
+});
+
 const toNullableNumber = (value) => {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -156,7 +166,41 @@ const getAddressDetail = async (placeId, fallbackQuery = {}) => {
   return toEmptyDetail(id);
 };
 
+const reverseAddress = async (latitude, longitude) => {
+  const lat = toNullableNumber(latitude);
+  const lng = toNullableNumber(longitude);
+
+  if (lat === null || lng === null || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return toCoordinateOnlyDetail(null, null);
+  }
+
+  const provider = getConfiguredProvider();
+
+  try {
+    const detail = await provider.reverse(lat, lng);
+    if (detail) {
+      return detail;
+    }
+  } catch (error) {
+    if (isMissingVietMapApiKey(error)) {
+      warnMissingVietMapApiKey();
+    } else {
+      warnProviderFailure("reverse", error);
+    }
+  }
+
+  if (provider === mockAddressProvider) {
+    const fallbackDetail = await mockAddressProvider.reverse(lat, lng);
+    if (fallbackDetail) {
+      return fallbackDetail;
+    }
+  }
+
+  return toCoordinateOnlyDetail(lat, lng);
+};
+
 module.exports = {
   suggestAddresses,
   getAddressDetail,
+  reverseAddress,
 };

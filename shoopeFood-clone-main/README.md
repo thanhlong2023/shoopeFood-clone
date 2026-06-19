@@ -99,6 +99,7 @@ Address suggestions are served by the backend at:
 
 - `GET /api/addresses/suggest?q=...`
 - `GET /api/addresses/detail/:placeId`
+- `GET /api/addresses/reverse?lat=...&lng=...`
 
 The default provider is VietMap. Configure `grab-food-monolith/.env` with:
 

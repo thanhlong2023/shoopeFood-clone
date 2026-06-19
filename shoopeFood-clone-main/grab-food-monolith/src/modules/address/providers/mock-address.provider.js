@@ -66,6 +66,18 @@ const toSuggestion = (item) => ({
   raw: { source: "mock-address.provider", ...item },
 });
 
+const calculateDistanceKm = (fromLat, fromLng, toLat, toLng) => {
+  const earthRadiusKm = 6371;
+  const toRad = (value) => (value * Math.PI) / 180;
+  const dLat = toRad(toLat - fromLat);
+  const dLng = toRad(toLng - fromLng);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
 const suggest = async (keyword) => {
   const query = normalizeSearchText(keyword);
 
@@ -98,8 +110,32 @@ const getDetail = async (placeId) => {
   };
 };
 
+const reverse = async (latitude, longitude) => {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+
+  const nearest = mockAddresses
+    .map((address) => ({
+      ...address,
+      distanceKm: calculateDistanceKm(lat, lng, address.latitude, address.longitude),
+    }))
+    .sort((a, b) => a.distanceKm - b.distanceKm)[0];
+
+  if (!nearest || nearest.distanceKm > 1) {
+    return null;
+  }
+
+  return getDetail(nearest.placeId);
+};
+
 module.exports = {
   name: "mock",
   suggest,
   getDetail,
+  reverse,
+  reverseGeocode: reverse,
 };

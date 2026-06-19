@@ -8,6 +8,7 @@ import { getRestaurantById } from '../services/api/restaurants'
 import { createOrder } from '../services/api/orders'
 import ImageUrlField from '../components/common/ImageUrlField'
 import AddressAutocomplete from '../components/common/AddressAutocomplete'
+import { reverseGeocodeAddress } from '../services/api/addresses'
 import { createFood, getFoods, updateFood, type FoodPayload } from '../services/api/foods'
 import { createCategory, getCategories } from '../services/api/categories'
 import { foodPhotoStyle } from '../utils/foodImage'
@@ -373,22 +374,37 @@ export default function RestaurantDetailPage() {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        void (async () => {
         const receiverLat = position.coords.latitude
         const receiverLng = position.coords.longitude
         const nextDistance = restaurant
           ? calculateDistanceKm(restaurant.latitude, restaurant.longitude, receiverLat, receiverLng)
           : Number(checkout.distanceKm)
+        const resolvedAddress = await reverseGeocodeAddress(receiverLat, receiverLng)
+
+        if (!resolvedAddress.formattedAddress) {
+          throw new Error('Khong the suy ra dia chi tu vi tri hien tai')
+        }
 
         setCheckout((current) => ({
           ...current,
-          receiverAddress: 'Vi tri hien tai da chon',
+          receiverAddress: resolvedAddress.formattedAddress,
           receiverLat: receiverLat.toFixed(6),
           receiverLng: receiverLng.toFixed(6),
           distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
         }))
-        setSelectedDeliveryAddress(null)
+        setSelectedDeliveryAddress({
+          ...resolvedAddress,
+          latitude: receiverLat,
+          longitude: receiverLng,
+        })
         setIsDeliveryAddressConfirmed(true)
         setIsLocating(false)
+        })().catch((error) => {
+          setMenuError(error instanceof Error ? error.message : 'Khong the suy ra dia chi tu vi tri hien tai')
+          setIsDeliveryAddressConfirmed(false)
+          setIsLocating(false)
+        })
       },
       (error) => {
         setMenuError(error.message || 'Không thể lấy vị trí hiện tại')

@@ -74,3 +74,15 @@ export async function getAddressDetail(placeId: string, options: AddressRequestO
 
   return unwrapAddressResponse(response)
 }
+
+export async function reverseGeocodeAddress(latitude: number, longitude: number, options: AddressRequestOptions = {}) {
+  const response = await httpGet<ApiResponse<AddressDetail> | AddressDetail>('/api/addresses/reverse', {
+    query: {
+      lat: latitude,
+      lng: longitude,
+    },
+    signal: options.signal,
+  })
+
+  return unwrapAddressResponse(response)
+}

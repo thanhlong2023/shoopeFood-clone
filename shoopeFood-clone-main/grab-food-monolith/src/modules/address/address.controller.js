@@ -23,7 +23,17 @@ const detail = async (req, res) => {
   }
 };
 
+const reverse = async (req, res) => {
+  try {
+    const data = await addressService.reverseAddress(req.query.lat, req.query.lng);
+    return res.json(data);
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
 module.exports = {
   suggest,
   detail,
+  reverse,
 };

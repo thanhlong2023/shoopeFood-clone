@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useTrackableOrder } from '../hooks/useTrackableOrder'
 import AddressAutocomplete from '../components/common/AddressAutocomplete'
+import { reverseGeocodeAddress } from '../services/api/addresses'
 import { getCategories } from '../services/api/categories'
 import { getFoods } from '../services/api/foods'
 import { getRestaurants } from '../services/api/restaurants'
@@ -534,24 +535,39 @@ export default function HomePage() {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        void (async () => {
         const receiverLat = position.coords.latitude
         const receiverLng = position.coords.longitude
         const nextDistance = activeRestaurant
           ? calculateDistanceKm(activeRestaurant.latitude, activeRestaurant.longitude, receiverLat, receiverLng)
           : Number(checkout.distanceKm)
+        const resolvedAddress = await reverseGeocodeAddress(receiverLat, receiverLng)
+
+        if (!resolvedAddress.formattedAddress) {
+          throw new Error('Khong the suy ra dia chi tu vi tri hien tai')
+        }
 
         setCheckout((current) => ({
           ...current,
-          receiverAddress: 'Vi tri hien tai da chon',
+          receiverAddress: resolvedAddress.formattedAddress,
           receiverLat: receiverLat.toFixed(6),
           receiverLng: receiverLng.toFixed(6),
           distanceKm: Number.isFinite(nextDistance) ? nextDistance.toFixed(2) : current.distanceKm,
         }))
-        setSelectedDeliveryAddress(null)
+        setSelectedDeliveryAddress({
+          ...resolvedAddress,
+          latitude: receiverLat,
+          longitude: receiverLng,
+        })
         setDeliveryLocationSource('current')
         setIsDeliveryAddressConfirmed(true)
         setShouldFollowDeliveryLocation(true)
         setIsLocating(false)
+        })().catch((error) => {
+          setErrorMessage(error instanceof Error ? error.message : 'Khong the suy ra dia chi tu vi tri hien tai')
+          setIsDeliveryAddressConfirmed(false)
+          setIsLocating(false)
+        })
       },
       (error) => {
         setErrorMessage(error.message || 'Không thể lấy vị trí hiện tại')
