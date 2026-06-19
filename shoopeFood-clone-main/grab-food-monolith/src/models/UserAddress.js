@@ -17,7 +17,7 @@ const UserAddress = sequelize.define(
     street: { type: DataTypes.STRING(255), allowNull: true },
     houseNumber: { type: DataTypes.STRING(50), allowNull: true, field: "house_number" },
     note: { type: DataTypes.TEXT, allowNull: true },
-    provider: { type: DataTypes.STRING(30), allowNull: false, defaultValue: "GOOGLE" },
+    provider: { type: DataTypes.STRING(30), allowNull: false, defaultValue: "vietmap" },
     createdAt: { type: DataTypes.DATE, field: "created_at" },
   },
   {

@@ -89,6 +89,15 @@ function isValidCoordinate(latitude: number, longitude: number) {
   )
 }
 
+function toNullableCoordinate(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
+}
+
 function getRestaurantDistanceKm(restaurant: Restaurant, deliveryPoint: DeliveryPoint | null) {
   if (
     !deliveryPoint ||
@@ -277,10 +286,10 @@ export default function HomePage() {
     [restaurantSearchMatches, restaurants],
   )
   const deliveryPoint = useMemo(() => {
-    const latitude = Number(checkout.receiverLat)
-    const longitude = Number(checkout.receiverLng)
+    const latitude = toNullableCoordinate(checkout.receiverLat)
+    const longitude = toNullableCoordinate(checkout.receiverLng)
 
-    return isValidCoordinate(latitude, longitude) ? { latitude, longitude } : null
+    return latitude !== null && longitude !== null && isValidCoordinate(latitude, longitude) ? { latitude, longitude } : null
   }, [checkout.receiverLat, checkout.receiverLng])
   const rankedRestaurants = useMemo(
     () =>
@@ -421,13 +430,13 @@ export default function HomePage() {
   }, [cartCount])
 
   useEffect(() => {
-    const receiverLat = Number(checkout.receiverLat)
-    const receiverLng = Number(checkout.receiverLng)
+    const receiverLat = toNullableCoordinate(checkout.receiverLat)
+    const receiverLng = toNullableCoordinate(checkout.receiverLng)
 
     if (
       !activeRestaurant ||
-      !Number.isFinite(receiverLat) ||
-      !Number.isFinite(receiverLng) ||
+      receiverLat === null ||
+      receiverLng === null ||
       !Number.isFinite(Number(activeRestaurant.latitude)) ||
       !Number.isFinite(Number(activeRestaurant.longitude))
     ) {
@@ -475,9 +484,9 @@ export default function HomePage() {
   }
 
   function selectDeliveryAddress(address: AddressDetail) {
-    const receiverLat = Number(address.latitude)
-    const receiverLng = Number(address.longitude)
-    const hasValidCoordinates = isValidCoordinate(receiverLat, receiverLng)
+    const receiverLat = toNullableCoordinate(address.latitude)
+    const receiverLng = toNullableCoordinate(address.longitude)
+    const hasValidCoordinates = receiverLat !== null && receiverLng !== null && isValidCoordinate(receiverLat, receiverLng)
     const nextDistance =
       activeRestaurant && hasValidCoordinates
         ? calculateDistanceKm(activeRestaurant.latitude, activeRestaurant.longitude, receiverLat, receiverLng)
@@ -573,7 +582,10 @@ export default function HomePage() {
       return 'Vui lòng đăng nhập tài khoản khách hàng để đặt món'
     }
 
-    if (!isValidCoordinate(Number(checkout.receiverLat), Number(checkout.receiverLng))) {
+    const receiverLat = toNullableCoordinate(checkout.receiverLat)
+    const receiverLng = toNullableCoordinate(checkout.receiverLng)
+
+    if (receiverLat === null || receiverLng === null || !isValidCoordinate(receiverLat, receiverLng)) {
       return 'Tọa độ giao hàng không hợp lệ'
     }
 
@@ -623,7 +635,7 @@ export default function HomePage() {
         ward: selectedDeliveryAddress?.ward,
         street: selectedDeliveryAddress?.street,
         houseNumber: selectedDeliveryAddress?.houseNumber,
-        provider: selectedDeliveryAddress ? 'GOOGLE' : 'BROWSER_GEOLOCATION',
+        provider: selectedDeliveryAddress?.provider || 'BROWSER_GEOLOCATION',
       },
       shippingType: checkout.shippingType,
       pricing: {

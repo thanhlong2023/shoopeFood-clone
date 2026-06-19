@@ -3,46 +3,8 @@ import type { AddressDetail, AddressSuggestion, ApiResponse } from '../../types'
 
 type AddressRequestOptions = {
   signal?: AbortSignal
+  suggestion?: AddressSuggestion
 }
-
-const developmentAddressDetails: AddressDetail[] = [
-  {
-    placeId: 'dev-38-man-thien',
-    name: '38 Man Thien',
-    formattedAddress: '38 Man Thien, Phuong Tang Nhon Phu A, TP Thu Duc, TP. Ho Chi Minh',
-    latitude: 10.8428,
-    longitude: 106.7786,
-    province: 'TP. Ho Chi Minh',
-    district: 'TP Thu Duc',
-    ward: 'Phuong Tang Nhon Phu A',
-    street: 'Man Thien',
-    houseNumber: '38',
-  },
-  {
-    placeId: 'dev-nguyen-hue-12',
-    name: '12 Nguyen Hue',
-    formattedAddress: '12 Nguyen Hue, Ben Nghe, Quan 1, TP. Ho Chi Minh',
-    latitude: 10.7744,
-    longitude: 106.7032,
-    province: 'TP. Ho Chi Minh',
-    district: 'Quan 1',
-    ward: 'Ben Nghe',
-    street: 'Nguyen Hue',
-    houseNumber: '12',
-  },
-  {
-    placeId: 'dev-landmark-81',
-    name: 'Landmark 81',
-    formattedAddress: 'Vincom Center Landmark 81, Binh Thanh, TP. Ho Chi Minh',
-    latitude: 10.795,
-    longitude: 106.7218,
-    province: 'TP. Ho Chi Minh',
-    district: 'Binh Thanh',
-    ward: 'Phuong 22',
-    street: 'Dien Bien Phu',
-    houseNumber: '720A',
-  },
-]
 
 function unwrapAddressResponse<T>(response: ApiResponse<T> | T): T {
   if (response && typeof response === 'object' && 'data' in response) {
@@ -52,45 +14,29 @@ function unwrapAddressResponse<T>(response: ApiResponse<T> | T): T {
   return response as T
 }
 
-function normalizeSearchText(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .toLowerCase()
-    .trim()
+function hasCoordinates(suggestion: AddressSuggestion) {
+  return (
+    suggestion.latitude !== null &&
+    suggestion.longitude !== null &&
+    Number.isFinite(Number(suggestion.latitude)) &&
+    Number.isFinite(Number(suggestion.longitude))
+  )
 }
 
-export function getDevelopmentAddressSuggestions(query: string): AddressSuggestion[] {
-  const normalizedQuery = normalizeSearchText(query)
-
-  if (normalizedQuery.length < 2) {
-    return []
+export function addressDetailFromSuggestion(suggestion: AddressSuggestion): AddressDetail {
+  return {
+    placeId: suggestion.placeId,
+    formattedAddress: suggestion.description,
+    latitude: hasCoordinates(suggestion) ? Number(suggestion.latitude) : null,
+    longitude: hasCoordinates(suggestion) ? Number(suggestion.longitude) : null,
+    province: '',
+    district: '',
+    ward: '',
+    street: '',
+    houseNumber: '',
+    provider: suggestion.provider || 'vietmap',
+    raw: suggestion.raw,
   }
-
-  return developmentAddressDetails
-    .filter((address) =>
-      [
-        address.name,
-        address.formattedAddress,
-        address.province,
-        address.district,
-        address.ward,
-        address.street,
-        address.houseNumber,
-      ].some((value) => normalizeSearchText(value || '').includes(normalizedQuery)),
-    )
-    .map((address) => ({
-      placeId: address.placeId,
-      description: address.formattedAddress,
-      mainText: address.name || address.formattedAddress,
-      secondaryText: address.formattedAddress,
-    }))
-}
-
-export function getDevelopmentAddressDetail(placeId: string): AddressDetail | null {
-  return developmentAddressDetails.find((address) => address.placeId === placeId) ?? null
 }
 
 export async function suggestAddresses(query: string, options: AddressRequestOptions = {}) {
@@ -103,9 +49,28 @@ export async function suggestAddresses(query: string, options: AddressRequestOpt
 }
 
 export async function getAddressDetail(placeId: string, options: AddressRequestOptions = {}) {
-  const response = await httpGet<ApiResponse<AddressDetail> | AddressDetail>(`/api/addresses/detail/${encodeURIComponent(placeId)}`, {
-    signal: options.signal,
-  })
+  const query: Record<string, string | number | boolean> = {}
+
+  if (options.suggestion) {
+    query.description = options.suggestion.description
+    query.provider = options.suggestion.provider
+
+    if (options.suggestion.latitude !== null && Number.isFinite(Number(options.suggestion.latitude))) {
+      query.latitude = Number(options.suggestion.latitude)
+    }
+
+    if (options.suggestion.longitude !== null && Number.isFinite(Number(options.suggestion.longitude))) {
+      query.longitude = Number(options.suggestion.longitude)
+    }
+  }
+
+  const response = await httpGet<ApiResponse<AddressDetail> | AddressDetail>(
+    `/api/addresses/detail/${encodeURIComponent(placeId)}`,
+    {
+      query,
+      signal: options.signal,
+    },
+  )
 
   return unwrapAddressResponse(response)
 }

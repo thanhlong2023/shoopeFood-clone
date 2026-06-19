@@ -1,8 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
 import {
+  addressDetailFromSuggestion,
   getAddressDetail,
-  getDevelopmentAddressDetail,
-  getDevelopmentAddressSuggestions,
   suggestAddresses,
 } from '../../services/api/addresses'
 import type { AddressDetail, AddressSuggestion } from '../../types'
@@ -67,15 +66,8 @@ export default function AddressAutocomplete({
             return
           }
 
-          const fallbackItems = import.meta.env.DEV ? getDevelopmentAddressSuggestions(trimmedQuery) : []
-          setSuggestions(fallbackItems)
-          setErrorMessage(
-            fallbackItems.length > 0
-              ? 'Address API loi, dang dung goi y dev.'
-              : error instanceof Error
-                ? error.message
-                : 'Khong the tai goi y dia chi',
-          )
+          setSuggestions([])
+          setErrorMessage(error instanceof Error ? error.message : 'Khong the tai goi y dia chi')
         })
         .finally(() => {
           if (!controller.signal.aborted) {
@@ -95,19 +87,19 @@ export default function AddressAutocomplete({
     setErrorMessage(null)
 
     try {
-      const detail = await getAddressDetail(suggestion.placeId)
-      onSelect(detail)
+      const fallbackDetail = addressDetailFromSuggestion(suggestion)
+      const detail = await getAddressDetail(suggestion.placeId, { suggestion })
+      onSelect({
+        ...fallbackDetail,
+        ...detail,
+        formattedAddress: detail.formattedAddress || fallbackDetail.formattedAddress,
+        provider: detail.provider || fallbackDetail.provider,
+      })
       setSuggestions([])
     } catch (error) {
-      const fallbackDetail = import.meta.env.DEV ? getDevelopmentAddressDetail(suggestion.placeId) : null
-
-      if (fallbackDetail) {
-        onSelect(fallbackDetail)
-        setSuggestions([])
-        setErrorMessage('Address detail API loi, dang dung detail dev.')
-      } else {
-        setErrorMessage(error instanceof Error ? error.message : 'Khong the lay chi tiet dia chi')
-      }
+      onSelect(addressDetailFromSuggestion(suggestion))
+      setSuggestions([])
+      setErrorMessage(error instanceof Error ? error.message : 'Khong the lay chi tiet dia chi')
     } finally {
       setResolvingPlaceId(null)
     }
@@ -157,7 +149,7 @@ export default function AddressAutocomplete({
             </div>
           ) : null}
 
-          <p className="address-suggestion-provider">{errorMessage ? 'Development fallback' : 'Powered by Google'}</p>
+          <p className="address-suggestion-provider">Powered by VietMap</p>
         </div>
       ) : null}
     </div>

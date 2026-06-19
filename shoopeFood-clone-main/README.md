@@ -91,3 +91,20 @@ Nếu không muốn mở Android Studio, bạn có thể build và cài đặt t
 
 ---
 **💡 Mẹo Testing**: Bộ dữ liệu tự động (Seed Data) đã tạo sẵn rất nhiều tài khoản thực tế (Customer, Driver, Merchant, Admin). Tất cả tài khoản mẫu đều dùng chung mật khẩu là `123`. Bạn có thể dùng luôn các tài khoản này để đăng nhập và thử nghiệm các luồng (đặt đơn, nhận đơn, giao hàng) trên Web và Mobile nhé!
+---
+
+## Address Autocomplete Provider
+
+Address suggestions are served by the backend at:
+
+- `GET /api/addresses/suggest?q=...`
+- `GET /api/addresses/detail/:placeId`
+
+The default provider is VietMap. Configure `grab-food-monolith/.env` with:
+
+```env
+ADDRESS_PROVIDER=vietmap
+VIETMAP_API_KEY=your_vietmap_key_here
+```
+
+If `VIETMAP_API_KEY` is missing, the backend logs a warning and falls back to the small mock provider for development. The frontend never calls VietMap directly and never stores the API key.

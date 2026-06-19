@@ -1,5 +1,88 @@
-const googlePlaceProvider = require("./providers/google-place.provider");
 const normalizeAddress = require("./utils/normalize-address");
+const vietmapProvider = require("./providers/vietmap.provider");
+const mockAddressProvider = require("./providers/mock-address.provider");
+
+const suggestionCache = new Map();
+const MAX_CACHE_SIZE = 250;
+
+const getConfiguredProvider = () => {
+  const providerName = String(process.env.ADDRESS_PROVIDER || "vietmap").toLowerCase();
+
+  if (providerName === "mock") {
+    return mockAddressProvider;
+  }
+
+  return vietmapProvider;
+};
+
+const rememberSuggestions = (suggestions) => {
+  suggestions.forEach((suggestion) => {
+    if (!suggestion?.placeId) {
+      return;
+    }
+
+    suggestionCache.set(suggestion.placeId, suggestion);
+  });
+
+  while (suggestionCache.size > MAX_CACHE_SIZE) {
+    const firstKey = suggestionCache.keys().next().value;
+    suggestionCache.delete(firstKey);
+  }
+};
+
+const isMissingVietMapApiKey = (error) => error?.code === "VIETMAP_API_KEY_MISSING";
+
+const warnProviderFailure = (operation, error) => {
+  console.warn(`[address] VietMap ${operation} failed: ${error.message}`);
+};
+
+const warnMissingVietMapApiKey = () => {
+  console.warn("VIETMAP_API_KEY is not configured. Using mock address provider.");
+};
+
+const toEmptyDetail = (placeId) => ({
+  placeId: String(placeId || ""),
+  formattedAddress: "",
+  latitude: null,
+  longitude: null,
+  ...normalizeAddress(""),
+  provider: "vietmap",
+  raw: {},
+});
+
+const toNullableNumber = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+};
+
+const suggestionToDetail = (suggestion) => ({
+  placeId: suggestion.placeId,
+  formattedAddress: suggestion.description || "",
+  latitude: toNullableNumber(suggestion.latitude),
+  longitude: toNullableNumber(suggestion.longitude),
+  ...normalizeAddress(suggestion.raw || suggestion.raw?.properties || suggestion.description || ""),
+  provider: suggestion.provider || "vietmap",
+  raw: suggestion.raw || {},
+});
+
+const queryToSuggestion = (placeId, query = {}) => {
+  if (!query.description) {
+    return null;
+  }
+
+  return {
+    placeId,
+    description: String(query.description || ""),
+    latitude: toNullableNumber(query.latitude),
+    longitude: toNullableNumber(query.longitude),
+    provider: query.provider || "vietmap",
+    raw: {},
+  };
+};
 
 const suggestAddresses = async (keyword) => {
   const q = String(keyword || "").trim();
@@ -8,23 +91,69 @@ const suggestAddresses = async (keyword) => {
     return [];
   }
 
-  return googlePlaceProvider.suggest(q);
+  const provider = getConfiguredProvider();
+
+  try {
+    const suggestions = await provider.suggest(q);
+    rememberSuggestions(suggestions);
+    return suggestions;
+  } catch (error) {
+    if (isMissingVietMapApiKey(error)) {
+      warnMissingVietMapApiKey();
+      const fallbackSuggestions = await mockAddressProvider.suggest(q);
+      rememberSuggestions(fallbackSuggestions);
+      return fallbackSuggestions;
+    }
+
+    warnProviderFailure("suggest", error);
+    return [];
+  }
 };
 
-const getAddressDetail = async (placeId) => {
-  const place = await googlePlaceProvider.getDetail(placeId);
-  const normalizedAddress = normalizeAddress(place.addressComponents || []);
-  const latitude = Number(place.location?.latitude);
-  const longitude = Number(place.location?.longitude);
+const getAddressDetail = async (placeId, fallbackQuery = {}) => {
+  const id = String(placeId || "").trim();
 
-  return {
-    placeId: place.id || String(placeId || ""),
-    name: place.displayName?.text || place.name || "",
-    formattedAddress: place.formattedAddress || "",
-    latitude: Number.isFinite(latitude) ? latitude : null,
-    longitude: Number.isFinite(longitude) ? longitude : null,
-    ...normalizedAddress,
-  };
+  if (!id) {
+    return toEmptyDetail(id);
+  }
+
+  const provider = getConfiguredProvider();
+
+  try {
+    const detail = await provider.getDetail(id);
+    if (detail) {
+      return detail;
+    }
+  } catch (error) {
+    if (isMissingVietMapApiKey(error)) {
+      warnMissingVietMapApiKey();
+      const fallbackDetail = await mockAddressProvider.getDetail(id);
+      if (fallbackDetail) {
+        return fallbackDetail;
+      }
+    } else {
+      warnProviderFailure("detail", error);
+    }
+  }
+
+  if (provider === mockAddressProvider) {
+    const fallbackDetail = await mockAddressProvider.getDetail(id);
+    if (fallbackDetail) {
+      return fallbackDetail;
+    }
+  }
+
+  const cachedSuggestion = suggestionCache.get(id);
+  if (cachedSuggestion) {
+    return suggestionToDetail(cachedSuggestion);
+  }
+
+  const fallbackSuggestion = queryToSuggestion(id, fallbackQuery);
+  if (fallbackSuggestion) {
+    return suggestionToDetail(fallbackSuggestion);
+  }
+
+  return toEmptyDetail(id);
 };
 
 module.exports = {

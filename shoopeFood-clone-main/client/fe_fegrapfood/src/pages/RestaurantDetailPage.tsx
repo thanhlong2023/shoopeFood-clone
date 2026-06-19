@@ -93,6 +93,15 @@ function isValidCoordinate(latitude: number, longitude: number) {
   )
 }
 
+function toNullableCoordinate(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
+}
+
 function isFoodInStock(food: Food) {
   return food.isAvailable && Number(food.currentQuantity || 0) > 0
 }
@@ -285,13 +294,13 @@ export default function RestaurantDetailPage() {
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0)
 
   useEffect(() => {
-    const receiverLat = Number(checkout.receiverLat)
-    const receiverLng = Number(checkout.receiverLng)
+    const receiverLat = toNullableCoordinate(checkout.receiverLat)
+    const receiverLng = toNullableCoordinate(checkout.receiverLng)
 
     if (
       !restaurant ||
-      !Number.isFinite(receiverLat) ||
-      !Number.isFinite(receiverLng) ||
+      receiverLat === null ||
+      receiverLng === null ||
       !Number.isFinite(Number(restaurant.latitude)) ||
       !Number.isFinite(Number(restaurant.longitude))
     ) {
@@ -333,9 +342,9 @@ export default function RestaurantDetailPage() {
   }
 
   function selectDeliveryAddress(address: AddressDetail) {
-    const receiverLat = Number(address.latitude)
-    const receiverLng = Number(address.longitude)
-    const hasValidCoordinates = isValidCoordinate(receiverLat, receiverLng)
+    const receiverLat = toNullableCoordinate(address.latitude)
+    const receiverLng = toNullableCoordinate(address.longitude)
+    const hasValidCoordinates = receiverLat !== null && receiverLng !== null && isValidCoordinate(receiverLat, receiverLng)
     const nextDistance =
       restaurant && hasValidCoordinates
         ? calculateDistanceKm(restaurant.latitude, restaurant.longitude, receiverLat, receiverLng)
@@ -396,7 +405,10 @@ export default function RestaurantDetailPage() {
     if (cartItems.length === 0) return 'Gio hang dang trong'
     if (!checkout.receiverAddress.trim()) return 'Vui long nhap dia chi giao hang'
     if (!isDeliveryAddressConfirmed) return 'Vui long chon dia chi giao hang tu danh sach goi y'
-    if (!isValidCoordinate(Number(checkout.receiverLat), Number(checkout.receiverLng))) {
+    const receiverLat = toNullableCoordinate(checkout.receiverLat)
+    const receiverLng = toNullableCoordinate(checkout.receiverLng)
+
+    if (receiverLat === null || receiverLng === null || !isValidCoordinate(receiverLat, receiverLng)) {
       return 'Toa do giao hang khong hop le'
     }
     if (!Number.isFinite(Number(checkout.distanceKm)) || Number(checkout.distanceKm) <= 0) {

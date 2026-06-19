@@ -123,11 +123,14 @@ export type AddressSuggestion = {
   description: string
   mainText: string
   secondaryText: string
+  latitude: number | null
+  longitude: number | null
+  provider: string
+  raw?: unknown
 }
 
 export type AddressDetail = {
   placeId: string
-  name: string
   formattedAddress: string
   latitude: number | null
   longitude: number | null
@@ -136,6 +139,9 @@ export type AddressDetail = {
   ward: string
   street: string
   houseNumber: string
+  name?: string
+  provider: string
+  raw?: unknown
 }
 
 export type OrderItem = {
