@@ -137,6 +137,7 @@ const resourceConfigs: ResourceConfig[] = [
       { key: 'currentQuantity', label: 'Số lượng hiện tại', type: 'number', defaultValue: 20 },
       { key: 'isAvailable', label: 'Đang bán', type: 'checkbox', defaultValue: true },
     ],
+    canCreate: false,
   },
   {
     name: 'category-manager',
@@ -382,61 +383,63 @@ function AdminResourcePanel({ config }: AdminResourcePanelProps) {
         </div>
       </section>
 
-      <aside className="admin-form-panel">
-        <div className="driver-control-head">
-          <span>{editingRecord ? `Edit #${editingRecord.id}` : 'Create'}</span>
-          <h2>{config.title}</h2>
-          <p>{canCreate || editingRecord ? 'Nhập thông tin và lưu vào backend.' : 'Resource nay chỉ cập nhật bản ghi có sẵn.'}</p>
-        </div>
-
-        <form className="admin-form" onSubmit={handleSubmit}>
-          {config.fields.map((field) => (
-            <label key={field.key} className={field.type === 'checkbox' ? 'restaurant-checkbox' : 'restaurant-field'}>
-              {field.type === 'checkbox' ? (
-                <>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(form[field.key])}
-                    onChange={(event) => setForm((current) => ({ ...current, [field.key]: event.target.checked }))}
-                  />
-                  <span>{field.label}</span>
-                </>
-              ) : (
-                <>
-                  <span>{field.label}</span>
-                  {field.type === 'select' ? (
-                    <select
-                      value={String(form[field.key] ?? '')}
-                      onChange={(event) => setForm((current) => ({ ...current, [field.key]: event.target.value }))}
-                    >
-                      {(field.options || []).map((option) => (
-                        <option key={option} value={option}>
-                          {field.key === 'role' ? ROLE_LABELS[option] || option : option}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type={field.type === 'number' ? 'number' : 'text'}
-                      value={String(form[field.key] ?? '')}
-                      onChange={(event) => setForm((current) => ({ ...current, [field.key]: event.target.value }))}
-                    />
-                  )}
-                </>
-              )}
-            </label>
-          ))}
-
-          <div className="restaurant-form-actions">
-            <button type="submit" className="button-primary" disabled={isSaving || (!canCreate && !editingRecord)}>
-              {isSaving ? 'Đang lưu...' : editingRecord ? 'Lưu thay đổi' : 'Tạo mới'}
-            </button>
-            <button type="button" className="button-secondary" onClick={resetForm}>
-              Xóa
-            </button>
+      {(canCreate || editingRecord) && (
+        <aside className="admin-form-panel">
+          <div className="driver-control-head">
+            <span>{editingRecord ? `Edit #${editingRecord.id}` : 'Create'}</span>
+            <h2>{config.title}</h2>
+            <p>{canCreate || editingRecord ? 'Nhập thông tin và lưu vào backend.' : 'Resource nay chỉ cập nhật bản ghi có sẵn.'}</p>
           </div>
-        </form>
-      </aside>
+
+          <form className="admin-form" onSubmit={handleSubmit}>
+            {config.fields.map((field) => (
+              <label key={field.key} className={field.type === 'checkbox' ? 'restaurant-checkbox' : 'restaurant-field'}>
+                {field.type === 'checkbox' ? (
+                  <>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(form[field.key])}
+                      onChange={(event) => setForm((current) => ({ ...current, [field.key]: event.target.checked }))}
+                    />
+                    <span>{field.label}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{field.label}</span>
+                    {field.type === 'select' ? (
+                      <select
+                        value={String(form[field.key] ?? '')}
+                        onChange={(event) => setForm((current) => ({ ...current, [field.key]: event.target.value }))}
+                      >
+                        {(field.options || []).map((option) => (
+                          <option key={option} value={option}>
+                            {field.key === 'role' ? ROLE_LABELS[option] || option : option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type === 'number' ? 'number' : 'text'}
+                        value={String(form[field.key] ?? '')}
+                        onChange={(event) => setForm((current) => ({ ...current, [field.key]: event.target.value }))}
+                      />
+                    )}
+                  </>
+                )}
+              </label>
+            ))}
+
+            <div className="restaurant-form-actions">
+              <button type="submit" className="button-primary" disabled={isSaving || (!canCreate && !editingRecord)}>
+                {isSaving ? 'Đang lưu...' : editingRecord ? 'Lưu thay đổi' : 'Tạo mới'}
+              </button>
+              <button type="button" className="button-secondary" onClick={resetForm}>
+                Hủy
+              </button>
+            </div>
+          </form>
+        </aside>
+      )}
     </div>
   )
 }
@@ -840,31 +843,6 @@ function MenuManagerPanel() {
                       {food.currentQuantity}/{food.defaultQuantity} món
                     </span>
                   </div>
-                  <div className="admin-actions">
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() => {
-                        const category = food.categoryId ? categoryById.get(food.categoryId) : null
-                        setFoodForm({
-                          id: food.id,
-                          name: food.name,
-                          imageUrl: food.imageUrl ?? '',
-                          price: String(food.price),
-                          restaurantId: category ? String(category.restaurantId) : '',
-                          categoryId: food.categoryId ? String(food.categoryId) : '',
-                          defaultQuantity: String(food.defaultQuantity),
-                          currentQuantity: String(food.currentQuantity),
-                          isAvailable: food.isAvailable,
-                        })
-                      }}
-                    >
-                      Sửa
-                    </button>
-                    <button type="button" className="button-danger" onClick={() => void handleDeleteFood(food)}>
-                      Xóa
-                    </button>
-                  </div>
                 </article>
               )
             })}
@@ -873,179 +851,6 @@ function MenuManagerPanel() {
           {!isLoading && foods.length === 0 ? <p className="empty-state">Không có món phù hợp với bộ lọc.</p> : null}
         </section>
 
-        <aside className="menu-editor-stack">
-          <section className="admin-form-panel">
-            <div className="driver-control-head">
-              <span>{foodForm.id ? `Sửa món #${foodForm.id}` : 'Tạo món'}</span>
-              <h2>Form thêm/sửa món</h2>
-              <p>Gửi trực tiếp vào POST/PUT /api/foods.</p>
-            </div>
-            <form className="admin-form" noValidate onSubmit={(event) => void handleFoodSubmit(event)}>
-              <label className="restaurant-field">
-                <span>Tên món</span>
-                <input value={foodForm.name} onChange={(event) => updateFoodFormField('name', event.target.value)} />
-                {foodFormErrors.name ? <p className="field-error">{foodFormErrors.name}</p> : null}
-              </label>
-              <ImageUrlField
-                id="adminFoodImageUrl"
-                label="Link hình ảnh món"
-                value={foodForm.imageUrl}
-                onChange={(value) => updateFoodFormField('imageUrl', value)}
-              />
-              <label className="restaurant-field">
-                <span>Giá</span>
-                <input
-                  type="number"
-                  value={foodForm.price}
-                  onChange={(event) => updateFoodFormField('price', event.target.value)}
-                />
-                {foodFormErrors.price ? <p className="field-error">{foodFormErrors.price}</p> : null}
-              </label>
-              <label className="restaurant-field">
-                <span>Nhà hàng</span>
-                <select
-                  value={foodForm.restaurantId}
-                  onChange={(event) => {
-                    updateFoodFormField('restaurantId', event.target.value)
-                    updateFoodFormField('categoryId', '')
-                  }}
-                >
-                  <option value="">Chọn nhà hàng</option>
-                  {restaurants.map((restaurant) => (
-                    <option key={restaurant.id} value={restaurant.id}>
-                      #{restaurant.id} - {restaurant.name}
-                    </option>
-                  ))}
-                </select>
-                {foodFormErrors.restaurantId ? <p className="field-error">{foodFormErrors.restaurantId}</p> : null}
-              </label>
-              <label className="restaurant-field">
-                <span>Danh mục</span>
-                <select value={foodForm.categoryId} onChange={(event) => updateFoodFormField('categoryId', event.target.value)}>
-                  <option value="">{foodForm.restaurantId ? 'Chọn danh mục' : 'Chọn nhà hàng để hiển thị danh mục'}</option>
-                  {categoryOptions.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      #{category.id} - {category.name}
-                    </option>
-                  ))}
-                </select>
-                {foodFormErrors.categoryId ? <p className="field-error">{foodFormErrors.categoryId}</p> : null}
-              </label>
-              <div className="menu-form-note">
-                {foodForm.restaurantId === '' ? (
-                  <p>Chọn nhà hàng trước khi tạo món ăn.</p>
-                ) : categoryOptions.length === 0 ? (
-                  <p>Danh mục chưa có cho nhà hàng đã chọn.</p>
-                ) : null}
-              </div>
-              <div className="checkout-grid">
-                <label className="restaurant-field">
-                  <span>Số lượng mặc định</span>
-                  <input
-                    type="number"
-                    value={foodForm.defaultQuantity}
-                    onChange={(event) => updateFoodFormField('defaultQuantity', event.target.value)}
-                  />
-                  {foodFormErrors.defaultQuantity ? <p className="field-error">{foodFormErrors.defaultQuantity}</p> : null}
-                </label>
-                <label className="restaurant-field">
-                  <span>Số lượng hiện tại</span>
-                  <input
-                    type="number"
-                    value={foodForm.currentQuantity}
-                    onChange={(event) => updateFoodFormField('currentQuantity', event.target.value)}
-                  />
-                  {foodFormErrors.currentQuantity ? <p className="field-error">{foodFormErrors.currentQuantity}</p> : null}
-                </label>
-              </div>
-              <label className="restaurant-checkbox">
-                <input
-                  type="checkbox"
-                  checked={foodForm.isAvailable}
-                  onChange={(event) => updateFoodFormField('isAvailable', event.target.checked)}
-                />
-                <span>Đang bán</span>
-              </label>
-              <div className="restaurant-form-actions">
-                <button type="submit" className="button-primary" disabled={isSavingFood || !canSubmitFood}>
-                  {isSavingFood ? 'Đang lưu...' : foodForm.id ? 'Lưu món ăn' : 'Tạo món ăn'}
-                </button>
-                <button type="button" className="button-secondary" onClick={resetFoodForm}>
-                  Làm mới
-                </button>
-              </div>
-            </form>
-          </section>
-
-          <section className="admin-form-panel">
-            <div className="driver-control-head">
-              <span>{categoryForm.id ? `Sửa danh mục #${categoryForm.id}` : 'Tạo danh mục'}</span>
-              <h2>Danh mục</h2>
-              <p>Tạo danh mục cho từng nhà hàng.</p>
-            </div>
-            <form className="admin-form" noValidate onSubmit={(event) => void handleCategorySubmit(event)}>
-              <label className="restaurant-field">
-                <span>Nhà hàng</span>
-                <select
-                  value={categoryForm.restaurantId}
-                  onChange={(event) => {
-                    setCategoryForm((current) => ({ ...current, restaurantId: event.target.value }))
-                    setCategoryFormErrors((current) => ({ ...current, restaurantId: undefined }))
-                  }}
-                >
-                  <option value="">Chọn nhà hàng</option>
-                  {restaurants.map((restaurant) => (
-                    <option key={restaurant.id} value={restaurant.id}>
-                      #{restaurant.id} - {restaurant.name}
-                    </option>
-                  ))}
-                </select>
-                {categoryFormErrors.restaurantId ? <p className="field-error">{categoryFormErrors.restaurantId}</p> : null}
-              </label>
-              <label className="restaurant-field">
-                <span>Tên danh mục</span>
-                <input
-                  value={categoryForm.name}
-                  onChange={(event) => {
-                    setCategoryForm((current) => ({ ...current, name: event.target.value }))
-                    setCategoryFormErrors((current) => ({ ...current, name: undefined }))
-                  }}
-                />
-                {categoryFormErrors.name ? <p className="field-error">{categoryFormErrors.name}</p> : null}
-              </label>
-              <div className="restaurant-form-actions">
-                <button type="submit" className="button-primary" disabled={isSavingCategory}>
-                  {isSavingCategory ? 'Đang lưu...' : categoryForm.id ? 'Lưu danh mục' : 'Tạo danh mục'}
-                </button>
-                <button type="button" className="button-secondary" onClick={resetCategoryForm}>
-                  Làm mới
-                </button>
-              </div>
-            </form>
-
-            <div className="category-mini-list">
-              {visibleCategories.map((category) => (
-                <div key={category.id}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCategoryForm({
-                        id: category.id,
-                        restaurantId: String(category.restaurantId),
-                        name: category.name,
-                      })
-                    }
-                  >
-                    #{category.id} {category.name}
-                  </button>
-                  <button type="button" className="button-danger" onClick={() => void handleDeleteCategory(category)}>
-                    Xóa
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-        </aside>
       </div>
     </div>
   )
@@ -1161,51 +966,57 @@ export default function AdminPage() {
   }
 
   return (
-    <section className="admin-page">
-      <div className="admin-header">
-        <div>
-          <span className="hero-badge">Admin</span>
-          <h1>Quản trị hệ thống GrabFood</h1>
-          <p>{user ? `${user.fullName || user.phone} đang đăng nhập với role ${user.role}` : 'Quản lý dữ liệu hệ thống.'}</p>
+    <section className="admin-layout">
+      <aside className="admin-sidebar">
+        <div className="admin-sidebar-header">
+          <span className="hero-badge">Admin Panel</span>
+          <p>Quản trị hệ thống GrabFood</p>
         </div>
-        <div className="admin-kpis">
+        <div className="admin-tabs-vertical" aria-label="Admin resources">
+          {resourceConfigs.map((resource) => (
+            <button
+              key={resource.name}
+              type="button"
+              className={resource.name === activeResource ? 'active' : ''}
+              onClick={() => selectResource(resource.name)}
+            >
+              {resource.title}
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <main className="admin-content">
+        <div className="admin-header">
           <div>
-            <span>Tổng nhà hàng</span>
-            <strong>{dashboardStats.restaurants}</strong>
+            <h1>Dashboard</h1>
+            <p>{user ? `${user.fullName || user.phone} đang đăng nhập với role ${user.role}` : 'Quản lý dữ liệu hệ thống.'}</p>
           </div>
-          <div>
-            <span>Đơn hôm nay</span>
-            <strong>{dashboardStats.todayOrders}</strong>
-          </div>
-          <div>
-            <span>Doanh thu hôm nay</span>
-            <strong>{formatMoney(dashboardStats.todayRevenue)}</strong>
-          </div>
-          <div>
-            <span>Đơn chờ xử lý</span>
-            <strong>{dashboardStats.waitingOrders}</strong>
-          </div>
-          <div>
-            <span>Tài xế đang hoạt động</span>
-            <strong>{dashboardStats.onlineDrivers}</strong>
+          <div className="admin-kpis">
+            <div>
+              <span>Tổng nhà hàng</span>
+              <strong>{dashboardStats.restaurants}</strong>
+            </div>
+            <div>
+              <span>Đơn hôm nay</span>
+              <strong>{dashboardStats.todayOrders}</strong>
+            </div>
+            <div>
+              <span>Doanh thu hôm nay</span>
+              <strong>{formatMoney(dashboardStats.todayRevenue)}</strong>
+            </div>
+            <div>
+              <span>Đơn chờ xử lý</span>
+              <strong>{dashboardStats.waitingOrders}</strong>
+            </div>
+            <div>
+              <span>Tài xế đang hoạt động</span>
+              <strong>{dashboardStats.onlineDrivers}</strong>
+            </div>
           </div>
         </div>
-      </div>
 
       {dashboardError ? <p className="restaurant-feedback error">{dashboardError}</p> : null}
-
-      <div className="admin-tabs" aria-label="Admin resources">
-        {resourceConfigs.map((resource) => (
-          <button
-            key={resource.name}
-            type="button"
-            className={resource.name === activeResource ? 'active' : ''}
-            onClick={() => selectResource(resource.name)}
-          >
-            {resource.title}
-          </button>
-        ))}
-      </div>
 
       {config.name === 'menu-manager' ? (
         <MenuManagerPanel />
@@ -1218,6 +1029,7 @@ export default function AdminPage() {
       ) : (
         <AdminResourcePanel key={config.name} config={config} />
       )}
+      </main>
     </section>
   )
 }

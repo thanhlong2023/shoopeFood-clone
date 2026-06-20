@@ -9,6 +9,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useLoginForm } from '../hooks/useLoginForm'
 import { getDefaultRedirect } from '../utils/loginPaths'
 import type { UserRole } from '../types'
+import AuthModal from '../components/auth/AuthModal'
 
 type LocationState = {
   from?: string
@@ -63,6 +64,7 @@ export default function LoginPage({ role }: LoginPageProps) {
   const { phone, setPhone, password, setPassword, errors, isValid, handleBlur } = useLoginForm(config.demoPhone)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated && user?.role) {
@@ -125,6 +127,16 @@ export default function LoginPage({ role }: LoginPageProps) {
             error={errors.password}
             className="full-width"
           />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-10px', marginBottom: '10px' }}>
+            <button 
+              type="button" 
+              onClick={() => setIsForgotModalOpen(true)}
+              style={{ background: 'none', border: 'none', color: '#ff7a00', cursor: 'pointer', fontWeight: 600, fontSize: '14px', padding: 0 }}
+            >
+              Quên mật khẩu?
+            </button>
+          </div>
         </div>
 
         <button type="submit" className={`checkout-button ${!isValid ? 'disabled' : ''}`} disabled={isSubmitting || !isValid}>
@@ -139,6 +151,12 @@ export default function LoginPage({ role }: LoginPageProps) {
 
         {role !== 'ADMIN' ? <LoginPortalLinks activeRole={role} /> : null}
       </form>
+
+      <AuthModal 
+        isOpen={isForgotModalOpen} 
+        onClose={() => setIsForgotModalOpen(false)} 
+        initialView="forgot_password" 
+      />
     </section>
   )
 }

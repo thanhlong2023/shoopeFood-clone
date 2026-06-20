@@ -3695,32 +3695,30 @@ img {
 
 .admin-table {
   width: 100%;
-  min-width: 820px;
+  min-width: 1000px;
   border-collapse: collapse;
 }
 
 .admin-table th,
 .admin-table td {
-  max-width: 220px;
-  padding: 11px 10px;
+  padding: 14px 10px;
   border-bottom: 1px solid var(--line);
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .admin-table th {
   color: var(--text-soft);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 900;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .admin-table td {
   color: var(--text);
   font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
 }
 
 .admin-actions {
@@ -4275,4 +4273,86 @@ img {
   font-size: 1.2rem;
   font-weight: 800;
   color: var(--primary);
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.admin-sidebar {
+  position: sticky;
+  top: 24px;
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 20px rgba(18, 35, 24, 0.04);
+}
+
+.admin-sidebar-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-sidebar-header .hero-badge {
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.admin-sidebar-header p {
+  margin: 0;
+  color: var(--text-soft);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.admin-tabs-vertical {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-tabs-vertical button {
+  text-align: left;
+  padding: 12px 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-soft);
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.admin-tabs-vertical button:hover {
+  background: #f1fbf5;
+  color: var(--primary-dark);
+}
+
+.admin-tabs-vertical button.active {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(0, 177, 79, 0.2);
+}
+
+.admin-content {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+  .admin-sidebar {
+    position: relative;
+    top: 0;
+  }
 }

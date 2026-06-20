@@ -4,6 +4,9 @@ const { createAuthToken } = require("../utils/authToken");
 const SUPPORTED_ROLES = new Set(["CUSTOMER", "DRIVER", "MERCHANT", "ADMIN"]);
 const PHONE_REGEX = /^0\d{9,14}$/;
 
+// In-memory OTP storage for forgot password
+const otpCache = new Map();
+
 const normalizeRole = (role) => String(role || "").trim().toUpperCase();
 
 const normalizeAuthUser = (user, selectedRole) => {
@@ -282,6 +285,85 @@ exports.activateRole = async (req, res) => {
         user: normalizeAuthUser(user, accountRole),
       },
     });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const phone = String(req.body.phone || "").trim();
+
+    if (!phone || !PHONE_REGEX.test(phone)) {
+      return res.status(400).json({ message: "Số điện thoại không hợp lệ" });
+    }
+
+    const user = await findUserByPhone(phone);
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy tài khoản với số điện thoại này" });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 3 * 60 * 1000; // 3 minutes expiration
+
+    otpCache.set(phone, { otp, expiresAt });
+
+    // Simulate sending SMS
+    console.log(`\n================================`);
+    console.log(`[MOCK SMS] Yêu cầu khôi phục mật khẩu`);
+    console.log(`Gửi đến số điện thoại: ${phone}`);
+    console.log(`Mã OTP của bạn là: ${otp}`);
+    console.log(`================================\n`);
+
+    return res.json({ message: "Mã OTP đã được gửi" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const phone = String(req.body.phone || "").trim();
+    const otp = String(req.body.otp || "").trim();
+    const newPassword = String(req.body.newPassword || "");
+
+    if (!phone || !otp || !newPassword) {
+      return res.status(400).json({ message: "Vui lòng cung cấp đầy đủ thông tin" });
+    }
+
+    const cachedOtp = otpCache.get(phone);
+
+    if (!cachedOtp) {
+      return res.status(400).json({ message: "Mã OTP không hợp lệ hoặc đã hết hạn" });
+    }
+
+    if (cachedOtp.expiresAt < Date.now()) {
+      otpCache.delete(phone);
+      return res.status(400).json({ message: "Mã OTP đã hết hạn" });
+    }
+
+    if (cachedOtp.otp !== otp) {
+      return res.status(400).json({ message: "Mã OTP không chính xác" });
+    }
+
+    if (newPassword.length < 6 || newPassword.length > 72) {
+      return res.status(400).json({ message: "newPassword must be between 6 and 72 characters" });
+    }
+
+    if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      return res.status(400).json({ message: "newPassword must include letters and numbers" });
+    }
+
+    const user = await findUserByPhone(phone);
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy tài khoản" });
+    }
+
+    await user.update({ password: newPassword });
+    otpCache.delete(phone); // Xóa OTP sau khi sử dụng thành công
+
+    return res.json({ message: "Đổi mật khẩu thành công" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

@@ -131,6 +131,28 @@ export default function Navbar() {
                       <NavLink to="/tracking" className={({ isActive }) => `inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-500'}`}>Theo dõi</NavLink>
                     </li>
                   ) : null}
+                  {isAuthenticated && user?.role === 'CUSTOMER' && (
+                    <>
+                      <li>
+                        <button
+                          type="button"
+                          onClick={() => setDriverOpen(true)}
+                          className="inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline text-gray-500 hover:text-blue-500 hover:bg-blue-50/50 border-0 bg-transparent cursor-pointer transition-all"
+                        >
+                          Trở thành Tài xế
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          type="button"
+                          onClick={() => setMerchantOpen(true)}
+                          className="inline-flex min-h-[34px] items-center justify-center px-4 py-1.5 rounded-full text-xs font-bold no-underline text-gray-500 hover:text-orange-500 hover:bg-orange-50/50 border-0 bg-transparent cursor-pointer transition-all"
+                        >
+                          Trở thành Nhà hàng
+                        </button>
+                      </li>
+                    </>
+                  )}
                 </>
               )}
 

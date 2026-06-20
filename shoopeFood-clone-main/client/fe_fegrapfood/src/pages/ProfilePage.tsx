@@ -9,6 +9,8 @@ import { getMyRestaurants, updateRestaurant } from '../services/api/restaurants'
 import { getRestaurantImageUrl, restaurantThumbStyle } from '../utils/restaurantImage'
 import { getRoleName } from '../utils/formatters'
 import type { Restaurant } from '../types'
+import ApplyDriverModal from '../components/partner/ApplyDriverModal'
+import ApplyMerchantModal from '../components/partner/ApplyMerchantModal'
 
 export default function ProfilePage() {
   useDocumentTitle(`${APP_NAME} | Hồ sơ`)
@@ -21,6 +23,8 @@ export default function ProfilePage() {
   const [imageUrls, setImageUrls] = useState<Record<number, string>>({})
   const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(false)
   const [savingRestaurantId, setSavingRestaurantId] = useState<number | null>(null)
+  const [driverOpen, setDriverOpen] = useState(false)
+  const [merchantOpen, setMerchantOpen] = useState(false)
 
   const [isSaving, setIsSaving] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -321,6 +325,34 @@ export default function ProfilePage() {
           </div>
         </div>
       ) : null}
+
+      {user?.role === 'CUSTOMER' && (
+        <div className="restaurant-form-card">
+          <span className="hero-badge text-green-600 bg-green-50">Đối tác</span>
+          <h2>Trở thành đối tác</h2>
+          <p>Trở thành tài xế giao hàng hoặc đăng ký mở nhà hàng cùng chúng tôi.</p>
+          <div className="flex flex-wrap gap-4 mt-6">
+            <button
+              type="button"
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold border-0 cursor-pointer transition-all shadow-md hover:shadow-lg flex-1 min-w-[200px]"
+              onClick={() => setDriverOpen(true)}
+            >
+              Đăng ký làm Tài xế
+            </button>
+            <button
+              type="button"
+              className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold border-0 cursor-pointer transition-all shadow-md hover:shadow-lg flex-1 min-w-[200px]"
+              onClick={() => setMerchantOpen(true)}
+            >
+              Đăng ký làm Nhà hàng
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Driver/Merchant Registration Modals */}
+      <ApplyDriverModal isOpen={driverOpen} onClose={() => setDriverOpen(false)} />
+      <ApplyMerchantModal isOpen={merchantOpen} onClose={() => setMerchantOpen(false)} />
     </section>
   )
 }

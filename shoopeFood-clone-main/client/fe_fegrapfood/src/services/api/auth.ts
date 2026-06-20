@@ -7,6 +7,12 @@ export type RegisterPayload = {
   password: string
 }
 
+export type ResetPasswordPayload = {
+  phone: string
+  otp: string
+  newPassword: string
+}
+
 export async function login(payload: LoginPayload) {
   const response = await httpPost<ApiResponse<AuthSession>>('/api/auth/login', payload)
   return response.data
@@ -29,6 +35,14 @@ export async function updateProfile(payload: { fullName: string; phone: string }
 
 export async function changePassword(payload: { currentPassword: string; newPassword: string }) {
   return httpPut<{ message: string }>('/api/auth/password', payload)
+}
+
+export async function requestPasswordReset(phone: string) {
+  return httpPost<{ message: string }>('/api/auth/forgot-password', { phone })
+}
+
+export async function resetPassword(payload: ResetPasswordPayload) {
+  return httpPost<{ message: string }>('/api/auth/reset-password', payload)
 }
 
 export async function activateRole(role: AuthUser['role']) {

@@ -279,8 +279,21 @@ export default function RestaurantDetailPage() {
     [cartItems],
   )
   const distanceKm = Number(checkout.distanceKm) || 0
-  const shippingFee = cartItems.length > 0 ? distanceKm * 3500 : 0
-  const discountAmount = cartItems.length > 0 && subtotal >= 100000 ? 15000 : 0
+  const roundedDistance = Math.ceil(distanceKm * 10) / 10
+
+  const shippingPrices = useMemo(() => {
+    const hasCartItems = cartItems.length > 0
+    if (!hasCartItems || distanceKm <= 0) return undefined
+    const standardFee = roundedDistance <= 2 ? 16000 : 16000 + (roundedDistance - 2) * 5000
+    return {
+      STANDARD: standardFee,
+      FAST: standardFee + 5000,
+      ECO: Math.max(12000, standardFee - 4000),
+    }
+  }, [cartItems.length, distanceKm, roundedDistance])
+
+  const shippingFee = shippingPrices ? shippingPrices[checkout.shippingType] : 0
+  const discountAmount = 0
   const totalAmount = Math.max(0, subtotal + shippingFee - discountAmount)
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0)
 
@@ -1102,6 +1115,7 @@ export default function RestaurantDetailPage() {
                             shippingType,
                           }))
                         }
+                        prices={shippingPrices}
                       />
                     </div>
                   </div>

@@ -418,7 +418,7 @@ export default function DriverPage() {
     
     if (polyline.length === 0) return;
 
-    const stateKey = `${activeOrder.id}-${activeOrder.statusCode}`;
+    const stateKey = `${activeOrder.id}-${legKey}`;
     if (simStateRef.current.stateKey !== stateKey) {
       simStateRef.current = {
         stateKey,

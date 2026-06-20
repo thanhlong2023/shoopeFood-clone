@@ -669,7 +669,7 @@ exports.acceptOrder = async (req, res) => {
       }
 
       if (order.driverId && Number(order.driverId) !== driverId) {
-        throw createHttpError(409, "Order has already been accepted by another driver");
+        throw createHttpError(409, "Đơn hàng đã có người nhận");
       }
 
       if (order.driverId && Number(order.driverId) === driverId) {

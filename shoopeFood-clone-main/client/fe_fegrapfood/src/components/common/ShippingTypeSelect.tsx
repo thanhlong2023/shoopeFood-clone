@@ -8,6 +8,7 @@ type ShippingTypeSelectProps = {
   value: ShippingType
   onChange: (value: ShippingType) => void
   compact?: boolean
+  prices?: Record<ShippingType, number>
 }
 
 const shippingOptions: Array<{
@@ -57,7 +58,7 @@ function ChevronIcon({ isOpen }: { isOpen: boolean }) {
   )
 }
 
-export default function ShippingTypeSelect({ id, value, onChange, compact = false }: ShippingTypeSelectProps) {
+export default function ShippingTypeSelect({ id, value, onChange, compact = false, prices }: ShippingTypeSelectProps) {
   const generatedId = useId()
   const buttonId = id || generatedId
   const menuId = `${buttonId}-menu`
@@ -103,7 +104,10 @@ export default function ShippingTypeSelect({ id, value, onChange, compact = fals
       >
         <span className="flex min-w-0 items-center gap-2">
           <CheckIcon />
-          <span className="truncate">{selectedOption.label}</span>
+          <span className="truncate">
+            {selectedOption.label}
+            {prices ? ` - ${new Intl.NumberFormat('vi-VN').format(prices[selectedOption.value])} đ` : ''}
+          </span>
         </span>
         <span className="flex h-6 items-center border-l border-white/30 pl-3">
           <ChevronIcon isOpen={isOpen} />
@@ -136,9 +140,16 @@ export default function ShippingTypeSelect({ id, value, onChange, compact = fals
                 <span className="mt-0.5 text-base" aria-hidden="true">
                   {option.icon}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold leading-5">{option.label}</span>
-                  <span className="mt-1 block text-xs font-medium leading-5 text-gray-500">{option.description}</span>
+                <span className="min-w-0 flex-1 flex justify-between items-start gap-4">
+                  <span>
+                    <span className="block text-sm font-bold leading-5">{option.label}</span>
+                    <span className="mt-1 block text-xs font-medium leading-5 text-gray-500">{option.description}</span>
+                  </span>
+                  {prices ? (
+                    <span className="text-sm font-bold whitespace-nowrap text-emerald-700">
+                      {new Intl.NumberFormat('vi-VN').format(prices[option.value])} đ
+                    </span>
+                  ) : null}
                 </span>
                 {isSelected ? <span className="mt-1 text-[#00B14F]"><CheckIcon /></span> : null}
               </button>

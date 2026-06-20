@@ -422,19 +422,19 @@ export default function HomePage() {
   const hasCartItems = cartItems.length > 0
   
   const roundedDistance = Math.ceil(distanceKm * 10) / 10
-  const shippingFee = useMemo(() => {
-    if (!hasCartItems) return 0
+  const shippingPrices = useMemo(() => {
+    if (!hasCartItems || distanceKm <= 0) return undefined
     const standardFee = roundedDistance <= 2 ? 16000 : 16000 + (roundedDistance - 2) * 5000
-    if (checkout.shippingType === 'FAST') {
-      return standardFee + 5000
+    return {
+      STANDARD: standardFee,
+      FAST: standardFee + 5000,
+      ECO: Math.max(12000, standardFee - 4000),
     }
-    if (checkout.shippingType === 'ECO') {
-      return Math.max(12000, standardFee - 4000)
-    }
-    return standardFee
-  }, [hasCartItems, roundedDistance, checkout.shippingType])
+  }, [hasCartItems, distanceKm, roundedDistance])
 
-  const discountAmount = hasCartItems && subtotal >= 100000 ? 15000 : 0
+  const shippingFee = shippingPrices ? shippingPrices[checkout.shippingType] : 0
+
+  const discountAmount = 0
   const totalAmount = Math.max(0, subtotal + shippingFee - discountAmount)
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0)
 
@@ -1144,11 +1144,12 @@ export default function HomePage() {
               <ShippingTypeSelect
                 value={checkout.shippingType}
                 onChange={(shippingType) =>
-                  setCheckout((current) => ({
-                    ...current,
+                  setCheckout((draft) => ({
+                    ...draft,
                     shippingType,
                   }))
                 }
+                prices={shippingPrices}
               />
               <div className="hidden">
                 <select
