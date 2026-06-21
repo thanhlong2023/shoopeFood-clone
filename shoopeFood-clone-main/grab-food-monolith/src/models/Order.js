@@ -22,6 +22,7 @@ const Order = sequelize.define(
     shippingFee: { type: DataTypes.DECIMAL(10, 2), field: "shipping_fee" },
     statusId: { type: DataTypes.INTEGER, allowNull: false, field: "status_id" },
     statusChangedAt: { type: DataTypes.DATE, field: "status_changed_at" },
+    note: { type: DataTypes.TEXT, field: "note" },
     version: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     cancelReason: { type: DataTypes.TEXT, field: "cancel_reason" },
     cancelledByRole: { type: DataTypes.STRING(20), field: "cancelled_by_role" },

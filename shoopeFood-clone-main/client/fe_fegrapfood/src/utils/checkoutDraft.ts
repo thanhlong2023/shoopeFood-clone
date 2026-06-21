@@ -8,6 +8,8 @@ export type CheckoutDraftItem = {
   imageUrl: string | null
   price: number
   quantity: number
+  toppings?: { id: number; quantity: number }[]
+  toppingNames?: string
   lineTotal: number
 }
 
@@ -15,6 +17,7 @@ export type CheckoutDraft = {
   id: string
   createdAt: string
   idempotencyKey: string
+  note?: string
   restaurant: Pick<Restaurant, 'id' | 'name' | 'address' | 'imageUrl' | 'ratingAvg'>
   receiver: {
     address: string
@@ -86,9 +89,11 @@ export function buildCreateOrderPayloadFromDraft(draft: CheckoutDraft): CreateOr
     discountAmount: draft.pricing.discountAmount,
     taxAmount: draft.pricing.taxAmount,
     idempotencyKey: draft.idempotencyKey,
+    note: draft.note,
     items: draft.items.map((item) => ({
       foodId: item.foodId,
       quantity: item.quantity,
+      toppings: item.toppings,
     })),
   }
 }

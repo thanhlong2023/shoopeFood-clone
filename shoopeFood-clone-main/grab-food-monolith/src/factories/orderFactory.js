@@ -38,6 +38,7 @@ class OrderFactory {
       discountAmount: Number(input.discountAmount),
       statusId: Number(input.statusId),
       statusChangedAt: input.statusChangedAt || new Date(),
+      note: input.note ? String(input.note).trim() : null,
       version: 0,
     };
   }

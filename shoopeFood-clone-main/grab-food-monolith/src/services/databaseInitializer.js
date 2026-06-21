@@ -111,6 +111,62 @@ const ensureFoodQuantityColumns = async () => {
       allowNull: true,
     });
   }
+
+  if (!hasColumn(columns, "deleted_at")) {
+    await queryInterface.addColumn("food_items", "deleted_at", {
+      type: DataTypes.DATE,
+      allowNull: true,
+    });
+  }
+};
+
+const ensureToppingQuantityColumns = async () => {
+  const queryInterface = sequelize.getQueryInterface();
+  const columns = await queryInterface.describeTable("toppings");
+
+  if (!hasColumn(columns, "default_quantity")) {
+    await queryInterface.addColumn("toppings", "default_quantity", {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    });
+  }
+
+  if (!hasColumn(columns, "current_quantity")) {
+    await queryInterface.addColumn("toppings", "current_quantity", {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    });
+  }
+
+  if (!hasColumn(columns, "quantity_reset_date")) {
+    await queryInterface.addColumn("toppings", "quantity_reset_date", {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    });
+  }
+
+  if (!hasColumn(columns, "start_date")) {
+    await queryInterface.addColumn("toppings", "start_date", {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    });
+  }
+
+  if (!hasColumn(columns, "end_date")) {
+    await queryInterface.addColumn("toppings", "end_date", {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    });
+  }
+
+  if (!hasColumn(columns, "deleted_at")) {
+    await queryInterface.addColumn("toppings", "deleted_at", {
+      type: DataTypes.DATE,
+      allowNull: true,
+    });
+  }
 };
 
 const ensureUsersCreatedAtColumn = async () => {
@@ -402,12 +458,25 @@ const ensureDemoRoleAssignments = async () => {
   }
 };
 
+const ensureOrderNoteColumn = async () => {
+  const queryInterface = sequelize.getQueryInterface();
+  const columns = await queryInterface.describeTable("orders");
+
+  if (!hasColumn(columns, "note")) {
+    await queryInterface.addColumn("orders", "note", {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    });
+  }
+};
+
 const initializeDatabase = async () => {
   await ensureDatabaseExists();
   await sequelize.authenticate();
   await ensureDriverLocationTrackingColumnsBeforeSync();
   await sequelize.sync();
   await ensureFoodQuantityColumns();
+  await ensureToppingQuantityColumns();
   await ensureFoodImageUrlColumn();
   await ensureUsersCreatedAtColumn();
   await ensureDriverLocationTrackingColumns();
@@ -418,9 +487,11 @@ const initializeDatabase = async () => {
   await ensureOrderIdempotencyUniqueIndex();
   await ensureOrderCancellationColumns();
   await ensureOrderStatusChangedAtColumn();
+  await ensureOrderNoteColumn();
   await ensureSingleRolePerUser();
   await ensureDemoRoleAssignments();
   await Food.resetExpiredDailyQuantities();
+  await require("../models/Topping").resetExpiredDailyQuantities();
   await seedService.seedIfEmpty();
 };
 
@@ -428,6 +499,7 @@ module.exports = {
   initializeDatabase,
   ensureDatabaseExists,
   ensureFoodQuantityColumns,
+  ensureToppingQuantityColumns,
   ensureUsersCreatedAtColumn,
   ensureDriverLocationTrackingColumns,
   backfillDriverLocationGeohashes,

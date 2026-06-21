@@ -766,6 +766,13 @@ export default function DriverPage() {
                   <strong>{statusText(activeOrder)}</strong>
                 </div>
 
+                {activeOrder.note && (
+                  <div className="mt-4 mx-4 p-3 bg-orange-50 border border-orange-100 rounded-xl">
+                    <span className="block text-[10px] font-bold text-orange-800 uppercase tracking-wider mb-1">Ghi chú từ khách</span>
+                    <p className="text-orange-900 text-sm font-medium">{activeOrder.note}</p>
+                  </div>
+                )}
+
                 <div className="tracking-items">
                   <h2>Món cần lấy</h2>
                   {(activeOrder.items || []).length > 0 ? (

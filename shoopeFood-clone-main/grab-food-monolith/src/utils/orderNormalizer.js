@@ -13,7 +13,17 @@ const normalizeOrderItem = (item) => ({
   imageUrl: item.food ? item.food.imageUrl : null,
   quantity: Number(item.quantity || 0),
   priceAtOrder: Number(item.priceAtOrder || 0),
-  lineTotal: Number(item.quantity || 0) * Number(item.priceAtOrder || 0),
+  lineTotal: Number(item.quantity || 0) * (
+    Number(item.priceAtOrder || 0) + 
+    (item.toppings ? item.toppings.reduce((sum, t) => sum + Number(t.priceAtOrder || 0) * Number(t.quantity || 1), 0) : 0)
+  ),
+  toppings: item.toppings ? item.toppings.map(t => ({
+    id: t.id,
+    toppingId: t.toppingId,
+    toppingName: t.toppingName,
+    priceAtOrder: Number(t.priceAtOrder || 0),
+    quantity: Number(t.quantity || 1),
+  })) : [],
 });
 
 const normalizeRestaurantSummary = (item) => {
@@ -102,9 +112,10 @@ const normalizeOrder = (item) => {
     subtotalAmount: Number(item.subtotalAmount || 0),
     taxAmount: Number(item.taxAmount || 0),
     discountAmount: Number(item.discountAmount || 0),
-    totalAmount: Number(item.totalAmount || 0),
     shippingFee: Number(item.shippingFee || 0),
+    totalAmount: Number(item.totalAmount || 0),
     cashToCollect: resolveCashToCollect(item),
+    note: item.note || null,
     statusId: item.statusId,
     statusCode: item.statusInfo ? item.statusInfo.code : null,
     status: item.statusInfo ? item.statusInfo.code : null,

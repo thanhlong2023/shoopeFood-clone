@@ -391,6 +391,11 @@ export default function MerchantOrdersPage() {
                       <p className="order-meta-text address-text" title={order.receiverAddress}>
                         Giao đến: {order.receiverAddress}
                       </p>
+                      {order.note && (
+                        <p className="order-meta-text text-orange-600 font-medium">
+                          Ghi chú: {order.note}
+                        </p>
+                      )}
                     </div>
 
                     <div className="card-bottom-zone">

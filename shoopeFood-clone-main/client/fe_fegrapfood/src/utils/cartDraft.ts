@@ -1,6 +1,12 @@
 export const CART_DRAFT_STORAGE_KEY = 'grabfood.cartDraft'
 
-export type CartState = Record<number, number>
+export type CartItemDraft = {
+  foodId: number
+  quantity: number
+  toppings: { id: number; quantity: number }[]
+}
+
+export type CartState = Record<string, CartItemDraft>
 
 export type CartDraft = {
   restaurantId: number | null
@@ -20,9 +26,24 @@ export function getCartDraft(): CartDraft | null {
   if (!raw) return null
 
   try {
-    const parsed = JSON.parse(raw) as CartDraft
+    const parsed = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null) return null
-    return parsed
+
+    // Migrate old format Record<number, number> to Record<string, CartItemDraft>
+    const migratedCart: CartState = {}
+    if (parsed.cart && typeof parsed.cart === 'object') {
+      for (const [key, val] of Object.entries(parsed.cart)) {
+        if (typeof val === 'number') {
+          // Old format
+          const foodId = Number(key)
+          migratedCart[String(foodId)] = { foodId, quantity: val, toppings: [] }
+        } else {
+          // New format
+          migratedCart[key] = val as CartItemDraft
+        }
+      }
+    }
+    return { restaurantId: parsed.restaurantId, cart: migratedCart } as CartDraft
   } catch {
     return null
   }

@@ -10,6 +10,7 @@ const paymentRoutes = require("./paymentRoutes");
 const applicationRoutes = require("./applicationRoutes");
 const reviewRoutes = require("./reviewRoutes");
 const addressRoutes = require("../modules/address/address.route");
+const toppingRoutes = require("./toppingRoutes");
 
 
 const router = express.Router();
@@ -45,6 +46,7 @@ router.use("/api/payments", paymentRoutes);
 router.use("/api/applications", applicationRoutes);
 router.use("/api/reviews", reviewRoutes);
 router.use("/api/addresses", addressRoutes);
+router.use("/api", toppingRoutes); // toppingRoutes handles /restaurants/:id/toppings, /toppings/:id, /foods/:id/toppings
 
 
 module.exports = router;

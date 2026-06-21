@@ -1,4 +1,4 @@
-const { Order, User, OrderStatus, Payment, OrderItem, Food, Restaurant, DriverDetail } = require("../models");
+const { Order, User, OrderStatus, Payment, OrderItem, Food, Restaurant, DriverDetail, OrderItemTopping } = require("../models");
 
 const orderIncludes = [
   { model: User, as: "customerUser", attributes: ["id", "fullName", "phone"] },
@@ -21,7 +21,14 @@ const orderIncludes = [
     model: OrderItem,
     as: "items",
     attributes: ["id", "orderId", "foodId", "foodName", "quantity", "priceAtOrder"],
-    include: [{ model: Food, as: "food", attributes: ["id", "name", "price", "imageUrl"] }],
+    include: [
+      { model: Food, as: "food", attributes: ["id", "name", "price", "imageUrl"] },
+      { 
+        model: OrderItemTopping, 
+        as: "toppings",
+        attributes: ["id", "toppingId", "toppingName", "priceAtOrder", "quantity"]
+      }
+    ],
   },
 ];
 

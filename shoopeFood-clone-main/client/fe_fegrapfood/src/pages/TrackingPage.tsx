@@ -1039,6 +1039,13 @@ export default function TrackingPage() {
             </div>
           </div>
 
+          {tracking?.order.note && (
+            <div className="order-note-section mt-4 p-4 bg-orange-50 border border-orange-100 rounded-2xl">
+              <span className="block text-xs font-bold text-orange-800 uppercase tracking-wider mb-1">Ghi chú cho nhà hàng</span>
+              <p className="text-orange-900 text-sm font-medium">{tracking.order.note}</p>
+            </div>
+          )}
+
           {tracking ? (
             <div className="order-price-section mt-6 p-5 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-3">
               <div className="order-price-row flex justify-between text-sm text-gray-600 font-medium">

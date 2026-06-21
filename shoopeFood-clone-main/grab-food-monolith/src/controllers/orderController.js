@@ -13,6 +13,8 @@ const {
   Category,
   OrderItem,
   Review,
+  Topping,
+  OrderItemTopping,
 } = require("../models");
 const orderRepository = require("../repositories/orderRepository");
 const orderFactory = require("../factories/orderFactory");
@@ -53,6 +55,13 @@ const normalizeRequestedOrderItems = (items) => {
   for (const item of items) {
     const foodId = Number(item.foodId);
     const quantity = Number(item.quantity);
+    const toppings = Array.isArray(item.toppings) 
+      ? item.toppings
+          .filter(t => t && Number.isInteger(Number(t.id)) && Number.isInteger(Number(t.quantity)) && Number(t.quantity) > 0)
+          .map(t => ({ id: Number(t.id), quantity: Number(t.quantity) }))
+          .sort((a, b) => a.id - b.id) 
+      : [];
+    const itemKey = `${foodId}-${toppings.map(t => `${t.id}x${t.quantity}`).join(',')}`;
 
     if (!Number.isInteger(foodId) || foodId <= 0) {
       return { error: "items.foodId must be a positive integer" };
@@ -62,12 +71,15 @@ const normalizeRequestedOrderItems = (items) => {
       return { error: "items.quantity must be a positive integer" };
     }
 
-    itemMap.set(foodId, (itemMap.get(foodId) || 0) + quantity);
+    if (!itemMap.has(itemKey)) {
+      itemMap.set(itemKey, { foodId, quantity: 0, toppings });
+    }
+    itemMap.get(itemKey).quantity += quantity;
   }
 
   return {
     hasItems: true,
-    items: Array.from(itemMap.entries()).map(([foodId, quantity]) => ({ foodId, quantity })),
+    items: Array.from(itemMap.values()),
   };
 };
 
@@ -396,7 +408,10 @@ exports.createOrder = async (req, res) => {
 
         for (const requestedItem of requestedItems.items) {
           const food = await Food.findByPk(requestedItem.foodId, {
-            include: [{ model: Category, as: "category", attributes: ["id", "restaurantId"] }],
+            include: [
+              { model: Category, as: "category", attributes: ["id", "restaurantId"] },
+              { model: Topping, as: "toppings", through: { attributes: [] } }
+            ],
             transaction,
             lock: transaction.LOCK.UPDATE,
           });
@@ -414,17 +429,70 @@ exports.createOrder = async (req, res) => {
             throw createHttpError(409, `Đồ ăn không đủ. Món ${food.name} hiện chỉ còn ${availableQuantity} phần.`);
           }
 
+          let itemToppingsCost = 0;
+          const processedToppings = [];
+
+          if (requestedItem.toppings && requestedItem.toppings.length > 0) {
+            const foodToppingIds = new Set((food.toppings || []).map(t => Number(t.id)));
+            const allToppingsMap = new Map((food.toppings || []).map(t => [Number(t.id), t]));
+
+            for (const requestedTopping of requestedItem.toppings) {
+              const toppingId = requestedTopping.id;
+              const toppingQuantity = requestedTopping.quantity;
+              
+              if (!foodToppingIds.has(toppingId)) {
+                throw createHttpError(400, `Topping #${toppingId} is not available for ${food.name}`);
+              }
+              const topping = allToppingsMap.get(toppingId);
+              if (!topping.isAvailable) {
+                throw createHttpError(400, `Topping ${topping.name} is out of stock`);
+              }
+
+              const todayStr = require("../models/Topping").getStockDate();
+              if (topping.startDate && topping.startDate > todayStr) {
+                throw createHttpError(400, `Topping ${topping.name} chưa mở bán.`);
+              }
+              if (topping.endDate && topping.endDate < todayStr) {
+                throw createHttpError(400, `Topping ${topping.name} đã ngừng bán.`);
+              }
+
+              const availableToppingQty = Number(topping.currentQuantity || 0);
+              const requestedTotalToppingQty = toppingQuantity * requestedItem.quantity;
+              if (availableToppingQty < requestedTotalToppingQty) {
+                throw createHttpError(409, `Topping không đủ. ${topping.name} hiện chỉ còn ${availableToppingQty} phần.`);
+              }
+              
+              const toppingPrice = Number(topping.price || 0);
+              itemToppingsCost += toppingPrice * toppingQuantity;
+              processedToppings.push({
+                toppingId: topping.id,
+                toppingName: topping.name,
+                priceAtOrder: toppingPrice,
+                quantity: toppingQuantity,
+                modelInstance: topping, // keep for deduction later
+              });
+            }
+          }
+
           const priceAtOrder = Number(food.price || 0);
-          normalizedSubtotal += priceAtOrder * requestedItem.quantity;
+          normalizedSubtotal += (priceAtOrder + itemToppingsCost) * requestedItem.quantity;
           food.currentQuantity = availableQuantity - requestedItem.quantity;
 
           await food.save({ transaction });
+
+          for (const pt of processedToppings) {
+            const topping = pt.modelInstance;
+            topping.currentQuantity = Number(topping.currentQuantity || 0) - (pt.quantity * requestedItem.quantity);
+            await topping.save({ transaction });
+            delete pt.modelInstance; // clean up before inserting
+          }
 
           preparedOrderItems.push({
             foodId: food.id,
             foodName: food.name,
             quantity: requestedItem.quantity,
             priceAtOrder,
+            toppings: processedToppings,
           });
         }
       }
@@ -454,13 +522,25 @@ exports.createOrder = async (req, res) => {
       const newOrder = await orderRepository.create(orderPayload, { transaction });
 
       if (preparedOrderItems.length > 0) {
-        await OrderItem.bulkCreate(
-          preparedOrderItems.map((item) => ({
-            ...item,
+        for (const item of preparedOrderItems) {
+          const orderItem = await OrderItem.create({
             orderId: newOrder.id,
-          })),
-          { transaction }
-        );
+            foodId: item.foodId,
+            foodName: item.foodName,
+            quantity: item.quantity,
+            priceAtOrder: item.priceAtOrder,
+          }, { transaction });
+
+          if (item.toppings && item.toppings.length > 0) {
+            await OrderItemTopping.bulkCreate(
+              item.toppings.map(t => ({
+                ...t,
+                orderItemId: orderItem.id
+              })),
+              { transaction }
+            );
+          }
+        }
       }
 
       createdOrderId = newOrder.id;

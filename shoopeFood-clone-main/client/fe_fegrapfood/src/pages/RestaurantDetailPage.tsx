@@ -9,18 +9,18 @@ import ImageUrlField from '../components/common/ImageUrlField'
 import AddressAutocomplete from '../components/common/AddressAutocomplete'
 import ShippingTypeSelect from '../components/common/ShippingTypeSelect'
 import { reverseGeocodeAddress } from '../services/api/addresses'
-import { createFood, getFoods, updateFood, type FoodPayload } from '../services/api/foods'
+import { createFood, getFoods, updateFood, deleteFood, type FoodPayload } from '../services/api/foods'
 import { createCategory, getCategories } from '../services/api/categories'
+import { createTopping, updateTopping, deleteTopping, getRestaurantToppings, assignToFood } from '../services/api/toppings'
 import { foodPhotoStyle } from '../utils/foodImage'
 import { restaurantCoverStyle } from '../utils/restaurantImage'
-import { getCartDraft, saveCartDraft } from '../utils/cartDraft'
+import { getCartDraft, saveCartDraft, type CartState } from '../utils/cartDraft'
 import { calculateDistanceKm } from '../utils/geoUtils'
 import { ErrorModal } from '../components/ErrorModal'
 import { setLastOrderId } from '../utils/orderStorage'
 import { saveCheckoutDraft } from '../utils/checkoutDraft'
-import type { AddressDetail, Restaurant, Food, Category, CreateOrderPayload, Order } from '../types'
-
-type CartState = Record<number, number>
+import { ToppingModal } from '../components/common/ToppingModal'
+import type { AddressDetail, Restaurant, Food, Category, CreateOrderPayload, Order, Topping } from '../types'
 
 type CheckoutState = {
   receiverAddress: string
@@ -39,6 +39,7 @@ type FoodFormState = {
   defaultQuantity: string
   currentQuantity: string
   isAvailable: boolean
+  toppingIds: number[]
 }
 
 const emptyFoodForm: FoodFormState = {
@@ -50,6 +51,7 @@ const emptyFoodForm: FoodFormState = {
   defaultQuantity: '0',
   currentQuantity: '0',
   isAvailable: true,
+  toppingIds: [],
 }
 
 const emptyCheckout: CheckoutState = {
@@ -61,6 +63,7 @@ const emptyCheckout: CheckoutState = {
 }
 
 type FoodFormErrors = Partial<Record<'name' | 'price' | 'defaultQuantity' | 'currentQuantity', string>>
+type ToppingFormErrors = Partial<Record<'name' | 'price' | 'defaultQuantity' | 'currentQuantity' | 'startDate' | 'endDate', string>>
 
 function formatTime(timeString: string | null | undefined): string {
   if (!timeString) return '-'
@@ -144,26 +147,33 @@ export default function RestaurantDetailPage() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [foods, setFoods] = useState<Food[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [restaurantToppings, setRestaurantToppings] = useState<Topping[]>([])
   const [foodForm, setFoodForm] = useState<FoodFormState>(emptyFoodForm)
   const [isRestaurantLoading, setIsRestaurantLoading] = useState(true)
   const [isFoodsLoading, setIsFoodsLoading] = useState(false)
   const [isSavingFood, setIsSavingFood] = useState(false)
   const [isSavingCategory, setIsSavingCategory] = useState(false)
+  const [isSavingTopping, setIsSavingTopping] = useState(false)
   const [categoryName, setCategoryName] = useState('')
+  const [toppingForm, setToppingForm] = useState<{ id?: number; name: string; price: string; defaultQuantity: string; currentQuantity: string; startDate: string; endDate: string }>({ name: '', price: '', defaultQuantity: '', currentQuantity: '', startDate: '', endDate: '' })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [menuError, setMenuError] = useState<string | null>(null)
   const [foodErrors, setFoodErrors] = useState<FoodFormErrors>({})
   const [categoryNameError, setCategoryNameError] = useState<string | null>(null)
+  const [toppingErrors, setToppingErrors] = useState<ToppingFormErrors>({})
   const [foodFeedback, setFoodFeedback] = useState<string | null>(null)
   const [categoryFeedback, setCategoryFeedback] = useState<string | null>(null)
+  const [toppingFeedback, setToppingFeedback] = useState<string | null>(null)
   
   const [cart, setCart] = useState<CartState>(() => {
     const draft = getCartDraft()
-    if (draft?.restaurantId === restaurantId) {
+    if (draft?.restaurantId === restaurantId && draft.cart) {
       return draft.cart
     }
     return {}
   })
+
+  const [activeFood, setActiveFood] = useState<Food | null>(null)
 
   useEffect(() => {
     if (Object.keys(cart).length > 0 || getCartDraft()?.restaurantId === restaurantId) {
@@ -194,13 +204,15 @@ export default function RestaurantDetailPage() {
   )
 
   const loadMenu = useCallback(async () => {
-    const [foodsData, categoriesData] = await Promise.all([
+    const [foodsData, categoriesData, toppingsData] = await Promise.all([
       getFoods({ restaurantId }),
       getCategories({ restaurantId }),
+      getRestaurantToppings(restaurantId),
     ])
 
     setFoods(foodsData)
     setCategories(categoriesData)
+    setRestaurantToppings(toppingsData)
   }, [restaurantId])
 
   useEffect(() => {
@@ -266,16 +278,40 @@ export default function RestaurantDetailPage() {
 
   const cartItems = useMemo(
     () =>
-      foods
-        .map((food) => ({
-          food,
-          quantity: cart[food.id] || 0,
-        }))
-        .filter((item) => item.quantity > 0),
+      Object.entries(cart)
+        .map(([key, item]) => {
+          const food = foods.find((f) => f.id === item.foodId)
+          if (!food) return null
+          const today = new Date()
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+          const validToppings = (item.toppings || []).filter(tCart => {
+            const tDef = food.toppings?.find(t => t.id === tCart.id);
+            if (!tDef || !tDef.isAvailable) return false;
+            if (tDef.startDate && tDef.startDate > todayStr) return false;
+            if (tDef.endDate && tDef.endDate < todayStr) return false;
+            return true;
+          })
+          return {
+            key,
+            food,
+            quantity: item.quantity,
+            toppings: validToppings,
+          }
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null && item.quantity > 0),
     [cart, foods],
   )
   const subtotal = useMemo(
-    () => cartItems.reduce((total, item) => total + Number(item.food.price || 0) * item.quantity, 0),
+    () => cartItems.reduce((total, item) => {
+      let toppingTotal = 0;
+      if (item.food.toppings && item.toppings.length > 0) {
+        toppingTotal = item.toppings.reduce((sum, tCart) => {
+          const toppingDef = item.food.toppings?.find(t => t.id === tCart.id);
+          return sum + (toppingDef ? Number(toppingDef.price) * tCart.quantity : 0);
+        }, 0);
+      }
+      return total + (Number(item.food.price || 0) + toppingTotal) * item.quantity;
+    }, 0),
     [cartItems],
   )
   const distanceKm = Number(checkout.distanceKm) || 0
@@ -315,21 +351,45 @@ export default function RestaurantDetailPage() {
     setCheckout((current) => ({ ...current, distanceKm: nextDistance.toFixed(2) }))
   }, [restaurant, checkout.receiverLat, checkout.receiverLng])
 
-  function updateCart(food: Food, nextQuantity: number) {
+  function updateCart(food: Food, nextQuantity: number, toppings: { id: number; quantity: number }[] = [], existingKey?: string) {
     const maxQuantity = Math.max(0, Number(food.currentQuantity || 0))
     const normalizedQuantity = Math.max(0, Math.min(nextQuantity, maxQuantity))
+    const itemKey = existingKey || (toppings.length > 0 ? `${food.id}-${toppings.map(t => `${t.id}x${t.quantity}`).sort().join(',')}` : String(food.id))
 
     setCart((current) => {
       const nextCart = { ...current }
 
       if (normalizedQuantity === 0) {
-        delete nextCart[food.id]
+        delete nextCart[itemKey]
       } else {
-        nextCart[food.id] = normalizedQuantity
+        nextCart[itemKey] = {
+          foodId: food.id,
+          quantity: normalizedQuantity,
+          toppings,
+        }
       }
 
       return nextCart
     })
+  }
+
+  function handleAddFoodClick(food: Food) {
+    if (food.toppings && food.toppings.length > 0) {
+      setActiveFood(food)
+    } else {
+      const currentQuantity = Object.values(cart)
+        .filter(item => item.foodId === food.id)
+        .reduce((sum, item) => sum + item.quantity, 0)
+      
+      updateCart(food, currentQuantity + 1, [])
+    }
+  }
+
+  function handleToppingModalConfirm(food: Food, quantity: number, toppings: { id: number; quantity: number }[]) {
+    const itemKey = toppings.length > 0 ? `${food.id}-${toppings.map(t => `${t.id}x${t.quantity}`).sort().join(',')}` : String(food.id)
+    const existingQuantity = cart[itemKey]?.quantity || 0
+    updateCart(food, existingQuantity + quantity, toppings)
+    setActiveFood(null)
   }
 
   function updateReceiverAddress(value: string) {
@@ -480,14 +540,28 @@ export default function RestaurantDetailPage() {
         taxAmount: 0,
         totalAmount,
       },
-      items: cartItems.map((item) => ({
-        foodId: item.food.id,
-        name: item.food.name,
-        imageUrl: item.food.imageUrl,
-        price: Number(item.food.price),
-        quantity: item.quantity,
-        lineTotal: Number(item.food.price) * item.quantity,
-      })),
+      items: cartItems.map((item) => {
+        const toppingNames = item.toppings
+          .map(tCart => {
+             const tDef = item.food.toppings?.find(t => t.id === tCart.id);
+             return tDef ? `${tDef.name} x${tCart.quantity} (+${formatMoney(Number(tDef.price) * tCart.quantity)} đ)` : null;
+          })
+          .filter(Boolean)
+          .join(', ')
+        return {
+          foodId: item.food.id,
+          name: item.food.name,
+          imageUrl: item.food.imageUrl,
+          price: Number(item.food.price),
+          quantity: item.quantity,
+          toppings: item.toppings,
+          toppingNames,
+          lineTotal: (Number(item.food.price) + item.toppings.reduce((sum, tCart) => {
+            const t = item.food.toppings?.find(x => x.id === tCart.id);
+            return sum + (t ? Number(t.price) * tCart.quantity : 0);
+          }, 0)) * item.quantity,
+        }
+      }),
     })
 
     navigate('/payment')
@@ -498,12 +572,13 @@ export default function RestaurantDetailPage() {
     setFoodForm({
       id: food.id,
       name: food.name,
-      imageUrl: food.imageUrl ?? '',
+      imageUrl: food.imageUrl || '',
       categoryId: food.categoryId ? String(food.categoryId) : '',
       price: String(food.price),
       defaultQuantity: String(food.defaultQuantity),
       currentQuantity: String(food.currentQuantity),
-      isAvailable: food.isAvailable,
+      isAvailable: Boolean(food.isAvailable),
+      toppingIds: food.toppings?.map(t => t.id) || [],
     })
   }
 
@@ -583,13 +658,104 @@ export default function RestaurantDetailPage() {
       setCategoryFeedback(null)
 
       await createCategory({ name, restaurantId })
-      setCategoryFeedback(`Đã thêm danh mục "${name}"`)
+      setCategoryFeedback('Đã thêm danh mục mới')
       setCategoryName('')
       await loadMenu()
     } catch (error) {
-      setMenuError(error instanceof Error ? error.message : 'Không thể tạo danh mục')
+      setMenuError(error instanceof Error ? error.message : 'Không thể lưu danh mục')
     } finally {
       setIsSavingCategory(false)
+    }
+  }
+
+  async function handleToppingSubmit(event: FormEvent) {
+    event.preventDefault()
+    
+    const trimmedName = toppingForm.name.trim()
+    const parsedPrice = Number(toppingForm.price)
+    const defaultQuantity = Number(toppingForm.defaultQuantity)
+    const currentQuantity = toppingForm.currentQuantity === '' ? defaultQuantity : Number(toppingForm.currentQuantity)
+    const startDate = toppingForm.startDate || undefined
+    const endDate = toppingForm.endDate || undefined
+    
+    const nextErrors: ToppingFormErrors = {}
+
+    if (!trimmedName) {
+      nextErrors.name = 'Tên Topping là bắt buộc'
+    }
+
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      nextErrors.price = 'Giá phải là số không âm'
+    }
+
+    if (!Number.isInteger(defaultQuantity) || defaultQuantity < 0) {
+      nextErrors.defaultQuantity = 'Số lượng mặc định phải là số nguyên không âm'
+    }
+
+    if (!Number.isInteger(currentQuantity) || currentQuantity < 0) {
+      nextErrors.currentQuantity = 'Số lượng hiện có phải là số nguyên không âm'
+    } else if (Number.isInteger(defaultQuantity) && defaultQuantity >= 0 && currentQuantity > defaultQuantity) {
+      nextErrors.currentQuantity = 'Số lượng hiện có không được lớn hơn số lượng mặc định'
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0]
+    if (startDate && startDate < todayStr) {
+      nextErrors.startDate = 'Ngày bắt đầu không được ở trong quá khứ'
+    }
+
+    if (endDate && endDate < todayStr) {
+      nextErrors.endDate = 'Ngày kết thúc không được ở trong quá khứ'
+    }
+
+    if (startDate && endDate && startDate > endDate) {
+      nextErrors.endDate = 'Ngày kết thúc phải sau ngày bắt đầu'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setToppingErrors(nextErrors)
+      return
+    }
+
+    try {
+      setIsSavingTopping(true)
+      setToppingErrors({})
+      setFoodFeedback(null)
+      setCategoryFeedback(null)
+      setToppingFeedback(null)
+
+      let savedTopping: Topping;
+      if (toppingForm.id) {
+        savedTopping = await updateTopping(toppingForm.id, {
+          name: trimmedName,
+          price: parsedPrice,
+          isAvailable: true,
+          defaultQuantity,
+          currentQuantity,
+          startDate,
+          endDate,
+        })
+        setRestaurantToppings(prev => prev.map(t => t.id === savedTopping.id ? savedTopping : t))
+        setToppingFeedback('Đã cập nhật Topping')
+      } else {
+        savedTopping = await createTopping(restaurantId, {
+          name: trimmedName,
+          price: parsedPrice,
+          isAvailable: true,
+          defaultQuantity,
+          currentQuantity,
+          startDate,
+          endDate,
+        })
+        setRestaurantToppings(prev => [...prev, savedTopping])
+        setToppingFeedback('Đã thêm Topping mới')
+      }
+      
+      setToppingForm({ name: '', price: '', defaultQuantity: '', currentQuantity: '', startDate: '', endDate: '' })
+      await loadMenu()
+    } catch (error) {
+      setMenuError(error instanceof Error ? error.message : 'Không thể lưu Topping')
+    } finally {
+      setIsSavingTopping(false)
     }
   }
 
@@ -604,9 +770,15 @@ export default function RestaurantDetailPage() {
 
       if (foodForm.id) {
         await updateFood(foodForm.id, payload)
+        if (foodForm.toppingIds.length >= 0) {
+          await assignToFood(foodForm.id, foodForm.toppingIds)
+        }
         setFoodFeedback(`Đã cập nhật món #${foodForm.id}`)
       } else {
-        await createFood(payload)
+        const newFood = await createFood(payload)
+        if (foodForm.toppingIds.length > 0 && newFood.id) {
+          await assignToFood(newFood.id, foodForm.toppingIds)
+        }
         setFoodFeedback('Đã thêm món ăn mới')
       }
 
@@ -616,6 +788,42 @@ export default function RestaurantDetailPage() {
       setMenuError(error instanceof Error ? error.message : 'Không thể lưu món ăn')
     } finally {
       setIsSavingFood(false)
+    }
+  }
+
+  async function handleDeleteFood() {
+    if (!foodForm.id) return
+    if (!window.confirm('Bạn có chắc chắn muốn xóa món ăn này? Hành động này không thể hoàn tác.')) return
+
+    try {
+      setIsSavingFood(true)
+      setFoodFeedback(null)
+      await deleteFood(foodForm.id)
+      setFoodFeedback('Đã xóa món ăn thành công')
+      setFoodForm(emptyFoodForm)
+      await loadMenu()
+    } catch (error) {
+      setMenuError(error instanceof Error ? error.message : 'Không thể xóa món ăn')
+    } finally {
+      setIsSavingFood(false)
+    }
+  }
+
+  async function handleDeleteTopping() {
+    if (!toppingForm.id) return
+    if (!window.confirm('Bạn có chắc chắn muốn xóa Topping này? Hành động này không thể hoàn tác.')) return
+
+    try {
+      setIsSavingTopping(true)
+      setToppingFeedback(null)
+      await deleteTopping(toppingForm.id)
+      setToppingFeedback('Đã xóa Topping thành công')
+      setToppingForm({ name: '', price: '', defaultQuantity: '', currentQuantity: '', startDate: '', endDate: '' })
+      await loadMenu()
+    } catch (error) {
+      setMenuError(error instanceof Error ? error.message : 'Không thể xóa Topping')
+    } finally {
+      setIsSavingTopping(false)
     }
   }
 
@@ -660,6 +868,12 @@ export default function RestaurantDetailPage() {
   return (
     <section className="restaurant-page">
       <ErrorModal isOpen={!!menuError} message={menuError || ''} onClose={() => setMenuError(null)} />
+      <ToppingModal
+        isOpen={activeFood !== null}
+        food={activeFood}
+        onClose={() => setActiveFood(null)}
+        onConfirm={handleToppingModalConfirm}
+      />
       <div className="restaurant-page-header">
         <Link to={backPath} className="button-secondary">
           {backLabel}
@@ -795,6 +1009,149 @@ export default function RestaurantDetailPage() {
           ) : null}
 
           {canManageFoods ? (
+            <div className="category-owner-panel mb-6 bg-blue-50/30 border-blue-100">
+              <div className="section-heading-row">
+                <h3>Quản lý Topping</h3>
+              </div>
+
+              {restaurantToppings.length > 0 ? (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {restaurantToppings.map((topping) => (
+                    <button
+                      key={topping.id} 
+                      type="button"
+                      onClick={() => {
+                        setToppingForm({ 
+                          id: topping.id, 
+                          name: topping.name, 
+                          price: String(topping.price), 
+                          defaultQuantity: String(topping.defaultQuantity || 0),
+                          currentQuantity: String(topping.currentQuantity || 0),
+                          startDate: topping.startDate || '',
+                          endDate: topping.endDate || ''
+                        });
+                        setToppingErrors({});
+                        setToppingFeedback(null);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 shadow-sm cursor-pointer transition-colors"
+                    >
+                      <span className="font-medium">{topping.name}</span>
+                      <span className="text-gray-400">|</span>
+                      <span className="text-brand font-bold">+{topping.price.toLocaleString('vi-VN')}đ</span>
+                      <span className="text-gray-400">|</span>
+                      <span className="text-xs text-gray-500 font-bold">Kho: {topping.currentQuantity}/{topping.defaultQuantity}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="empty-state">Chưa có Topping. Thêm Topping trước khi áp dụng cho món ăn.</p>
+              )}
+
+              <form className="category-owner-form" noValidate onSubmit={handleToppingSubmit}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="restaurant-field">
+                    <label htmlFor="toppingName">{toppingForm.id ? 'Cập nhật tên Topping' : 'Tên Topping mới'}</label>
+                    <input
+                      id="toppingName"
+                      value={toppingForm.name}
+                      onChange={(event) => {
+                        setToppingForm(prev => ({ ...prev, name: event.target.value }))
+                        setToppingErrors(prev => ({ ...prev, name: undefined }))
+                      }}
+                      placeholder="Ví dụ: Trân châu, Trứng thêm"
+                    />
+                    {toppingErrors.name ? <p className="field-error">{toppingErrors.name}</p> : null}
+                  </div>
+                  <div className="restaurant-field">
+                    <label htmlFor="toppingPrice">Giá Topping (VNĐ)</label>
+                    <input
+                      id="toppingPrice"
+                      type="number"
+                      step="1000"
+                      value={toppingForm.price}
+                      onChange={(event) => setToppingForm(prev => ({ ...prev, price: event.target.value }))}
+                      placeholder="Ví dụ: 5000"
+                    />
+                    {toppingErrors.price ? <p className="field-error">{toppingErrors.price}</p> : null}
+                  </div>
+                  <div className="restaurant-field">
+                    <label htmlFor="toppingQty">Tồn kho ban đầu</label>
+                    <input
+                      id="toppingQty"
+                      type="number"
+                      value={toppingForm.defaultQuantity}
+                      onChange={(event) => setToppingForm(prev => ({ ...prev, defaultQuantity: event.target.value }))}
+                      placeholder="Ví dụ: 100"
+                    />
+                    {toppingErrors.defaultQuantity ? <p className="field-error">{toppingErrors.defaultQuantity}</p> : null}
+                  </div>
+                  <div className="restaurant-field">
+                    <label htmlFor="toppingCurrentQty">Số lượng hiện có</label>
+                    <input
+                      id="toppingCurrentQty"
+                      type="number"
+                      value={toppingForm.currentQuantity}
+                      onChange={(event) => setToppingForm(prev => ({ ...prev, currentQuantity: event.target.value }))}
+                      placeholder="Số lượng thực tế còn"
+                    />
+                    {toppingErrors.currentQuantity ? <p className="field-error">{toppingErrors.currentQuantity}</p> : null}
+                  </div>
+                  <div className="restaurant-field">
+                    <label htmlFor="toppingStartDate">Ngày bắt đầu</label>
+                    <input
+                      id="toppingStartDate"
+                      type="date"
+                      value={toppingForm.startDate}
+                      onChange={(event) => setToppingForm(prev => ({ ...prev, startDate: event.target.value }))}
+                    />
+                    {toppingErrors.startDate ? <p className="field-error">{toppingErrors.startDate}</p> : null}
+                  </div>
+                  <div className="restaurant-field">
+                    <label htmlFor="toppingEndDate">Ngày kết thúc</label>
+                    <input
+                      id="toppingEndDate"
+                      type="date"
+                      value={toppingForm.endDate}
+                      onChange={(event) => setToppingForm(prev => ({ ...prev, endDate: event.target.value }))}
+                    />
+                    {toppingErrors.endDate ? <p className="field-error">{toppingErrors.endDate}</p> : null}
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <button type="submit" className="button-secondary flex-1" disabled={isSavingTopping}>
+                    {isSavingTopping ? 'Đang lưu...' : (toppingForm.id ? 'Cập nhật Topping' : 'Thêm Topping')}
+                  </button>
+                  {toppingForm.id && (
+                    <>
+                      <button 
+                        type="button" 
+                        className="button-outline text-red-600 border-red-200 hover:bg-red-50"
+                        onClick={handleDeleteTopping}
+                        disabled={isSavingTopping}
+                      >
+                        Xóa
+                      </button>
+                      <button 
+                        type="button" 
+                        className="button-outline"
+                        onClick={() => {
+                          setToppingForm({ name: '', price: '', defaultQuantity: '', currentQuantity: '', startDate: '', endDate: '' });
+                          setToppingErrors({});
+                          setToppingFeedback(null);
+                        }}
+                      >
+                        Hủy
+                      </button>
+                    </>
+                  )}
+                </div>
+                {Object.keys(toppingErrors).length > 0 ? <p className="field-error mt-2">Vui lòng kiểm tra lại thông tin</p> : null}
+                {toppingFeedback ? <p className="field-success mt-2">{toppingFeedback}</p> : null}
+              </form>
+            </div>
+          ) : null}
+
+          {canManageFoods ? (
             <form className="food-owner-form mb-6" noValidate onSubmit={handleFoodSubmit}>
               <div className="restaurant-form-grid">
                 <div className="restaurant-field">
@@ -883,13 +1240,53 @@ export default function RestaurantDetailPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center mb-4">
-                {foodForm.id ? (
-                  <button type="button" className="button-secondary" onClick={resetFoodForm}>
-                    Hủy sửa
-                  </button>
-                ) : null}
-                <button type="submit" className="button-primary" disabled={isSavingFood || categories.length === 0}>
+              {restaurantToppings.length > 0 && (
+                <div className="mt-6 mb-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-3">Chọn Topping áp dụng cho món này:</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {restaurantToppings.map(topping => {
+                      const isSelected = foodForm.toppingIds.includes(topping.id)
+                      return (
+                        <label key={topping.id} className={`flex items-center gap-2 p-2 border rounded-md cursor-pointer transition-colors ${isSelected ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-brand/50'}`}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const checked = e.target.checked
+                              setFoodForm(prev => ({
+                                ...prev,
+                                toppingIds: checked 
+                                  ? [...prev.toppingIds, topping.id]
+                                  : prev.toppingIds.filter(id => id !== topping.id)
+                              }))
+                            }}
+                            className="w-4 h-4 text-brand rounded border-gray-300 focus:ring-brand"
+                          />
+                          <span className="text-sm font-medium text-gray-700">{topping.name} (+{topping.price.toLocaleString()}đ)</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center mb-4 mt-6">
+                {foodForm.id && (
+                  <div className="flex gap-2">
+                    <button type="button" className="button-secondary" onClick={resetFoodForm}>
+                      Hủy sửa
+                    </button>
+                    <button
+                      type="button"
+                      className="button-outline text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={handleDeleteFood}
+                      disabled={isSavingFood}
+                    >
+                      Xóa món
+                    </button>
+                  </div>
+                )}
+                <button type="submit" className="button-primary ml-auto" disabled={isSavingFood || categories.length === 0}>
                   {isSavingFood ? 'Đang lưu...' : foodForm.id ? 'Cập nhật món' : 'Thêm món ăn'}
                 </button>
               </div>
@@ -921,15 +1318,19 @@ export default function RestaurantDetailPage() {
                                       style={foodPhotoStyle(food.imageUrl, food.id)}
                                     >
                                       <span className="absolute left-3 bottom-3 bg-black/60 text-white rounded-full text-[10px] px-2.5 py-1 font-semibold z-10">
-                                        {isFoodInStock(food) ? 'Còn' : 'Hết'}
+                                        {isFoodInStock(food) ? `Còn ${food.currentQuantity || 0}` : 'Hết'}
                                       </span>
                                     </div>
                                     <div className="tw-food-body p-3 flex flex-col gap-1">
                                       <h3 className="font-bold text-gray-900 text-sm line-clamp-1 m-0" title={food.name}>{food.name}</h3>
                                       <div className="flex justify-between items-center mt-1">
                                         <span className="font-extrabold text-[gray-900] text-sm">{food.price.toLocaleString('vi-VN')} đ</span>
-                                        {canManageFoods && (
+                                        {canManageFoods ? (
                                           <span className="text-[10px] text-gray-500 font-medium">Kho: {food.currentQuantity}/{food.defaultQuantity}</span>
+                                        ) : (
+                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${!isFoodInStock(food) ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+                                            {!isFoodInStock(food) ? 'Hết món' : `Còn ${food.currentQuantity || 0}`}
+                                          </span>
                                         )}
                                       </div>
                                     </div>
@@ -938,23 +1339,18 @@ export default function RestaurantDetailPage() {
                                   <div className="tw-quantity-row p-3 pt-0 flex flex-wrap items-center justify-between gap-2 mt-auto">
                                     {canOrder && (
                                       <>
-                                        {(cart[food.id] || 0) > 0 ? (
+                                        {Object.values(cart).filter(c => c.foodId === food.id).length > 0 ? (
                                           <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-full px-2 py-1">
-                                            <button
-                                              type="button"
-                                              className="w-6 h-6 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center cursor-pointer text-gray-600 border border-gray-200 transition-colors"
-                                              onClick={() => updateCart(food, (cart[food.id] || 0) - 1)}
-                                            >
-                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M20 12H4" /></svg>
-                                            </button>
-                                            <strong className="text-xs font-bold text-gray-800 w-4 text-center">{cart[food.id]}</strong>
+                                            <strong className="text-xs font-bold text-gray-800 text-center px-2">
+                                              {Object.values(cart).filter(c => c.foodId === food.id).reduce((sum, c) => sum + c.quantity, 0)} trong giỏ
+                                            </strong>
                                           </div>
                                         ) : <span />}
                                         <button
                                           type="button"
                                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand hover:bg-brand-dark disabled:bg-gray-100 disabled:text-gray-400 text-white rounded-full text-[11px] font-bold transition-all cursor-pointer border-0 shadow-sm"
-                                          onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
-                                          disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
+                                          onClick={() => handleAddFoodClick(food)}
+                                          disabled={!isFoodInStock(food)}
                                         >
                                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
                                           Thêm
@@ -1004,23 +1400,18 @@ export default function RestaurantDetailPage() {
                               <div className="tw-quantity-row p-3 pt-0 flex flex-wrap items-center justify-between gap-2 mt-auto">
                                 {canOrder && (
                                   <>
-                                    {(cart[food.id] || 0) > 0 ? (
+                                    {Object.values(cart).filter(c => c.foodId === food.id).length > 0 ? (
                                       <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-full px-2 py-1">
-                                        <button
-                                          type="button"
-                                          className="w-6 h-6 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center cursor-pointer text-gray-600 border border-gray-200 transition-colors"
-                                          onClick={() => updateCart(food, (cart[food.id] || 0) - 1)}
-                                        >
-                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M20 12H4" /></svg>
-                                        </button>
-                                        <strong className="text-xs font-bold text-gray-800 w-4 text-center">{cart[food.id]}</strong>
+                                        <strong className="text-xs font-bold text-gray-800 text-center px-2">
+                                          {Object.values(cart).filter(c => c.foodId === food.id).reduce((sum, c) => sum + c.quantity, 0)} trong giỏ
+                                        </strong>
                                       </div>
                                     ) : <span />}
                                     <button
                                       type="button"
                                       className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand hover:bg-brand-dark disabled:bg-gray-100 disabled:text-gray-400 text-white rounded-full text-[11px] font-bold transition-all cursor-pointer border-0 shadow-sm"
-                                      onClick={() => updateCart(food, (cart[food.id] || 0) + 1)}
-                                      disabled={!isFoodInStock(food) || (cart[food.id] || 0) >= Number(food.currentQuantity || 0)}
+                                      onClick={() => handleAddFoodClick(food)}
+                                      disabled={!isFoodInStock(food)}
                                     >
                                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
                                       Thêm
@@ -1058,14 +1449,55 @@ export default function RestaurantDetailPage() {
                   </div>
 
                   <div className="restaurant-cart-lines">
-                    {cartItems.map((item) => (
-                      <div key={item.food.id} className="restaurant-cart-line">
-                        <span>{item.food.name}</span>
-                        <strong>
-                          {item.quantity} x {formatMoney(Number(item.food.price))} đ
-                        </strong>
-                      </div>
-                    ))}
+                    {cartItems.map((item) => {
+                      const toppingNames = item.toppings
+                        .map(tCart => {
+                           const tDef = item.food.toppings?.find(t => t.id === tCart.id);
+                           return tDef ? `${tDef.name} x${tCart.quantity} (+${formatMoney(Number(tDef.price) * tCart.quantity)} đ)` : null;
+                        })
+                        .filter(Boolean)
+                        .join(', ')
+
+                      let toppingTotal = 0;
+                      if (item.food.toppings && item.toppings.length > 0) {
+                        toppingTotal = item.toppings.reduce((sum, tCart) => {
+                          const tDef = item.food.toppings?.find(x => x.id === tCart.id);
+                          return sum + (tDef ? Number(tDef.price) * tCart.quantity : 0);
+                        }, 0);
+                      }
+
+                      return (
+                        <div key={item.key} className="restaurant-cart-line flex justify-between items-start mb-2 group">
+                          <div className="flex items-start gap-2 max-w-[70%]">
+                            <div className="flex items-center gap-1 mt-0.5 shrink-0 bg-gray-50 rounded-full px-1 border border-gray-100">
+                              <button
+                                type="button"
+                                className="w-5 h-5 rounded-full bg-white hover:bg-gray-200 text-gray-600 border-0 cursor-pointer flex items-center justify-center transition-colors shadow-sm"
+                                onClick={() => updateCart(item.food, item.quantity - 1, item.toppings, item.key)}
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M20 12H4" /></svg>
+                              </button>
+                              <span className="text-xs font-bold w-4 text-center select-none">{item.quantity}</span>
+                              <button
+                                type="button"
+                                className="w-5 h-5 rounded-full bg-brand hover:bg-brand-dark text-white border-0 cursor-pointer flex items-center justify-center transition-colors shadow-sm disabled:opacity-50"
+                                onClick={() => updateCart(item.food, item.quantity + 1, item.toppings, item.key)}
+                                disabled={item.quantity >= Number(item.food.currentQuantity || 0)}
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
+                              </button>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-gray-900 leading-snug">{item.food.name}</span>
+                              {toppingNames && <span className="text-xs text-gray-500">{toppingNames}</span>}
+                            </div>
+                          </div>
+                          <strong className="text-sm">
+                            {formatMoney((Number(item.food.price) + toppingTotal) * item.quantity)} đ
+                          </strong>
+                        </div>
+                      )
+                    })}
                     {cartItems.length === 0 ? <p className="empty-state">Chọn món bên dưới để đặt hàng.</p> : null}
                   </div>
 

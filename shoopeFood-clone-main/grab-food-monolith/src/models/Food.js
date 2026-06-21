@@ -34,11 +34,17 @@ const Food = sequelize.define(
       type: DataTypes.DATEONLY,
       field: "quantity_reset_date",
     },
+    deletedAt: {
+      type: DataTypes.DATE,
+      field: "deleted_at",
+    },
   },
   {
     tableName: "food_items",
     createdAt: false,
     updatedAt: false,
+    paranoid: true,
+    deletedAt: "deletedAt",
     indexes: [
       { name: "idx_food_items_category", fields: ["category_id"] },
       { name: "idx_food_items_quantity_reset_date", fields: ["quantity_reset_date"] },

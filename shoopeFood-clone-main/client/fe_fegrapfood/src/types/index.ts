@@ -92,6 +92,27 @@ export type Food = {
   defaultQuantity: number
   currentQuantity: number
   quantityResetDate: string | null
+  toppings?: Topping[] // Included when fetching food details
+}
+
+export type Topping = {
+  id: number
+  restaurantId: number
+  name: string
+  price: number
+  isAvailable: boolean
+  defaultQuantity: number
+  currentQuantity: number
+  startDate: string | null
+  endDate: string | null
+}
+
+export type OrderItemTopping = {
+  id: number
+  toppingId: number
+  toppingName: string
+  priceAtOrder: number
+  quantity: number
 }
 
 export type Category = {
@@ -103,6 +124,7 @@ export type Category = {
 export type OrderItemPayload = {
   foodId: number
   quantity: number
+  toppings?: { id: number; quantity: number }[]
 }
 
 export type CreateOrderPayload = {
@@ -115,6 +137,7 @@ export type CreateOrderPayload = {
   discountAmount?: number
   taxAmount?: number
   idempotencyKey?: string
+  note?: string
   items: OrderItemPayload[]
 }
 
@@ -153,6 +176,7 @@ export type OrderItem = {
   quantity: number
   priceAtOrder: number
   lineTotal: number
+  toppings?: OrderItemTopping[]
 }
 
 export type Order = {
@@ -184,6 +208,7 @@ export type Order = {
   paymentStatus: string | null
   items: OrderItem[]
   version: number
+  note?: string | null
   cancelReason?: string | null
   cancelledByRole?: string | null
   cancelledByUserId?: number | null

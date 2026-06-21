@@ -16,7 +16,8 @@ import { getCartDraft, saveCartDraft } from '../utils/cartDraft'
 import { restaurantCoverStyle, restaurantThumbStyle } from '../utils/restaurantImage'
 import type { AddressDetail, Category, CreateOrderPayload, Food, Order, Restaurant } from '../types'
 
-type CartState = Record<number, number>
+import { ToppingModal } from '../components/common/ToppingModal'
+import type { CartState } from '../utils/cartDraft'
 
 type CheckoutState = {
   receiverAddress: string
@@ -178,6 +179,7 @@ export default function HomePage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [foods, setFoods] = useState<Food[]>([])
+  const [activeFood, setActiveFood] = useState<Food | null>(null)
   const [activeRestaurantId, setActiveRestaurantId] = useState<number | null>(() => {
     const draft = getCartDraft()
     return draft?.restaurantId || null
@@ -326,7 +328,7 @@ export default function HomePage() {
     [deliveryPoint, visibleRestaurants],
   )
   const previewRestaurants = useMemo(() => rankedRestaurants.slice(0, 6), [rankedRestaurants])
-  const hasCartQuantities = useMemo(() => Object.values(cart).some((quantity) => quantity > 0), [cart])
+  const hasCartQuantities = useMemo(() => Object.values(cart).some((item) => item.quantity > 0), [cart])
   const featuredRestaurants = useMemo(
     () =>
       restaurants
@@ -405,17 +407,36 @@ export default function HomePage() {
 
   const cartItems = useMemo(
     () =>
-      menuFoods
-        .map((food) => ({
-          food,
-          quantity: cart[food.id] || 0,
-        }))
-        .filter((item) => item.quantity > 0),
+      Object.entries(cart)
+        .map(([key, item]) => {
+          const food = menuFoods.find(f => f.id === item.foodId)
+          if (!food) return null
+          const today = new Date()
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+          const validToppings = item.toppings.filter(tCart => {
+            const tDef = food.toppings?.find(t => t.id === tCart.id);
+            if (!tDef || !tDef.isAvailable) return false;
+            if (tDef.startDate && tDef.startDate > todayStr) return false;
+            if (tDef.endDate && tDef.endDate < todayStr) return false;
+            return true;
+          })
+          return { key, food, quantity: item.quantity, toppings: validToppings }
+        })
+        .filter(Boolean) as { key: string; food: Food; quantity: number; toppings: { id: number; quantity: number }[] }[],
     [cart, menuFoods],
   )
 
   const subtotal = useMemo(
-    () => cartItems.reduce((total, item) => total + Number(item.food.price || 0) * item.quantity, 0),
+    () => cartItems.reduce((total, item) => {
+      let toppingTotal = 0;
+      if (item.food.toppings && item.toppings.length > 0) {
+        toppingTotal = item.toppings.reduce((sum, tCart) => {
+          const tDef = item.food.toppings?.find(x => x.id === tCart.id);
+          return sum + (tDef ? Number(tDef.price) * tCart.quantity : 0);
+        }, 0);
+      }
+      return total + (Number(item.food.price) + toppingTotal) * item.quantity;
+    }, 0),
     [cartItems],
   )
   const distanceKm = Number(checkout.distanceKm) || 0
@@ -520,21 +541,45 @@ export default function HomePage() {
     setErrorMessage(hasValidCoordinates ? null : 'Dia chi da chon chua co toa do hop le')
   }
 
-  function updateFoodQuantity(food: Food, nextQuantity: number) {
+  function updateCart(food: Food, nextQuantity: number, toppings: { id: number; quantity: number }[] = [], existingKey?: string) {
     const maxQuantity = Math.max(0, Number(food.currentQuantity || 0))
     const normalizedQuantity = Math.max(0, Math.min(nextQuantity, maxQuantity))
+    const itemKey = existingKey || (toppings.length > 0 ? `${food.id}-${toppings.map(t => `${t.id}x${t.quantity}`).sort().join(',')}` : String(food.id))
 
     setCart((current) => {
       const nextCart = { ...current }
 
       if (normalizedQuantity === 0) {
-        delete nextCart[food.id]
+        delete nextCart[itemKey]
       } else {
-        nextCart[food.id] = normalizedQuantity
+        nextCart[itemKey] = {
+          foodId: food.id,
+          quantity: normalizedQuantity,
+          toppings,
+        }
       }
 
       return nextCart
     })
+  }
+
+  function handleAddFoodClick(food: Food) {
+    if (food.toppings && food.toppings.length > 0) {
+      setActiveFood(food)
+    } else {
+      const currentQuantity = Object.values(cart)
+        .filter(item => item.foodId === food.id)
+        .reduce((sum, item) => sum + item.quantity, 0)
+      
+      updateCart(food, currentQuantity + 1, [])
+    }
+  }
+
+  function handleToppingModalConfirm(food: Food, quantity: number, toppings: { id: number; quantity: number }[]) {
+    const itemKey = toppings.length > 0 ? `${food.id}-${toppings.map(t => `${t.id}x${t.quantity}`).sort().join(',')}` : String(food.id)
+    const existingQuantity = cart[itemKey]?.quantity || 0
+    updateCart(food, existingQuantity + quantity, toppings)
+    setActiveFood(null)
   }
 
   function useCurrentLocation() {
@@ -674,14 +719,28 @@ export default function HomePage() {
         taxAmount: 0,
         totalAmount,
       },
-      items: cartItems.map((item) => ({
-        foodId: item.food.id,
-        name: item.food.name,
-        imageUrl: item.food.imageUrl ?? null,
-        price: Number(item.food.price),
-        quantity: item.quantity,
-        lineTotal: Number(item.food.price) * item.quantity,
-      })),
+      items: cartItems.map((item) => {
+        const toppingNames = item.toppings
+          .map(tCart => {
+             const tDef = item.food.toppings?.find(t => t.id === tCart.id);
+             return tDef ? `${tDef.name} x${tCart.quantity} (+${formatPrice(Number(tDef.price) * tCart.quantity).replace(' ₫', ' đ')})` : null;
+          })
+          .filter(Boolean)
+          .join(', ')
+        return {
+          foodId: item.food.id,
+          name: item.food.name,
+          imageUrl: item.food.imageUrl ?? null,
+          price: Number(item.food.price),
+          quantity: item.quantity,
+          toppings: item.toppings,
+          toppingNames,
+          lineTotal: (Number(item.food.price) + item.toppings.reduce((sum, tCart) => {
+            const t = item.food.toppings?.find(x => x.id === tCart.id);
+            return sum + (t ? Number(t.price) * tCart.quantity : 0);
+          }, 0)) * item.quantity,
+        }
+      }),
     })
 
     navigate('/payment')
@@ -930,7 +989,12 @@ export default function HomePage() {
                       <span className="block p-3">
                         <strong className="block truncate text-xs font-black text-gray-900">{food.name}</strong>
                         <span className="mt-1 block truncate text-[10px] font-bold text-gray-500">{restaurant?.name || 'Nhà hàng'}</span>
-                        <span className="mt-2 block text-xs font-black text-[gray-900]">{formatPrice(Number(food.price))}</span>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="block text-xs font-black text-[gray-900]">{formatPrice(Number(food.price))}</span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${(!food.isAvailable || Number(food.currentQuantity) <= 0) ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+                            {(!food.isAvailable || Number(food.currentQuantity) <= 0) ? 'Hết' : `Còn ${food.currentQuantity || 0}`}
+                          </span>
+                        </div>
                       </span>
                     </button>
                   )
@@ -994,26 +1058,18 @@ export default function HomePage() {
                   </div>
 
                   <div className="tw-quantity-row p-4 pt-0 flex items-center justify-between gap-2 mt-auto">
-                    {quantity > 0 ? (
+                    {Object.values(cart).filter(c => c.foodId === food.id).length > 0 ? (
                       <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-full px-2 py-1">
-                        <button
-                          type="button"
-                          className="w-6 h-6 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center cursor-pointer text-gray-600 border border-gray-200 transition-colors"
-                          onClick={() => updateFoodQuantity(food, quantity - 1)}
-                          aria-label="Giảm"
-                        >
-                          <Icon name="minus" />
-                        </button>
-                        <strong className="text-xs font-bold text-gray-800 w-4 text-center">{quantity}</strong>
+                        <strong className="text-xs font-bold text-gray-800 text-center px-2">
+                          {Object.values(cart).filter(c => c.foodId === food.id).reduce((sum, c) => sum + c.quantity, 0)} trong giỏ
+                        </strong>
                       </div>
-                    ) : (
-                      <span />
-                    )}
+                    ) : <span />}
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 px-4 py-1.5 bg-brand hover:bg-brand-dark disabled:bg-gray-100 disabled:text-gray-400 text-white rounded-full text-xs font-bold transition-all cursor-pointer border-0 shadow-sm"
-                      onClick={() => updateFoodQuantity(food, quantity + 1)}
-                      disabled={isSoldOut || quantity >= remaining}
+                      onClick={() => handleAddFoodClick(food)}
+                      disabled={isSoldOut}
                     >
                       <Icon name="plus" />
                       Thêm
@@ -1048,17 +1104,28 @@ export default function HomePage() {
 
           <div className="tw-cart-list flex flex-col gap-3 max-h-[30vh] overflow-y-auto mb-4 pr-1">
             {cartItems.map((item) => (
-              <div key={item.food.id} className="tw-cart-item flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+              <div key={item.key} className="tw-cart-item flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
                 <div className="min-w-0 flex-1">
                   <strong className="block text-xs font-bold text-gray-800 truncate">{item.food.name}</strong>
+                  {item.toppings && item.toppings.length > 0 && (
+                    <span className="text-[10px] text-gray-500 block truncate mt-0.5">
+                      {item.toppings.map(t => {
+                        const tDef = item.food.toppings?.find(x => x.id === t.id)
+                        return tDef ? `${tDef.name} x${t.quantity}` : ''
+                      }).filter(Boolean).join(', ')}
+                    </span>
+                  )}
                   <span className="text-[11px] text-gray-500 font-semibold mt-0.5 block">
-                    {item.quantity} x {formatPrice(Number(item.food.price))}
+                    {item.quantity} x {formatPrice(Number(item.food.price) + item.toppings.reduce((sum, tCart) => {
+                      const t = item.food.toppings?.find(x => x.id === tCart.id);
+                      return sum + (t ? Number(t.price) * tCart.quantity : 0);
+                    }, 0))}
                   </span>
                 </div>
                 <button
                   type="button"
                   className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors border-0 bg-transparent cursor-pointer"
-                  onClick={() => updateFoodQuantity(item.food, 0)}
+                  onClick={() => updateCart(item.food, 0, item.toppings, item.key)}
                   aria-label="Xóa món"
                 >
                   <Icon name="trash" />
@@ -1228,6 +1295,12 @@ export default function HomePage() {
           ) : null}
         </aside>
       </div>
+      <ToppingModal
+        isOpen={activeFood !== null}
+        food={activeFood}
+        onClose={() => setActiveFood(null)}
+        onConfirm={handleToppingModalConfirm}
+      />
     </section>
   )
 }

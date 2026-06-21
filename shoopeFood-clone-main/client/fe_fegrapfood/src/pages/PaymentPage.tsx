@@ -23,6 +23,7 @@ export default function PaymentPage() {
   const { user } = useAuth()
   const [draft] = useState(() => getCheckoutDraft())
   const [method, setMethod] = useState<PaymentMethod>('CASH')
+  const [note, setNote] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -39,7 +40,11 @@ export default function PaymentPage() {
     try {
       setErrorMessage(null)
       setIsSubmitting(true)
-      const order = await createOrder(buildCreateOrderPayloadFromDraft(draft))
+      const payload = buildCreateOrderPayloadFromDraft(draft)
+      if (note.trim()) {
+        payload.note = note.trim()
+      }
+      const order = await createOrder(payload)
       setLastOrderId(order.id)
       clearCheckoutDraft()
       notifyCartCleared()
@@ -105,7 +110,10 @@ export default function PaymentPage() {
                     />
                     <div className="payment-item__body">
                       <h3>{item.name}</h3>
-                      <p>
+                      {item.toppingNames && (
+                        <p className="text-xs text-gray-500 mt-0.5">{item.toppingNames}</p>
+                      )}
+                      <p className="mt-1">
                         {item.quantity} x {formatCurrency(item.price)}
                       </p>
                     </div>
@@ -130,6 +138,17 @@ export default function PaymentPage() {
                   {draft.receiver.address}
                 </div>
               </div>
+            </section>
+
+            <section className="payment-card mt-6">
+              <p className="payment-section-label">Ghi chú cho nhà hàng</p>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Ví dụ: Ít cay, không hành..."
+                className="w-full mt-2 p-3 border border-gray-200 rounded-xl resize-none text-sm focus:outline-none focus:border-brand"
+                rows={3}
+              />
             </section>
           </main>
 

@@ -15,6 +15,9 @@ const Payment = require("./Payment");
 const PaymentTransaction = require("./PaymentTransaction");
 const Review = require("./Review");
 const UserAddress = require("./UserAddress");
+const Topping = require("./Topping");
+const FoodTopping = require("./FoodTopping");
+const OrderItemTopping = require("./OrderItemTopping");
 
 User.belongsToMany(Role, { through: UserRole, foreignKey: "userId", otherKey: "roleId", as: "roles" });
 Role.belongsToMany(User, { through: UserRole, foreignKey: "roleId", otherKey: "userId", as: "users" });
@@ -73,6 +76,17 @@ PaymentTransaction.belongsTo(Payment, { foreignKey: "paymentId", targetKey: "id"
 Order.hasMany(Review, { foreignKey: "orderId", sourceKey: "id", as: "reviews" });
 Review.belongsTo(Order, { foreignKey: "orderId", targetKey: "id", as: "order" });
 
+Restaurant.hasMany(Topping, { foreignKey: "restaurantId", sourceKey: "id", as: "toppings" });
+Topping.belongsTo(Restaurant, { foreignKey: "restaurantId", targetKey: "id", as: "restaurant" });
+
+Food.belongsToMany(Topping, { through: FoodTopping, foreignKey: "foodId", otherKey: "toppingId", as: "toppings" });
+Topping.belongsToMany(Food, { through: FoodTopping, foreignKey: "toppingId", otherKey: "foodId", as: "foods" });
+
+OrderItem.hasMany(OrderItemTopping, { foreignKey: "orderItemId", sourceKey: "id", as: "toppings" });
+OrderItemTopping.belongsTo(OrderItem, { foreignKey: "orderItemId", targetKey: "id", as: "orderItem" });
+
+OrderItemTopping.belongsTo(Topping, { foreignKey: "toppingId", targetKey: "id", as: "toppingInfo" });
+
 module.exports = {
   sequelize,
   User,
@@ -91,4 +105,7 @@ module.exports = {
   PaymentTransaction,
   Review,
   UserAddress,
+  Topping,
+  FoodTopping,
+  OrderItemTopping,
 };

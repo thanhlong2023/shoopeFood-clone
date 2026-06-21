@@ -1,5 +1,5 @@
 const { Op } = require("sequelize");
-const { Food, Category } = require("../models");
+const { Food, Category, Topping } = require("../models");
 
 const normalizeFood = (item) => ({
   id: item.id,
@@ -11,6 +11,17 @@ const normalizeFood = (item) => ({
   defaultQuantity: Number(item.defaultQuantity || 0),
   currentQuantity: Number(item.currentQuantity || 0),
   quantityResetDate: item.quantityResetDate || null,
+  toppings: item.toppings ? item.toppings.map(t => ({
+    id: t.id,
+    restaurantId: t.restaurantId,
+    name: t.name,
+    price: Number(t.price),
+    isAvailable: Boolean(t.isAvailable),
+    defaultQuantity: Number(t.defaultQuantity || 0),
+    currentQuantity: Number(t.currentQuantity || 0),
+    startDate: t.startDate || null,
+    endDate: t.endDate || null
+  })) : [],
 });
 
 const parseOptionalNonNegativeInteger = (value, fieldName) => {
@@ -29,6 +40,7 @@ const parseOptionalNonNegativeInteger = (value, fieldName) => {
 exports.getAllFoods = async (req, res) => {
   try {
     await Food.resetExpiredDailyQuantities();
+    await Topping.resetExpiredDailyQuantities();
 
     const { restaurantId, categoryId, name, isAvailable } = req.query;
     
@@ -64,6 +76,12 @@ exports.getAllFoods = async (req, res) => {
       });
     }
 
+    includeOptions.push({
+      model: Topping,
+      as: 'toppings',
+      through: { attributes: [] }
+    });
+
     const items = await Food.findAll({ 
       where: whereClause,
       include: includeOptions,
@@ -79,6 +97,7 @@ exports.getAllFoods = async (req, res) => {
 exports.getFoodById = async (req, res) => {
   try {
     await Food.resetExpiredDailyQuantities();
+    await Topping.resetExpiredDailyQuantities();
 
     const id = Number(req.params.id);
     const item = await Food.findByPk(id);
